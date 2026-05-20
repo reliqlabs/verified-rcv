@@ -1,0 +1,57 @@
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# --- IDE state ---
+.idea/
+.vscode/
+*.iml
+*.sublime-workspace
+*.sublime-project
+
+# --- Python (any tooling scripts will run via `uv run --script` with inline deps) ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Rust ---
+target/
+Cargo.lock.bak
+
+# --- Editor / OS scratch ---
+*.swp
+*.swo
+*~
+.directory
+nul
+
+# --- Local secrets ---
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+secrets.toml
+
+# --- Lean build outputs ---
+.lake/
+lake-packages/
+*.olean
+build/
+
+# --- Apalache working dirs ---
+_apalache-out/
+
+# NOTE: .colosseum/ is INTENTIONALLY tracked here.
+# It contains the methodology validation artifacts (intent.md, ledger.md,
+# change records, adversarial reports) that are the deliverable of this repo.
+# This is the opposite of colosseum's own .gitignore policy — there, .colosseum/
+# is per-project state; here, .colosseum/ IS the project.
