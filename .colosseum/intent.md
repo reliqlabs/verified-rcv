@@ -15,6 +15,7 @@
 - v0.3.1 — 2026-05-16 MINOR: revision against Round 3a 3rd adversarial pass (subagent dispatch + claude subagent; 4 critical + 12 serious themes from `.colosseum/attacks/pattern-b-v0.3.0-2026-05-16T125913Z/synthesis.md`). MINOR because the pass adds 4 new failure modes (§4.10-§4.13), 3 new scenarios (§8.8-§8.10), and several new defined symbols/predicates (`EnclaveImage` typing, `image_registration_honest` predicate, `ballots@end_at` definition, `input_fidelity` conjunct, `dstack_kms_trust` axiom). No invariant is weakened. The 4 critical fixes (EnclaveImage typing, `image_registration_honest` definition, B10 conjuncts, Tally_spec determinism) close soundness gaps in the prior load-bearing claims by adding precision, not by removing constraints.
 - v0.3.2 — 2026-05-19 PATCH: encoding-discipline tightenings to §2.5 Block E1 and §3.2 B2 per the v10 baseline rerun finding (`.colosseum/specs/synthesis-2026-05-19/baseline-vs-rerun.md`). Adds two protocol-layer-model-checker constraints (A2: enclave-side state required for B10 projection to be checkable; A3: B2 must be encoded as a checkable invariant over a snapshot variable, not action-guard shadow). PATCH because no invariant content changes, only the encoding-discipline guidance for downstream Quint/TLA+ models is made explicit. Tests the convergence hypothesis: do voices that previously diverged on these axes converge once the intent specifies the encoding requirement.
 - v0.3.3 — 2026-05-20 PATCH: encoding-discipline tightenings to §3.1 S2 and §2.5 Stage 2 per the Lean cross-critique cycle (`.colosseum/specs/lean-cross-critique-2026-05-20/meta-analysis.md` + `.colosseum/specs/lean-critique-revised-canonical-2026-05-20/meta-analysis.md`). Adds two downstream-Lean-spec constraints (A4: `CandidateSet` distinctness MUST be a hypothesis or bundled type-level invariant in downstream Lean specs, since S7's conservation equation fails for duplicate-containing `cs`; A5: downstream Lean specs declaring `IRV_spec` opaque MUST axiomatize `ballots_tallied = |valid_ballots|`, since the opaque declaration does not capture this Stage-2 obligation). PATCH because no invariant content changes; both notes make existing intent claims (S2 distinctness; Stage 2 ballots_tallied definition) inspectable at the Lean encoding layer. Convergent across the 3 Lean voices' re-cross-critique (kimi + magistral picked A4; gpt-5.5 picked A5).
+- v0.3.4 — 2026-05-23 PATCH: documents the implicit length relation between Stage 2's `eliminated_by_round` and `per_round_counts` lists (kimi's optional note from the re-cross-critique meta-analysis Q3). The relation `eliminated_by_round.length = per_round_counts.length` holds in the typical case (one elimination per non-terminal round + a final round that records the winning count without further elimination), with the all-abstain boundary case being `0 = 1` round (single zero-count round, no eliminations) — wait, that's `eliminated_by_round.length = 0, per_round_counts.length = 1`, so the relation is `per_round_counts.length = eliminated_by_round.length + 1` in non-trivial cases and `per_round_counts.length = eliminated_by_round.length` only when batch elimination produces multi-winner co-winners (terminal tie). Encoded as a clarifying note in §2.5 Stage 2 plus encoding-discipline note A6 (downstream Lean specs MAY but are not required to encode this as a well-formedness predicate). PATCH because no invariant content changes; the relation is a derivable property of the existing IRV algorithm.
 
 See the Revision Log section near the end for full per-bump notes.
 
@@ -201,6 +202,25 @@ axiom irv_ballots_tallied :
 ```
 
 Without this axiom, an opaque `IRV_spec` can return any `Nat` for `ballots_tallied` while the composition still typechecks, leaving S7 and S8 making claims about a value that is not constrained by Stage 2's specification. The axiom restores the Stage-2 obligation that this paragraph's `:=` defines. Downstream Quint specs that nondeterministically choose a `ballots_tallied` value in the protocol model's tally action implicitly enforce this via the action's well-formedness conjunct; the explicit axiom is the Lean-side equivalent.
+
+**Length relation between `eliminated_by_round` and `per_round_counts`** (added v0.3.4 from lean-critique-revised-canonical-2026-05-20 meta-analysis Q3 / kimi optional notes): the IRV recursion produces `per_round_counts.length` rounds total. In each non-terminal round, exactly one batch of candidates is eliminated and recorded in `eliminated_by_round`; the terminal round (either majority-found or single-candidate-remaining or all-remaining-tied) does NOT add an entry to `eliminated_by_round`. Therefore:
+
+- **Typical case** (majority found or single-candidate-remaining at round N): `eliminated_by_round.length = per_round_counts.length - 1`. The terminal round records the winning count without recording further elimination.
+- **Terminal-tie boundary case** (all remaining tied at round N, batch-elimination would empty remaining → co-winners): `eliminated_by_round.length = per_round_counts.length - 1` STILL holds because round N's count map is recorded but no further elimination happens.
+- **All-abstain boundary case** (`|valid_ballots| = 0`): `per_round_counts = [{c: 0 for c in candidates}]` (single round, all candidates with zero votes), `eliminated_by_round = []`. So `eliminated_by_round.length = 0`, `per_round_counts.length = 1`, relation `per_round_counts.length = eliminated_by_round.length + 1` holds.
+
+In all cases: **`per_round_counts.length = eliminated_by_round.length + 1`**.
+
+**Encoding discipline (v0.3.4 from lean-critique-revised-canonical-2026-05-20 Q3 finding A6)**: downstream Lean specs MAY encode this length relation as a well-formedness predicate alongside S6–S9. It is not strictly required (S9's `i < j` formulation handles index bounds via Option-pattern matching), but encoding it strengthens the structural reading of `IRV_spec`'s output and closes a small gap in S9's preconditions. If encoded, the axiom shape would be:
+
+```lean
+axiom irv_round_eliminated_lengths :
+  ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
+    (IRV_spec valid cs).per_round_counts.length =
+      (IRV_spec valid cs).eliminated_by_round.length + 1
+```
+
+A6 is recommended but not mandatory; the structural well-formedness theorems S6–S9 are dischargeable without it (verified-rcv's `specs/RcvSpec.lean` proves them against the 4 Stage-1/Stage-2 axioms added in v0.3.3 + the existing `irv_ballots_tallied`).
 
 Edge cases:
 - **All remaining candidates tied for lowest**: batch elimination would empty `remaining`. In this case, declare all current `remaining` candidates as co-winners (per "ties → multi-winner" policy).

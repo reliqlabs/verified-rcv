@@ -2,7 +2,7 @@
 RcvSpec.lean — verified-rcv math spec (Claude-authored canonical baseline)
 
 This is the Lean math-layer spec for the IRV tally pipeline named in
-`.colosseum/intent.md` v0.3.3 §2.5 and §3.2. It is one voice in a multi-model
+`.colosseum/intent.md` v0.3.4 §2.5 and §3.2. It is one voice in a multi-model
 fan-out experiment (analogous to specs/rcv.qnt for the Quint protocol layer).
 
 Scope:

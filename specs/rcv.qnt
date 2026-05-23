@@ -3,10 +3,13 @@
 // verified-rcv — protocol-layer spec for the three-component IRV system
 // (CosmWasm contract + dstack-TDX enclave + zkdcap attestation).
 //
-// Source of truth: ../.colosseum/intent.md v0.3.3 (A4/A5 added 2026-05-20;
-// confirms the Quint spec needs no change — Set[Addr] is built-in deduplicated,
-// and the nondet ballots_tallied search with well_formed_tally enforces the
-// Stage-2 obligation that A5 axiomatizes for the Lean side).
+// Source of truth: ../.colosseum/intent.md v0.3.4 (A6 added 2026-05-23 as
+// non-mandatory length-relation documentation; v0.3.3 added A4/A5 2026-05-20).
+// Quint spec needs no change for either revision: Set[Addr] is built-in
+// deduplicated (A4), and the nondet ballots_tallied search with
+// well_formed_tally enforces the Stage-2 obligation that A5 axiomatizes for
+// the Lean side. A6's length relation is implicit in the spec's per-round
+// counts + eliminated_by_round shape but not separately checked.
 //
 // 2026-05-19 revision: TallyResult restored to intent §2.5 schema with
 // per_round_counts + eliminated_by_round (replacing the synthetic
