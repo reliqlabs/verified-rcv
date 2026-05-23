@@ -1,0 +1,9 @@
+Output dir: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v8-gpt-5-5-retry
+Voices (1): ['gpt-5-5-native']
+14:45:59Z → voice gpt-5-5-native: dispatching
+14:48:50Z   ↳ gpt-5-5-native generated in 171s, validating...
+14:48:51Z   ✓ PASS gpt-5-5-native: typecheck=0 safety_holds=True witnesses_violated=3/3
+
+=== Summary ===
+1/1 voices produced specs that pass all validation checks.
+  ✓ gpt-5-5-native

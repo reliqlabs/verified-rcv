@@ -1,0 +1,1947 @@
+[0m
+> quint-spec-generator · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m
+[0m$ [0mmkdir -p /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/cross-critique-2026-05-19/kimi-k2-6-reviews-gpt-5-5-native
+(no output)
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=389][0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=749][0m
+[0m
+[0m← [0mWrite /tmp/target-spec/rcv.qnt
+Wrote file successfully.
+[0m
+[0m← [0mWrite /tmp/target-spec/main.qnt
+Wrote file successfully.
+[0m
+[0m$ [0mcd /tmp/target-spec && quint typecheck main.qnt
+(no output)
+[0m
+[0m$ [0mcd /tmp/target-spec && quint run --invariant=all_invariants --max-steps=30 --max-samples=100 main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: [],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: false,
+  main::rcv::end_at: 0,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Voting",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[State 3]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Tallying",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 4]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Tallying",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 5]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Tallying",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 6]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Tallying",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 7]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 8]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 9]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 10]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 11]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 12]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 13]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 14]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 15]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 16]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 17]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 18]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 19]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 20]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 21]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 22]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 23]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 24]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 25]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 26]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 27]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 28]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 29]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 30]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[ok] No violation found (25ms at 4000 traces/second).
+Trace length statistics: max=31, min=31, average=31.00
+You may increase --max-samples and --max-steps.
+Use --verbosity to produce more (or less) output.
+Use --seed=0x6061ae635873037c --backend=rust to reproduce.
+[0m
+[0m$ [0mcd /tmp/target-spec && quint run --invariant=witness_resolution_reachable --max-steps=30 --max-samples=100 main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: [],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: false,
+  main::rcv::end_at: 0,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Voting",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[State 3]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Tallying",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 4]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Tallying",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 5]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[violation] Found an issue (15ms at 1200 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0xbca0b178a63a0060 --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m$ [0mcd /tmp/target-spec && quint run --invariant=witness_ballot_submittable --max-steps=30 --max-samples=100 main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: [],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: false,
+  main::rcv::end_at: 0,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Voting",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[State 3]
+{
+  main::rcv::ballots: Map("A" -> "encA"),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Voting",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[violation] Found an issue (13ms at 2769 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0xc19b602a9141e8da --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m$ [0mcd /tmp/target-spec && quint run --invariant=witness_end_at_crossing --max-steps=30 --max-samples=100 main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: [],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: false,
+  main::rcv::end_at: 0,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: false,
+  main::rcv::phase: "Voting",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[State 3]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::ballots_at_end: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::enclave_computed_tally:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::enclave_consumed_ballots: Map(),
+  main::rcv::enclave_has_session_key: true,
+  main::rcv::end_at: 5,
+  main::rcv::end_snapshot_taken: true,
+  main::rcv::phase: "Tallying",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[violation] Found an issue (11ms at 1636 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0x13f3592dc113ed55 --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m← [0mWrite .colosseum/specs/cross-critique-2026-05-19/kimi-k2-6-reviews-gpt-5-5-native/critique.md
+Wrote file successfully.
+[0m
+[0m→ [0mRead .colosseum/specs/cross-critique-2026-05-19/kimi-k2-6-reviews-gpt-5-5-native/critique.md

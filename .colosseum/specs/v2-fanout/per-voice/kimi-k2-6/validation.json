@@ -1,0 +1,28 @@
+{
+  "typecheck": {
+    "exit": 1,
+    "stderr": "oice/kimi-k2-6/rcv.qnt:67:19\n  67:       val pairs = t.eliminated_by_round.zip(t.per_round_counts)\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+  },
+  "all_invariants": {
+    "exit": 1,
+    "holds": false,
+    "tail": "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+  },
+  "witnesses": {
+    "witness_resolution_reachable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_ballot_submittable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_end_at_crossing": {
+      "exit": 1,
+      "violated": false,
+      "tail": "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "typecheck": {
+    "exit": 0,
+    "stderr": ""
+  },
+  "all_invariants": {
+    "exit": 0,
+    "holds": true,
+    "expected": "holds (no violation)",
+    "tail": "],\n          per_round_counts: [Map(\"A\" -> 0, \"B\" -> 0, \"C\" -> 0)],\n          winners: [\"A\"]\n        }\n    },\n  main::rcv::time: 29\n}\n\n[ok] No violation found (14ms at 7143 traces/second).\nTrace length statistics: max=31, min=5, average=10.56\nYou may increase --max-samples and --max-steps.\nUse --verbosity to produce more (or less) output.\nUse --seed=0x14cf925fb7cb25d7 --backend=rust to reproduce.\n"
+  },
+  "witnesses": {
+    "witness_resolution_reachable": {
+      "exit": 1,
+      "violated": true,
+      "expected": "violated (reachability witness)",
+      "tail": "ed_voters: [],\n          eliminated_by_round: [],\n          non_voters: [\"A\", \"B\", \"C\"],\n          per_round_counts: [Map(\"A\" -> 0, \"B\" -> 0, \"C\" -> 0)],\n          winners: [\"A\"]\n        }\n    },\n  main::rcv::time: 5\n}\n\n[violation] Found an issue (11ms at 2455 traces/second).\nUse --verbosity=3 to show executions.\nUse --seed=0x746552ce6878899a --backend=rust to reproduce.\nerror: Invariant violated\n"
+    },
+    "witness_ballot_submittable": {
+      "exit": 1,
+      "violated": true,
+      "expected": "violated (reachability witness)",
+      "tail": "ped_voters: [],\n          eliminated_by_round: [],\n          non_voters: [\"A\", \"B\", \"C\"],\n          per_round_counts: [Map(\"A\" -> 0, \"B\" -> 0, \"C\" -> 0)],\n          winners: [\"A\"]\n        }\n    },\n  main::rcv::time: 2\n}\n\n[violation] Found an issue (12ms at 4250 traces/second).\nUse --verbosity=3 to show executions.\nUse --seed=0xd1989b9c2d9242a --backend=rust to reproduce.\nerror: Invariant violated\n"
+    },
+    "witness_end_at_crossing": {
+      "exit": 1,
+      "violated": true,
+      "expected": "violated (reachability witness)",
+      "tail": "ed_voters: [],\n          eliminated_by_round: [],\n          non_voters: [\"A\", \"B\", \"C\"],\n          per_round_counts: [Map(\"A\" -> 0, \"B\" -> 0, \"C\" -> 0)],\n          winners: [\"A\"]\n        }\n    },\n  main::rcv::time: 5\n}\n\n[violation] Found an issue (12ms at 3167 traces/second).\nUse --verbosity=3 to show executions.\nUse --seed=0x852bd289e5b3af75 --backend=rust to reproduce.\nerror: Invariant violated\n"
+    }
+  }
+}

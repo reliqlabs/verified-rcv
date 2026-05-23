@@ -1,0 +1,45 @@
+[0m
+> lean-spec-generator · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead specs/RcvSpec.lean
+[0m→ [0mRead .colosseum/intent.md[90m [offset=389][0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=749][0m
+[0m
+[0m$ [0mmkdir -p /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6
+(no output)
+[0m
+[0m← [0mWrite .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean
+Wrote file successfully.
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean 2>&1
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:91:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:99:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:107:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:116:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:135:8: warning: declaration uses `sorry`
+[0m
+[0m$ [0mgrep -E "^(theorem|axiom|opaque) (s6_winner_subset|s7_voter_partition|s8_round_counts_sum|s9_no_reappearance|B10_lean|EnclaveImage|decrypt_and_validate|IRV_spec|Tally_spec)" /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean
+opaque decrypt_and_validate
+opaque IRV_spec
+theorem s6_winner_subset
+theorem s7_voter_partition
+theorem s8_round_counts_sum
+theorem s9_no_reappearance
+axiom EnclaveImage : RawBallots → CandidateSet → PrivKey → TallyResult
+theorem B10_lean
+[0m
+[0m$ [0mgrep -E ":= (rfl|trivial|True\.intro)" /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean
+(no output)
+[0m
+[0m← [0mWrite .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/design-notes.md
+Wrote file successfully.
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean 2>&1 && echo "EXIT_CODE: $?"
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:91:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:99:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:107:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:116:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:135:8: warning: declaration uses `sorry`
+EXIT_CODE: 0
+[0m

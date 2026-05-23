@@ -1,0 +1,18 @@
+
+=== Inline Quint dispatch starting 2026-05-16T19:40:25.999758+00:00 ===
+Voices: ['kimi-k2-6', 'gpt-oss-120b', 'gemini-2-5-flash']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout
+
+19:40:26Z → kimi-k2-6: dispatching (gateway/kimi-k2-6)
+19:43:52Z   ↳ kimi-k2-6 got 207s response (finish=stop), parsed files: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+19:43:53Z   ✗ VALIDATION FAILED kimi-k2-6: typecheck=1 safety_holds=False witnesses_violated=0/3
+19:43:53Z → gpt-oss-120b: dispatching (gateway/gpt-oss-120b)
+19:45:12Z   ↳ gpt-oss-120b got 78s response (finish=stop), parsed files: ['main.qnt', 'rcv.qnt']
+19:45:13Z   ✗ VALIDATION FAILED gpt-oss-120b: typecheck=1 safety_holds=False witnesses_violated=0/3
+19:45:13Z → gemini-2-5-flash: dispatching (gateway/gemini-2-5-flash)
+19:47:20Z     ⚠ gemini-2-5-flash attempt 1 failed (127s): HTTP 524: <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html 
+19:49:14Z   ↳ gemini-2-5-flash got 114s response (finish=stop), parsed files: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+19:49:15Z   ✗ VALIDATION FAILED gemini-2-5-flash: typecheck=1 safety_holds=False witnesses_violated=0/3

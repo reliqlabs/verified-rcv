@@ -1,0 +1,7 @@
+
+=== Pattern B dispatch starting 2026-05-16T12:57:33.342380+00:00 ===
+Voices: ['gemma-4-26b-a4b']
+Slices: ['state-invariants']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/pattern-b-smoke-2026-05-16T125733Z
+
+[gemma-4-26b-a4b/state-invariants] OK (62.4s, 4,154 chars)

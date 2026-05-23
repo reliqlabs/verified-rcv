@@ -1,0 +1,8 @@
+Generated and verified files in requested output dir.
+
+Checks passed:
+- `quint typecheck`
+- `all_invariants`: No violation found
+- all witnesses: Invariant violated as expected
+
+STATUS: ok

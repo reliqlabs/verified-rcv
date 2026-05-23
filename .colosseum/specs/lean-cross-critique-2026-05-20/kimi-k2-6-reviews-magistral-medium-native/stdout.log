@@ -1,0 +1,8 @@
+Critique written to `.colosseum/specs/lean-cross-critique-2026-05-20/kimi-k2-6-reviews-magistral-medium-native/critique.md`.
+
+Key findings:
+- **Q1**: Target conflates Stage 2 with the full `TallyResult` by having `IRV_spec` return `TallyResult` directly, rather than a separate Stage-2 output type. This blurs the intent's separation of concerns.
+- **Q2**: Target's `DecryptedSet` omits `non_voters`, so `Tally_spec` inherits it from `IRV_spec`'s output. Since `IRV_spec` lacks access to `raw_ballots.keys`, it cannot compute `non_voters = candidates \ raw_ballots.keys` correctly. A dropped voter would be misclassified as a non-voter if `IRV_spec` approximates using `valid.keys`.
+- **Q3**: I would adopt the target's `RoundCount` named struct over my `Addr × Nat` tuple for readability.
+
+STATUS: ok

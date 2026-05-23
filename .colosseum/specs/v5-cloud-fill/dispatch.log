@@ -1,0 +1,22 @@
+
+=== Quint fan-out dispatch starting 2026-05-17T05:16:24.926330+00:00 ===
+Voices: ['nemotron-3-120b-a12b', 'gemini-2-5-flash']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v5-cloud-fill
+
+05:16:24Z → voice nemotron-3-120b-a12b: dispatching
+05:16:24Z → voice gemini-2-5-flash: dispatching
+05:18:38Z     ⚠ nemotron-3-120b-a12b attempt 1 failed (134s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+05:21:17Z     ⚠ nemotron-3-120b-a12b attempt 2 failed (159s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+05:21:17Z   ✗ nemotron-3-120b-a12b ABANDONED after 2 attempts
+
+=== Quint fan-out dispatch starting 2026-05-17T05:22:26.986284+00:00 ===
+Voices: ['gpt-oss-120b']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v5-cloud-fill
+
+05:22:26Z → voice gpt-oss-120b: dispatching
+05:22:33Z     ⚠ gpt-oss-120b attempt 1 failed (6s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+05:22:38Z     ⚠ gpt-oss-120b attempt 2 failed (6s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+05:22:38Z   ✗ gpt-oss-120b ABANDONED after 2 attempts
+10:50:44Z     ⚠ gemini-2-5-flash attempt 1 failed (20059s): timeout after 2400s
+18:13:00Z     ⚠ gemini-2-5-flash attempt 2 failed (26536s): timeout after 2400s
+18:13:00Z   ✗ gemini-2-5-flash ABANDONED after 2 attempts

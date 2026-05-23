@@ -1,0 +1,29 @@
+System prompt: 8,802 chars
+User prompt:   95,656 chars (full)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-v0.3.0-2026-05-16T121229Z
+
+→ local/mistral-small-4-119b-2603 (max_tokens=16384) ...
+  ... `lms load mistral-small-4-119b-2603` ...
+  OK (270.6s, 18,549 chars, finish=stop) → local-mistral-small-4-119b-2603.md
+  VERDICT: BREAKS-AGAIN
+
+→ local/qwen3.6-27b-mlx (max_tokens=32768) ...
+  ... `lms load qwen3.6-27b-mlx` ...
+  OK (1059.2s, 10,170 chars, finish=stop) → local-qwen3.6-27b-mlx.md
+  VERDICT: BREAKS
+
+→ local/google/gemma-4-26b-a4b (max_tokens=32768) ...
+  ... `lms load google/gemma-4-26b-a4b` ...
+  OK (280.7s, 5,730 chars, finish=stop) → local-google-gemma-4-26b-a4b.md
+  VERDICT: BREAKS
+
+→ gateway/kimi-k2-6 (max_tokens=8192) ...
+  OK (124.8s, 34,738 chars, finish=length) → gateway-kimi-k2-6.md
+  <no verdict line found>
+
+→ gateway/glm-4-7-flash (max_tokens=16384) ...
+  OK (137.5s, 61,582 chars, finish=length) → gateway-glm-4-7-flash.md
+  <no verdict line found>
+
+→ gateway/gpt-oss-120b (max_tokens=16384) ...
+  ERR (3.7s): HTTP 400: {"errors":[{"message":"AiError: No such model: No such model gpt-oss-120b or task (8d5f064e-8dce-4bb0-b953-c56f7076b574)","code":5007}],"success":false,"result":{},"messages":[]}

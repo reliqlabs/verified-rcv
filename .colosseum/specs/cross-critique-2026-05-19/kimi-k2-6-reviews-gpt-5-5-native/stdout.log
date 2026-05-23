@@ -1,0 +1,10 @@
+Critique written to `.colosseum/specs/cross-critique-2026-05-19/kimi-k2-6-reviews-gpt-5-5-native/critique.md`.
+
+Summary:
+- **Q1**: Target includes B7/B8 classical shadows in `all_invariants`; my spec trivializes them to `true`. This is the most material divergence because it makes the target's composite invariant strictly stronger on cross-layer and terminal behavior.
+- **Q2**: Target's S9 is `eliminated_by_round.length() == 0`, a tautology for the trivial tally model. It never checks the actual monotonicity constraint from the intent and would silently pass violations if the tally function were refined.
+- **Q3**: I would adopt the target's B7 and B8 shadow predicates in my own `all_invariants`, replacing their `true` definitions.
+
+All target spec claims were verified with `quint typecheck` and `quint run` before writing the critique.
+
+STATUS: ok

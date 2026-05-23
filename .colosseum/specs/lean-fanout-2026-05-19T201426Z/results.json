@@ -1,0 +1,120 @@
+{
+  "run_tag": "lean-fanout-2026-05-19T201426Z",
+  "intent": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md",
+  "canonical_lean": "/Users/mvid/Development/reliq/verified-rcv/specs/RcvSpec.lean",
+  "required_theorems": [
+    "s6_winner_subset",
+    "s7_voter_partition",
+    "s8_round_counts_sum",
+    "s9_no_reappearance",
+    "B10_lean"
+  ],
+  "required_symbols": [
+    "EnclaveImage",
+    "Tally_spec"
+  ],
+  "voices": [
+    {
+      "voice": "kimi-k2-6",
+      "generation": {
+        "voice": "kimi-k2-6",
+        "elapsed_s": 152.804277,
+        "out_dir": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6"
+      },
+      "validation": {
+        "typecheck": {
+          "exit": 0,
+          "has_errors": false,
+          "sorry_count": 5,
+          "tail": "/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:91:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:99:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:107:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:116:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/kimi-k2-6/RcvSpec.lean:135:8: warning: declaration uses `sorry`\n"
+        },
+        "presence": {
+          "s6_winner_subset": true,
+          "s7_voter_partition": true,
+          "s8_round_counts_sum": true,
+          "s9_no_reappearance": true,
+          "B10_lean": true,
+          "EnclaveImage": true,
+          "Tally_spec": true
+        },
+        "no_tautologies": {
+          "tautology_hits": [],
+          "enclave_image_is_tally_spec": false
+        }
+      },
+      "passes": true
+    },
+    {
+      "voice": "gpt-5-5-native",
+      "generation": {
+        "voice": "gpt-5-5-native",
+        "elapsed_s": 149.446734,
+        "out_dir": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/gpt-5-5-native"
+      },
+      "validation": {
+        "typecheck": {
+          "exit": 0,
+          "has_errors": false,
+          "sorry_count": 5,
+          "tail": "seum/specs/lean-fanout-2026-05-19T201426Z/per-voice/gpt-5-5-native/RcvSpec.lean:96:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/gpt-5-5-native/RcvSpec.lean:104:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/gpt-5-5-native/RcvSpec.lean:111:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/gpt-5-5-native/RcvSpec.lean:118:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/gpt-5-5-native/RcvSpec.lean:138:8: warning: declaration uses `sorry`\n"
+        },
+        "presence": {
+          "s6_winner_subset": true,
+          "s7_voter_partition": true,
+          "s8_round_counts_sum": true,
+          "s9_no_reappearance": true,
+          "B10_lean": true,
+          "EnclaveImage": true,
+          "Tally_spec": true
+        },
+        "no_tautologies": {
+          "tautology_hits": [],
+          "enclave_image_is_tally_spec": false
+        }
+      },
+      "passes": true
+    },
+    {
+      "voice": "gemini-2-5-flash-native",
+      "generation": {
+        "voice": "gemini-2-5-flash-native",
+        "error": "exit=-15: \u001b[0m\n> lean-spec-generator \u00b7 gemini-2.5-flash\n\u001b[0m\n",
+        "elapsed_s": 1259.510316
+      },
+      "validation": null,
+      "passes": false
+    },
+    {
+      "voice": "magistral-medium-native",
+      "generation": {
+        "voice": "magistral-medium-native",
+        "elapsed_s": 556.271451,
+        "out_dir": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native"
+      },
+      "validation": {
+        "typecheck": {
+          "exit": 0,
+          "has_errors": false,
+          "sorry_count": 5,
+          "tail": "/per-voice/magistral-medium-native/RcvSpec.lean:55:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:61:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:67:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:74:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:84:8: warning: declaration uses `sorry`\n"
+        },
+        "presence": {
+          "s6_winner_subset": true,
+          "s7_voter_partition": true,
+          "s8_round_counts_sum": true,
+          "s9_no_reappearance": true,
+          "B10_lean": true,
+          "EnclaveImage": true,
+          "Tally_spec": true
+        },
+        "no_tautologies": {
+          "tautology_hits": [],
+          "enclave_image_is_tally_spec": false
+        }
+      },
+      "passes": true
+    }
+  ],
+  "n_pass": 3,
+  "n_total": 4
+}

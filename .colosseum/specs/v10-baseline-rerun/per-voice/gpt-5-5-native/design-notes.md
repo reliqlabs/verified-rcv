@@ -1,0 +1,11 @@
+# Design notes
+
+This Quint model encodes the contract-level lifecycle from intent §2.5 as a small finite instance. Block 1 is `init`, with immutable candidate/window constants and empty ballots. Blocks 2 and 4 are `advanceToStart` and `advanceToEnd`, passive time jumps that leave storage unchanged. Block 3 is `submitBallot`, restricted to the Voting derived state and candidate senders, with last-write-wins collapsed to set membership because this model tracks submitted voters rather than ciphertext bytes. Block 5 is `closeAndTally`, an idempotent event counter self-loop in Tallying. Block 6 is `publishResult`, which sets the optional tally once and moves the derived state to Resolved. `resolvedStutter` makes terminality explicit for bounded runs.
+
+Optional `tally_result` is encoded as `{ present, value }`, not `Option`, per local Quint constraints. The concrete instance in `main.qnt` uses three candidates and a short voting window so reachability witnesses fire within a few steps.
+
+Structural invariants S1, S3, S4, S6, S7, and S10 are executable predicates in `all_invariants`. S2 is represented by `Set[Addr]` candidates, so duplicates are impossible in the model. S5 is represented operationally by having only `publishResult` assign `present = true`, with no action able to unset or rewrite a resolved result. S8 and S9 are modeled as `true` because this abstraction does not store per-round count maps or elimination rounds.
+
+Behavioral invariants B1, B2, B3, B4, B5, B6, and B7 are enforced by action guards and frame assignments: no submit action is enabled outside `[START_AT, END_AT)`, no action mutates ballots after `END_AT`, publication requires Tallying, and resolved states only stutter. B8, B9, B10, and B10_lean are represented by classical shadows: `publishResult` is the only attested transition, and `fallbackTally` is treated as the verified enclave output. Cryptographic soundness, input-fidelity evidence, dstack key derivation, canonical Borsh bytes, and Lean extraction are outside Quint's sampled transition system and are omitted here rather than modeled as false precision.
+
+Witness invariants are negations of reachable states: resolution, at least one submitted ballot, and crossing `END_AT`.

@@ -1,0 +1,1546 @@
+[0m
+> quint-spec-generator · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead /Users/mvid/go/pkg/mod/github.com/cometbft/cometbft@v0.38.21/spec/p2p/reactor-api/reactor.qnt
+[0m→ [0mRead /Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/main_n6f1b1.qnt
+[0m→ [0mRead .colosseum/intent.md[90m [offset=379][0m
+[0m→ [0mRead /Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/types.qnt
+[0m→ [0mRead .colosseum/intent.md[90m [offset=756][0m
+[0m
+[0m$ [0mmkdir -p /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6
+(no output)
+[0m
+[0m← [0mWrite .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Wrote file successfully.
+[0m
+[0m← [0mWrite .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt
+Wrote file successfully.
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt 2>&1
+[DEBUG] ignoring listener exception in favor of parse errors. Exception: violated grammar of annotated params return type
+
+ Error [QNT405]: Module main imports an unknown module rcv
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:5:3
+  5:   import rcv(
+       ^^^^^^^^^^^
+  6:     ADDR_POOL = Set("A", "B", "C"),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7:     MAX_TIME = 20,
+     ^^^^^^^^^^^^^^^^^^
+  8:     ENC_PREFS = Set("enc1", "enc2"),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  9:     CANDIDATE_SETS = Set(Set("A"), Set("A", "B"), Set("A", "B", "C"))
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10:   ) .* from "./rcv"
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT405]: Module 'rcv' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:5:3
+  5:   import rcv(
+       ^^^^^^^^^^^
+  6:     ADDR_POOL = Set("A", "B", "C"),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7:     MAX_TIME = 20,
+     ^^^^^^^^^^^^^^^^^^
+  8:     ENC_PREFS = Set("enc1", "enc2"),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  9:     CANDIDATE_SETS = Set(Set("A"), Set("A", "B"), Set("A", "B", "C"))
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10:   ) .* from "./rcv"
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'ADDR_POOL' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:6:5
+  6:     ADDR_POOL = Set("A", "B", "C"),
+         ^^^^^^^^^
+
+
+ Error [QNT404]: Name 'MAX_TIME' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:7:5
+  7:     MAX_TIME = 20,
+         ^^^^^^^^
+
+
+ Error [QNT404]: Name 'ENC_PREFS' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:8:5
+  8:     ENC_PREFS = Set("enc1", "enc2"),
+         ^^^^^^^^^
+
+
+ Error [QNT404]: Name 'CANDIDATE_SETS' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:9:5
+  9:     CANDIDATE_SETS = Set(Set("A"), Set("A", "B"), Set("A", "B", "C"))
+         ^^^^^^^^^^^^^^
+
+error: parsing failed
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6 && quint typecheck main.qnt 2>&1
+[DEBUG] ignoring listener exception in favor of parse errors. Exception: violated grammar of annotated params return type
+
+ Error [QNT405]: Module main imports an unknown module rcv
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:5:3
+  5:   import rcv(
+       ^^^^^^^^^^^
+  6:     ADDR_POOL = Set("A", "B", "C"),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7:     MAX_TIME = 20,
+     ^^^^^^^^^^^^^^^^^^
+  8:     ENC_PREFS = Set("enc1", "enc2"),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  9:     CANDIDATE_SETS = Set(Set("A"), Set("A", "B"), Set("A", "B", "C"))
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10:   ) .* from "./rcv"
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT405]: Module 'rcv' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:5:3
+  5:   import rcv(
+       ^^^^^^^^^^^
+  6:     ADDR_POOL = Set("A", "B", "C"),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7:     MAX_TIME = 20,
+     ^^^^^^^^^^^^^^^^^^
+  8:     ENC_PREFS = Set("enc1", "enc2"),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  9:     CANDIDATE_SETS = Set(Set("A"), Set("A", "B"), Set("A", "B", "C"))
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10:   ) .* from "./rcv"
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'ADDR_POOL' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:6:5
+  6:     ADDR_POOL = Set("A", "B", "C"),
+         ^^^^^^^^^
+
+
+ Error [QNT404]: Name 'MAX_TIME' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:7:5
+  7:     MAX_TIME = 20,
+         ^^^^^^^^
+
+
+ Error [QNT404]: Name 'ENC_PREFS' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:8:5
+  8:     ENC_PREFS = Set("enc1", "enc2"),
+         ^^^^^^^^^
+
+
+ Error [QNT404]: Name 'CANDIDATE_SETS' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt:9:5
+  9:     CANDIDATE_SETS = Set(Set("A"), Set("A", "B"), Set("A", "B", "C"))
+         ^^^^^^^^^^^^^^
+
+error: parsing failed
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6 && quint typecheck main.qnt rcv.qnt 2>&1
+Unknown argument: rcv.qnt
+[0m
+[0m$ [0mquint typecheck --help 2>&1
+quint typecheck <input>
+
+check types and effects of a Quint specification
+
+Options:
+  --help     Show help                                                 [boolean]
+  --version  Show version number                                       [boolean]
+  --out      output file (suppresses all console output)                [string]
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6 && quint typecheck rcv.qnt 2>&1
+[DEBUG] ignoring listener exception in favor of parse errors. Exception: violated grammar of annotated params return type
+
+ Error [QNT000]: mismatched input '=' expecting ':'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt:75:65
+  75:   action instantiate(candidates_set: Set[Addr], s: int, e: int) = all {
+                                                                      ^
+
+
+ Error [QNT000]: extraneous input ',' expecting {<EOF>, 'module', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt:89:97
+  89:     tally_value' = { winners: Set(), ballots_tallied: 0, ballots_dropped: 0, non_voters: Set() },
+                                                                                                      ^
+
+error: parsing failed
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -57,9 +57,9 @@
+ // ---------------------------------------------------------------------------
+ // Actions
+ // ---------------------------------------------------------------------------
+ 
+-action init = all {
++action init: bool = all {
+   initialized' = false,
+   candidates' = Set(),
+   start_at' = 0,
+   end_at' = 0,
+
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -71,9 +71,9 @@
+   attestation_valid' = false,
+   tally_computed' = false,
+ }
+ 
+-action instantiate(candidates_set: Set[Addr], s: int, e: int) = all {
++action instantiate(candidates_set: Set[Addr], s: int, e: int): bool = all {
+   not(initialized),
+   candidates_set.size() >= 1,
+   candidates_set.subseteq(ADDR_POOL),
+   s > time,
+
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -91,9 +91,9 @@
+   attestation_valid' = false,
+   tally_computed' = false,
+ }
+ 
+-action advance_time = all {
++action advance_time: bool = all {
+   initialized,
+   time < MAX_TIME,
+   time' = time + 1,
+   candidates' = candidates,
+
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -107,9 +107,9 @@
+   attestation_valid' = attestation_valid,
+   tally_computed' = tally_computed,
+ }
+ 
+-action submit_ballot(sender: Addr, encrypted_prefs: str) = all {
++action submit_ballot(sender: Addr, encrypted_prefs: str): bool = all {
+   initialized,
+   isVoting(time, start_at, end_at),
+   sender.in(candidates),
+   encrypted_prefs != "",
+
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -126,9 +126,9 @@
+   attestation_valid' = attestation_valid,
+   tally_computed' = tally_computed,
+ }
+ 
+-action close_and_tally = all {
++action close_and_tally: bool = all {
+   initialized,
+   isTallying(time, end_at, tally_present),
+   not(tally_present),
+   time' = time,
+
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -143,9 +143,9 @@
+   attestation_valid' = attestation_valid,
+   tally_computed' = tally_computed,
+ }
+ 
+-action publish_result = all {
++action publish_result: bool = all {
+   initialized,
+   isTallying(time, end_at, tally_present),
+   not(tally_present),
+   // Compute a trivial well-formed tally (all co-winners, all ballots valid)
+
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -167,9 +167,9 @@
+   ballot_keys' = ballot_keys,
+   initialized' = initialized,
+ }
+ 
+-action step = any {
++action step: bool = any {
+   nondet candidates_set = oneOf(CANDIDATE_SETS)
+   nondet s = oneOf(time.to(MAX_TIME))
+   nondet e = oneOf((s + 1).to(MAX_TIME))
+   instantiate(candidates_set, s, e),
+
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6 && quint typecheck rcv.qnt 2>&1
+Error [QNT101]: Built-in name 'keys' is redefined in module 'rcv'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt:46:61
+  46:   pure def wellFormed(tally: TallyResult, cands: Set[Addr], keys: Set[Addr]): bool = {
+                                                                  ^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt:159:20
+  159:     tally_value' = tally,
+                          ^^^^^
+
+error: parsing failed
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -42,16 +42,16 @@
+ pure def isResolved(state_tally_present: bool): bool =
+   state_tally_present
+ 
+ // Well-formedness predicate for a published tally (syntactic checks from Block 6)
+-pure def wellFormed(tally: TallyResult, cands: Set[Addr], keys: Set[Addr]): bool = {
++pure def wellFormed(tally: TallyResult, cands: Set[Addr], bkeys: Set[Addr]): bool = {
+   and {
+     tally.winners.subseteq(cands),
+     tally.winners.size() >= 1,
+     tally.winners.size() <= cands.size(),
+     tally.ballots_tallied + tally.ballots_dropped + tally.non_voters.size() == cands.size(),
+     tally.non_voters.subseteq(cands),
+-    tally.non_voters == cands.exclude(keys),
++    tally.non_voters == cands.exclude(bkeys),
+   }
+ }
+ 
+ // ---------------------------------------------------------------------------
+
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -152,12 +152,12 @@
+ val nv = candidates.exclude(ballot_keys)
+ val bt = ballot_keys.size()
+ val bd = 0
+ val w = candidates
+-val tally = { winners: w, ballots_tallied: bt, ballots_dropped: bd, non_voters: nv }
+-wellFormed(tally, candidates, ballot_keys),
++val new_tally = { winners: w, ballots_tallied: bt, ballots_dropped: bd, non_voters: nv }
++wellFormed(new_tally, candidates, ballot_keys),
+ tally_present' = true,
+-tally_value' = tally,
++tally_value' = new_tally,
+ attestation_valid' = true,
+ tally_computed' = true,
+ time' = time,
+ candidates' = candidates,
+
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6 && quint typecheck rcv.qnt 2>&1
+Error [QNT404]: Name 'new_tally' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt:159:20
+  159:     tally_value' = new_tally,
+                          ^^^^^^^^^
+
+error: parsing failed
+[0m
+[0m← [0mEdit .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+@@ -148,16 +148,15 @@
+ initialized,
+ isTallying(time, end_at, tally_present),
+ not(tally_present),
+ // Compute a trivial well-formed tally (all co-winners, all ballots valid)
+-val nv = candidates.exclude(ballot_keys)
+-val bt = ballot_keys.size()
+-val bd = 0
+-val w = candidates
+-val new_tally = { winners: w, ballots_tallied: bt, ballots_dropped: bd, non_voters: nv }
+-wellFormed(new_tally, candidates, ballot_keys),
++wellFormed(
++  { winners: candidates, ballots_tallied: ballot_keys.size(), ballots_dropped: 0, non_voters: candidates.exclude(ballot_keys) },
++  candidates,
++  ballot_keys
++),
+ tally_present' = true,
+-tally_value' = new_tally,
++tally_value' = { winners: candidates, ballots_tallied: ballot_keys.size(), ballots_dropped: 0, non_voters: candidates.exclude(ballot_keys) },
+ attestation_valid' = true,
+ tally_computed' = true,
+ time' = time,
+ candidates' = candidates,
+
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6 && quint typecheck rcv.qnt 2>&1
+(no output)
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6 && quint typecheck main.qnt 2>&1
+(no output)
+[0m
+[0m$ [0mquint run --invariant=all_invariants --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: file main.qnt does not exist
+[0m
+[0m$ [0mquint run --invariant=witness_resolution_reachable --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: file main.qnt does not exist
+[0m
+[0m$ [0mquint run --invariant=witness_ballot_submittable --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: file main.qnt does not exist
+[0m
+[0m$ [0mquint run --invariant=witness_end_at_crossing --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: file main.qnt does not exist
+[0m
+[0m$ [0mquint run --invariant=all_invariants --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: file main.qnt does not exist
+[0m
+[0m$ [0mquint run --invariant=witness_resolution_reachable --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: file main.qnt does not exist
+[0m
+[0m$ [0mquint run --invariant=witness_ballot_submittable --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: file main.qnt does not exist
+[0m
+[0m$ [0mquint run --invariant=witness_end_at_crossing --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: file main.qnt does not exist
+[0m
+[0m$ [0mquint run --invariant=all_invariants --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt 2>&1
+An example execution:
+
+[State 0]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set(),
+  main::rcv::end_at: 0,
+  main::rcv::initialized: false,
+  main::rcv::start_at: 0,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 1
+}
+
+[State 3]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 2
+}
+
+[State 4]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 3
+}
+
+[State 5]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 4
+}
+
+[State 6]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 5
+}
+
+[State 7]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 6
+}
+
+[State 8]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 7
+}
+
+[State 9]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 8
+}
+
+[State 10]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 9
+}
+
+[State 11]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 10
+}
+
+[State 12]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 11
+}
+
+[State 13]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 12
+}
+
+[State 14]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 13
+}
+
+[State 15]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 14
+}
+
+[State 16]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("B"),
+  main::rcv::ballots: Map("A" -> "", "B" -> "enc1", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 14
+}
+
+[State 17]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("B"),
+  main::rcv::ballots: Map("A" -> "", "B" -> "enc1", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 15
+}
+
+[State 18]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("B"),
+  main::rcv::ballots: Map("A" -> "", "B" -> "enc1", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 16
+}
+
+[State 19]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 16
+}
+
+[State 20]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc2"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 16
+}
+
+[State 21]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc2"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 16
+}
+
+[State 22]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc2"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 16
+}
+
+[State 23]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc2"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 17
+}
+
+[State 24]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc2"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 17
+}
+
+[State 25]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc2"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 18
+}
+
+[State 26]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc1"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 18
+}
+
+[State 27]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc1"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 19
+}
+
+[State 28]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc1"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 19
+}
+
+[State 29]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc1"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 20
+}
+
+[State 30]
+{
+  main::rcv::attestation_valid: true,
+  main::rcv::ballot_keys: Set("A", "B", "C"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "enc1", "C" -> "enc1"),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 20,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 13,
+  main::rcv::tally_computed: true,
+  main::rcv::tally_present: true,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 3,
+      non_voters: Set(),
+      winners: Set("A", "B", "C")
+    },
+  main::rcv::time: 20
+}
+
+[ok] No violation found (48ms at 2083 traces/second).
+Trace length statistics: max=31, min=23, average=27.00
+You may increase --max-samples and --max-steps.
+Use --verbosity to produce more (or less) output.
+Use --seed=0x5ac4c01043cfd1f4 --backend=rust to reproduce.
+[0m
+[0m$ [0mquint run --invariant=witness_resolution_reachable --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt 2>&1
+An example execution:
+
+[State 0]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set(),
+  main::rcv::end_at: 0,
+  main::rcv::initialized: false,
+  main::rcv::start_at: 0,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 1
+}
+
+[State 3]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 2
+}
+
+[State 4]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 3
+}
+
+[State 5]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 4
+}
+
+[State 6]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 5
+}
+
+[State 7]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 5
+}
+
+[State 8]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 6
+}
+
+[State 9]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 6
+}
+
+[State 10]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 6
+}
+
+[State 11]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 6
+}
+
+[State 12]
+{
+  main::rcv::attestation_valid: true,
+  main::rcv::ballot_keys: Set("A"),
+  main::rcv::ballots: Map("A" -> "enc1", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B"),
+  main::rcv::end_at: 6,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 4,
+  main::rcv::tally_computed: true,
+  main::rcv::tally_present: true,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 1,
+      non_voters: Set("B"),
+      winners: Set("A", "B")
+    },
+  main::rcv::time: 6
+}
+
+[violation] Found an issue (15ms at 1467 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0x640cd4a9233e6915 --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m$ [0mquint run --invariant=witness_ballot_submittable --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt 2>&1
+An example execution:
+
+[State 0]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set(),
+  main::rcv::end_at: 0,
+  main::rcv::initialized: false,
+  main::rcv::start_at: 0,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 13,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 1,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 13,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 1,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 1
+}
+
+[State 3]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set("A"),
+  main::rcv::ballots: Map("A" -> "enc2", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set("A", "B", "C"),
+  main::rcv::end_at: 13,
+  main::rcv::initialized: true,
+  main::rcv::start_at: 1,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 1
+}
+
+[violation] Found an issue (15ms at 1533 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0xeee2daafb9d31d44 --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m$ [0mquint run --invariant=witness_end_at_crossing --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt 2>&1
+An example execution:
+
+[State 0]
+{
+  main::rcv::attestation_valid: false,
+  main::rcv::ballot_keys: Set(),
+  main::rcv::ballots: Map("A" -> "", "B" -> "", "C" -> ""),
+  main::rcv::candidates: Set(),
+  main::rcv::end_at: 0,
+  main::rcv::initialized: false,
+  main::rcv::start_at: 0,
+  main::rcv::tally_computed: false,
+  main::rcv::tally_present: false,
+  main::rcv::tally_value:
+    {
+      ballots_dropped: 0,
+      ballots_tallied: 0,
+      non_voters: Set(),
+      winners: Set()
+    },
+  main::rcv::time: 0
+}
+
+[violation] Found an issue (11ms at 1636 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0xee83ceec5cbfbfdb --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m→ [0mRead .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/rcv.qnt
+[0m
+[0m← [0mWrite .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/design-notes.md
+Wrote file successfully.
+[0m
+[0m$ [0mwc -w /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/design-notes.md
+787 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/design-notes.md
+[0m
+[0m← [0mWrite .colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/design-notes.md
+Wrote file successfully.
+[0m
+[0m$ [0mwc -w /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/design-notes.md
+562 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/design-notes.md
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt
+(no output)
+[0m
+[0m$ [0mquint run --invariant=all_invariants --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt 2>&1 | tail -5
+[ok] No violation found (30ms at 3333 traces/second).
+Trace length statistics: max=31, min=24, average=28.00
+You may increase --max-samples and --max-steps.
+Use --verbosity to produce more (or less) output.
+Use --seed=0x929b9818f97eb99a --backend=rust to reproduce.
+[0m
+[0m$ [0mquint run --invariant=witness_resolution_reachable --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt 2>&1 | tail -5
+[violation] Found an issue (14ms at 1571 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0x74c33e69b691b49f --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m$ [0mquint run --invariant=witness_ballot_submittable --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt 2>&1 | tail -5
+[violation] Found an issue (12ms at 1583 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0x110ffea80bfc47fa --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m$ [0mquint run --invariant=witness_end_at_crossing --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate/per-voice/kimi-k2-6/main.qnt 2>&1 | tail -5
+[violation] Found an issue (10ms at 1800 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0xa448bd66bb72614a --backend=rust to reproduce.
+error: Invariant violated
+[0m

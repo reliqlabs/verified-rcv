@@ -1,0 +1,8 @@
+
+=== Quint fan-out dispatch starting 2026-05-18T14:45:59.358754+00:00 ===
+Voices: ['gpt-5-5-native']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v8-gpt-5-5-retry
+
+14:45:59Z → voice gpt-5-5-native: dispatching
+14:48:50Z   ↳ gpt-5-5-native generated in 171s, validating...
+14:48:51Z   ✓ PASS gpt-5-5-native: typecheck=0 safety_holds=True witnesses_violated=3/3

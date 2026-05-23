@@ -1,0 +1,28 @@
+{
+  "typecheck": {
+    "exit": 1,
+    "stderr": "_ballot' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/inline-smoke-test/per-voice/kimi-k2-6/main.qnt:26:7\n  26:       submit_ballot(sender, List(\"C\", \"B\", \"A\")),\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv::init' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/inline-smoke-test/per-voice/kimi-k2-6/main.qnt:30:17\n  30:   action init = rcv::init\n                      ^^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "all_invariants": {
+    "exit": 1,
+    "holds": false,
+    "tail": "st/per-voice/kimi-k2-6/main.qnt:26:7\n  26:       submit_ballot(sender, List(\"C\", \"B\", \"A\")),\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv::init' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/inline-smoke-test/per-voice/kimi-k2-6/main.qnt:30:17\n  30:   action init = rcv::init\n                      ^^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "witnesses": {
+    "witness_resolution_reachable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "st/per-voice/kimi-k2-6/main.qnt:26:7\n  26:       submit_ballot(sender, List(\"C\", \"B\", \"A\")),\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv::init' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/inline-smoke-test/per-voice/kimi-k2-6/main.qnt:30:17\n  30:   action init = rcv::init\n                      ^^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_ballot_submittable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "st/per-voice/kimi-k2-6/main.qnt:26:7\n  26:       submit_ballot(sender, List(\"C\", \"B\", \"A\")),\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv::init' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/inline-smoke-test/per-voice/kimi-k2-6/main.qnt:30:17\n  30:   action init = rcv::init\n                      ^^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_end_at_crossing": {
+      "exit": 1,
+      "violated": false,
+      "tail": "st/per-voice/kimi-k2-6/main.qnt:26:7\n  26:       submit_ballot(sender, List(\"C\", \"B\", \"A\")),\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv::init' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/inline-smoke-test/per-voice/kimi-k2-6/main.qnt:30:17\n  30:   action init = rcv::init\n                      ^^^^^^^^^\n\nerror: parsing failed\n"
+    }
+  }
+}

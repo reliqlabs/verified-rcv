@@ -1,0 +1,9 @@
+[
+  {
+    "voice": "gemma-4-26b-a4b",
+    "slices_ok": 1,
+    "slices_total": 1,
+    "total_elapsed_s": 62.380808,
+    "total_chars": 4154
+  }
+]

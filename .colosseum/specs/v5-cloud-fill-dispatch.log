@@ -1,0 +1,20 @@
+Output dir: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v5-cloud-fill
+Voices (2): ['nemotron-3-120b-a12b', 'gemini-2-5-flash']
+05:16:24Z → voice nemotron-3-120b-a12b: dispatching
+05:16:24Z → voice gemini-2-5-flash: dispatching
+05:18:38Z     ⚠ nemotron-3-120b-a12b attempt 1 failed (134s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+05:21:17Z     ⚠ nemotron-3-120b-a12b attempt 2 failed (159s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+05:21:17Z   ✗ nemotron-3-120b-a12b ABANDONED after 2 attempts
+10:50:44Z     ⚠ gemini-2-5-flash attempt 1 failed (20059s): timeout after 2400s
+18:13:00Z     ⚠ gemini-2-5-flash attempt 2 failed (26536s): timeout after 2400s
+18:13:00Z   ✗ gemini-2-5-flash ABANDONED after 2 attempts
+
+=== Summary ===
+0/2 voices produced specs that pass all validation checks.
+  ✗ nemotron-3-120b-a12b: missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+  ✗ gemini-2-5-flash: timeout after 2400s
+ after 2 attempts
+
+=== Summary ===
+0/1 voices produced specs that pass all validation checks.
+  ✗ gpt-oss-120b: missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']

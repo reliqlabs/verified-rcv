@@ -1,0 +1,8 @@
+Critique written to `.colosseum/specs/lean-critique-revised-canonical-2026-05-20/kimi-k2-6-reviews-revised-canonical/critique.md`.
+
+Summary:
+- **Q1**: Fix is structurally sound. `IRVResult`/`DecryptedSet` split is correct, `Tally_spec` threads all fields properly, S9 uses the Option pattern.
+- **Q2**: No new defects. The refactor is clean.
+- **Q3**: Most material remaining concern is (a) — `CandidateSet` distinctness (S2) is not encoded at the type level or as a theorem hypothesis, which makes `s7_voter_partition` too strong.
+
+STATUS: ok

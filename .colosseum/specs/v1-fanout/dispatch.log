@@ -1,0 +1,19 @@
+
+=== Inline Quint dispatch starting 2026-05-16T19:31:02.951103+00:00 ===
+Voices: ['kimi-k2-6', 'gpt-oss-120b', 'nemotron-3-120b-a12b', 'gemini-2-5-flash']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout
+
+19:31:02Z → kimi-k2-6: dispatching (gateway/kimi-k2-6)
+19:31:02Z → gpt-oss-120b: dispatching (gateway/gpt-oss-120b)
+19:31:02Z → nemotron-3-120b-a12b: dispatching (gateway/cloudflare-100-cf-nvidia-nemotron-3-120b-a12b)
+19:31:02Z → gemini-2-5-flash: dispatching (gateway/gemini-2-5-flash)
+19:32:37Z   ↳ gpt-oss-120b got 94s response (finish=stop), parsed files: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+19:32:38Z   ✗ VALIDATION FAILED gpt-oss-120b: typecheck=1 safety_holds=False witnesses_violated=0/3
+19:32:54Z   ↳ gemini-2-5-flash got 111s response (finish=stop), parsed files: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+19:32:55Z   ✗ VALIDATION FAILED gemini-2-5-flash: typecheck=1 safety_holds=False witnesses_violated=0/3
+19:33:06Z     ⚠ nemotron-3-120b-a12b attempt 1 failed (124s): HTTP 408: {"errors":[{"message":"AiError: AiError: Request timeout (77e234f0-b6c5-44bf-b4e5-8b339ef0f754)","code":3046}],"success":false,"result":{},"messages":[]}
+19:35:02Z     ⚠ kimi-k2-6 attempt 1 failed (239s): HTTP 408: {"errors":[{"message":"AiError: AiError: Request timeout (2bf22f72-da38-48d9-a542-1f0c42444bc6)","code":3046}],"success":false,"result":{},"messages":[]}
+19:35:09Z     ⚠ nemotron-3-120b-a12b attempt 2 failed (123s): HTTP 408: {"errors":[{"message":"AiError: AiError: Request timeout (b3873338-3f3f-4190-939a-6c85596c1566)","code":3046}],"success":false,"result":{},"messages":[]}
+19:35:09Z   ✗ nemotron-3-120b-a12b ABANDONED after 2 attempts
+19:39:00Z     ⚠ kimi-k2-6 attempt 2 failed (239s): HTTP 408: {"errors":[{"message":"AiError: AiError: Request timeout (747ac927-3e02-4c65-bdec-4ff4e03221c0)","code":3046}],"success":false,"result":{},"messages":[]}
+19:39:00Z   ✗ kimi-k2-6 ABANDONED after 2 attempts

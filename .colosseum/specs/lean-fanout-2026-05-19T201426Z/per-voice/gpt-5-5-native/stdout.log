@@ -1,0 +1,8 @@
+Wrote and verified:
+
+- `RcvSpec.lean`
+- `design-notes.md`
+
+`lean RcvSpec.lean` exits 0 with only `sorry` warnings.
+
+STATUS: ok

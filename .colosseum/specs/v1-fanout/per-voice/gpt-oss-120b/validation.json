@@ -1,0 +1,28 @@
+{
+  "typecheck": {
+    "exit": 1,
+    "stderr": "or [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+  },
+  "all_invariants": {
+    "exit": 1,
+    "holds": false,
+    "tail": "-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+  },
+  "witnesses": {
+    "witness_resolution_reachable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+    },
+    "witness_ballot_submittable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+    },
+    "witness_end_at_crossing": {
+      "exit": 1,
+      "violated": false,
+      "tail": "-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+    }
+  }
+}

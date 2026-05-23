@@ -1,0 +1,134 @@
+{
+  "run_tag": "v1-fanout",
+  "intent": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md",
+  "canonical_example": "/Users/mvid/go/pkg/mod/github.com/cometbft/cometbft@v0.38.21/spec/p2p/reactor-api/reactor.qnt",
+  "witness_specs": [
+    "witness_resolution_reachable",
+    "witness_ballot_submittable",
+    "witness_end_at_crossing"
+  ],
+  "safety_invariant": "all_invariants",
+  "system_prompt_chars": 3622,
+  "user_prompt_chars": 148730,
+  "voices": [
+    {
+      "voice": "kimi-k2-6",
+      "call": {
+        "voice": "kimi-k2-6",
+        "error": "HTTP 408: {\"errors\":[{\"message\":\"AiError: AiError: Request timeout (747ac927-3e02-4c65-bdec-4ff4e03221c0)\",\"code\":3046}],\"success\":false,\"result\":{},\"messages\":[]}",
+        "elapsed_s": 238.597203
+      },
+      "validation": null,
+      "passes": false
+    },
+    {
+      "voice": "gpt-oss-120b",
+      "call": {
+        "voice": "gpt-oss-120b",
+        "elapsed_s": 94.422427,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 38673,
+          "completion_tokens": 6619,
+          "total_tokens": 45292,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        }
+      },
+      "files_parsed": [
+        "design-notes.md",
+        "main.qnt",
+        "rcv.qnt"
+      ],
+      "validation": {
+        "typecheck": {
+          "exit": 1,
+          "stderr": "or [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+        },
+        "all_invariants": {
+          "exit": 1,
+          "holds": false,
+          "tail": "-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": false,
+            "tail": "-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:13:23\n  13:     const ENCLAVE_PUB = \"pubkey\"\n                            ^\n\n\n Error [QNT000]: mismatched input '=' expecting {':', '::'}\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gpt-oss-120b/main.qnt:14:23\n  14:     const INIT_TIME   = 0\n                            ^\n\nerror: parsing failed\n"
+          }
+        }
+      },
+      "passes": false
+    },
+    {
+      "voice": "nemotron-3-120b-a12b",
+      "call": {
+        "voice": "nemotron-3-120b-a12b",
+        "error": "HTTP 408: {\"errors\":[{\"message\":\"AiError: AiError: Request timeout (b3873338-3f3f-4190-939a-6c85596c1566)\",\"code\":3046}],\"success\":false,\"result\":{},\"messages\":[]}",
+        "elapsed_s": 122.883402
+      },
+      "validation": null,
+      "passes": false
+    },
+    {
+      "voice": "gemini-2-5-flash",
+      "call": {
+        "voice": "gemini-2-5-flash",
+        "elapsed_s": 111.490277,
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 9660,
+          "prompt_tokens": 40946,
+          "total_tokens": 64787
+        }
+      },
+      "files_parsed": [
+        "design-notes.md",
+        "main.qnt",
+        "rcv.qnt"
+      ],
+      "validation": {
+        "typecheck": {
+          "exit": 1,
+          "stderr": "r\"\n         ^^^^^\n\n\n Error [QNT405]: Module main imports an unknown module rcv\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "all_invariants": {
+          "exit": 1,
+          "holds": false,
+          "tail": "elopment/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "elopment/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "elopment/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": false,
+            "tail": "elopment/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+          }
+        }
+      },
+      "passes": false
+    }
+  ],
+  "n_pass": 0,
+  "n_total": 4
+}

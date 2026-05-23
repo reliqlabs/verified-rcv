@@ -1,0 +1,13 @@
+Output dir: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v11-intent-tightened
+Voices (2): ['kimi-k2-6', 'gpt-5-5-native']
+11:54:31Z → voice kimi-k2-6: dispatching
+11:54:31Z → voice gpt-5-5-native: dispatching
+11:57:56Z   ↳ gpt-5-5-native generated in 205s, validating...
+11:57:57Z   ✓ PASS gpt-5-5-native: typecheck=0 safety_holds=True witnesses_violated=3/3
+12:03:07Z   ↳ kimi-k2-6 generated in 516s, validating...
+12:03:09Z   ✓ PASS kimi-k2-6: typecheck=0 safety_holds=True witnesses_violated=3/3
+
+=== Summary ===
+2/2 voices produced specs that pass all validation checks.
+  ✓ kimi-k2-6
+  ✓ gpt-5-5-native

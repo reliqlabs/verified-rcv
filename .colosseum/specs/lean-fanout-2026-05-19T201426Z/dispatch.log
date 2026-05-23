@@ -1,0 +1,23 @@
+
+=== Lean fan-out dispatch starting 2026-05-19T20:14:26.209792+00:00 ===
+Voices: ['kimi-k2-6', 'gpt-5-5-native', 'gemini-2-5-flash-native', 'magistral-medium-native']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z
+
+20:14:26Z → voice kimi-k2-6: dispatching
+20:14:26Z → voice gpt-5-5-native: dispatching
+20:14:26Z → voice gemini-2-5-flash-native: dispatching
+20:14:26Z → voice magistral-medium-native: dispatching
+20:16:55Z   ↳ gpt-5-5-native generated in 149s, validating...
+20:16:55Z   ✓ PASS gpt-5-5-native: typecheck_errors=False sorries=5 present=7/7 tautologies=0 enclave_eq_tally=False
+20:16:59Z   ↳ kimi-k2-6 generated in 153s, validating...
+20:16:59Z   ✓ PASS kimi-k2-6: typecheck_errors=False sorries=5 present=7/7 tautologies=0 enclave_eq_tally=False
+20:54:26Z     ⚠ gemini-2-5-flash-native attempt 1 failed (2400s): timeout after 2400s
+20:54:26Z     ⚠ magistral-medium-native attempt 1 failed (2400s): timeout after 2400s
+21:03:42Z     ↻ magistral-medium-native generated on attempt 2
+21:03:42Z   ↳ magistral-medium-native generated in 556s, validating...
+21:03:42Z   ✓ PASS magistral-medium-native: typecheck_errors=False sorries=5 present=7/7 tautologies=0 enclave_eq_tally=False
+21:15:25Z     ⚠ gemini-2-5-flash-native attempt 2 failed (1260s): exit=-15: [0m
+> lean-spec-generator · gemini-2.5-flash
+[0m
+
+21:15:25Z   ✗ gemini-2-5-flash-native ABANDONED after 2 attempts

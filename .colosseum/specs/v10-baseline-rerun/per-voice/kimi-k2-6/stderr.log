@@ -1,0 +1,3523 @@
+[0m
+> quint-spec-generator · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead /Users/mvid/go/pkg/mod/github.com/cometbft/cometbft@v0.38.21/spec/p2p/reactor-api/reactor.qnt
+[0m→ [0mRead /Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/main_n6f1b1.qnt
+[0m→ [0mRead .colosseum/intent.md[90m [offset=379][0m
+[0m→ [0mRead /Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/replica.qnt
+[0m→ [0mRead .colosseum/intent.md[90m [offset=756][0m
+[0m
+[0m$ [0mmkdir -p /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6
+(no output)
+[0m
+[0m← [0mWrite .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Wrote file successfully.
+[0m
+[0m← [0mWrite .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+Wrote file successfully.
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt 2>&1
+(no output)
+[0m
+[0m$ [0mquint run --invariant=all_invariants --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt 2>&1
+error: [QNT404] Name 'init' not found
+error: Argument error
+[0m
+[0m$ [0mquint run --invariant=witness_resolution_reachable --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt 2>&1
+error: [QNT404] Name 'init' not found
+error: Argument error
+[0m
+[0m$ [0mquint run --invariant=witness_ballot_submittable --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt 2>&1
+error: [QNT404] Name 'init' not found
+error: Argument error
+[0m
+[0m$ [0mquint run --invariant=witness_end_at_crossing --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt 2>&1
+error: [QNT404] Name 'init' not found
+error: Argument error
+[0m
+[0m$ [0mquint --version 2>&1
+0.32.0
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 && quint run --main=main --invariant=all_invariants --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: [QNT404] Name 'init' not found
+error: Argument error
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 && cat > test.qnt << 'EOF'
+module test {
+  import rcv(CANDIDATES = List("A", "B", "C"), START_AT = 2, END_AT = 5).* from "./rcv"
+  action myinit = init
+  action mystep = step
+}
+EOF
+quint typecheck test.qnt 2>&1
+Error [QNT404]: Name 'init' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/test.qnt:3:19
+  3:   action myinit = init
+                       ^^^^
+
+
+ Error [QNT404]: Name 'step' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/test.qnt:4:19
+  4:   action mystep = step
+                       ^^^^
+
+error: parsing failed
+[0m
+[0m$ [0mcd /Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint && quint run --max-steps=5 --max-samples=10 main_n6f1b1.qnt 2>&1
+An example execution:
+
+[State 0]
+{
+  main::replica::ghost_committed_blocks:
+    Map("n0" -> [], "n1" -> [], "n2" -> [], "n3" -> [], "n4" -> []),
+  main::replica::ghost_proposal:
+    Map(
+      "n0" -> Set(),
+      "n1" -> Set(),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::leader:
+    Map(
+      0 -> "n1",
+      1 -> "n0",
+      2 -> "n0",
+      3 -> "n1",
+      4 -> "n4",
+      5 -> "n0",
+      6 -> "n2"
+    ),
+  main::replica::replica_state:
+    Map(
+      "n0" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n1" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n2" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n3" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n4" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        }
+    ),
+  main::replica::sent_certificate: Set(),
+  main::replica::sent_proposal: Set(),
+  main::replica::sent_vote: Set(),
+  main::replica::store_certificate:
+    Map(
+      "n0" -> Set(),
+      "n1" -> Set(),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::store_vote:
+    Map(
+      "n0" -> Set(),
+      "n1" -> Set(),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    )
+}
+
+[State 1]
+{
+  main::replica::ghost_committed_blocks:
+    Map("n0" -> [], "n1" -> [], "n2" -> [], "n3" -> [], "n4" -> []),
+  main::replica::ghost_proposal:
+    Map(
+      "n0" -> Set(),
+      "n1" ->
+        Set(
+          {
+            block: "val_b2",
+            block_parent: "GENESIS_BLOCK",
+            sig: "n1",
+            view: 0,
+            view_parent: -1
+          }
+        ),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::leader:
+    Map(
+      0 -> "n1",
+      1 -> "n0",
+      2 -> "n0",
+      3 -> "n1",
+      4 -> "n4",
+      5 -> "n0",
+      6 -> "n2"
+    ),
+  main::replica::replica_state:
+    Map(
+      "n0" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n1" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(
+              0 -> ["val_b2"],
+              1 -> [],
+              2 -> [],
+              3 -> [],
+              4 -> [],
+              5 -> [],
+              6 -> []
+            ),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "val_b2",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: true,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n2" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n3" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n4" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        }
+    ),
+  main::replica::sent_certificate: Set(),
+  main::replica::sent_proposal:
+    Set(
+      {
+        block: "val_b2",
+        block_parent: "GENESIS_BLOCK",
+        sig: "n1",
+        view: 0,
+        view_parent: -1
+      }
+    ),
+  main::replica::sent_vote:
+    Set({ block: "val_b2", kind: "NOTARIZE_KIND", sig: "n1", view: 0 }),
+  main::replica::store_certificate:
+    Map(
+      "n0" -> Set(),
+      "n1" -> Set(),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::store_vote:
+    Map(
+      "n0" -> Set(),
+      "n1" -> Set(),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    )
+}
+
+[State 2]
+{
+  main::replica::ghost_committed_blocks:
+    Map("n0" -> [], "n1" -> [], "n2" -> [], "n3" -> [], "n4" -> []),
+  main::replica::ghost_proposal:
+    Map(
+      "n0" -> Set(),
+      "n1" ->
+        Set(
+          {
+            block: "val_b2",
+            block_parent: "GENESIS_BLOCK",
+            sig: "n1",
+            view: 0,
+            view_parent: -1
+          }
+        ),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::leader:
+    Map(
+      0 -> "n1",
+      1 -> "n0",
+      2 -> "n0",
+      3 -> "n1",
+      4 -> "n4",
+      5 -> "n0",
+      6 -> "n2"
+    ),
+  main::replica::replica_state:
+    Map(
+      "n0" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n1" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(
+              0 -> ["val_b2"],
+              1 -> [],
+              2 -> [],
+              3 -> [],
+              4 -> [],
+              5 -> [],
+              6 -> []
+            ),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "val_b2",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: true,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n2" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n3" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n4" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        }
+    ),
+  main::replica::sent_certificate: Set(),
+  main::replica::sent_proposal:
+    Set(
+      {
+        block: "val_b2",
+        block_parent: "GENESIS_BLOCK",
+        sig: "n1",
+        view: 0,
+        view_parent: -1
+      }
+    ),
+  main::replica::sent_vote:
+    Set({ block: "val_b2", kind: "NOTARIZE_KIND", sig: "n1", view: 0 }),
+  main::replica::store_certificate:
+    Map(
+      "n0" -> Set(),
+      "n1" -> Set(),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::store_vote:
+    Map(
+      "n0" -> Set(),
+      "n1" ->
+        Set({ block: "val_b2", kind: "NOTARIZE_KIND", sig: "n1", view: 0 }),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    )
+}
+
+[State 3]
+{
+  main::replica::ghost_committed_blocks:
+    Map("n0" -> [], "n1" -> [], "n2" -> [], "n3" -> [], "n4" -> []),
+  main::replica::ghost_proposal:
+    Map(
+      "n0" -> Set(),
+      "n1" ->
+        Set(
+          {
+            block: "val_b2",
+            block_parent: "GENESIS_BLOCK",
+            sig: "n1",
+            view: 0,
+            view_parent: -1
+          }
+        ),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::leader:
+    Map(
+      0 -> "n1",
+      1 -> "n0",
+      2 -> "n0",
+      3 -> "n1",
+      4 -> "n4",
+      5 -> "n0",
+      6 -> "n2"
+    ),
+  main::replica::replica_state:
+    Map(
+      "n0" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n1" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(
+              0 -> ["val_b2"],
+              1 -> [],
+              2 -> [],
+              3 -> [],
+              4 -> [],
+              5 -> [],
+              6 -> []
+            ),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "val_b2",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: true,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n2" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n3" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n4" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        }
+    ),
+  main::replica::sent_certificate:
+    Set(
+      {
+        block: "inval_1",
+        ghost_sender: "n5",
+        kind: "NOTARIZATION_KIND",
+        signatures: Set("n5"),
+        view: 6
+      }
+    ),
+  main::replica::sent_proposal:
+    Set(
+      {
+        block: "val_b0",
+        block_parent: "val_b2",
+        sig: "n5",
+        view: 1,
+        view_parent: 1
+      },
+      {
+        block: "val_b2",
+        block_parent: "GENESIS_BLOCK",
+        sig: "n1",
+        view: 0,
+        view_parent: -1
+      }
+    ),
+  main::replica::sent_vote:
+    Set({ block: "val_b2", kind: "NOTARIZE_KIND", sig: "n1", view: 0 }),
+  main::replica::store_certificate:
+    Map(
+      "n0" -> Set(),
+      "n1" -> Set(),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::store_vote:
+    Map(
+      "n0" -> Set(),
+      "n1" ->
+        Set({ block: "val_b2", kind: "NOTARIZE_KIND", sig: "n1", view: 0 }),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    )
+}
+
+[State 4]
+{
+  main::replica::ghost_committed_blocks:
+    Map("n0" -> [], "n1" -> [], "n2" -> [], "n3" -> [], "n4" -> []),
+  main::replica::ghost_proposal:
+    Map(
+      "n0" -> Set(),
+      "n1" ->
+        Set(
+          {
+            block: "val_b2",
+            block_parent: "GENESIS_BLOCK",
+            sig: "n1",
+            view: 0,
+            view_parent: -1
+          }
+        ),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::leader:
+    Map(
+      0 -> "n1",
+      1 -> "n0",
+      2 -> "n0",
+      3 -> "n1",
+      4 -> "n4",
+      5 -> "n0",
+      6 -> "n2"
+    ),
+  main::replica::replica_state:
+    Map(
+      "n0" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n1" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(
+              0 -> ["val_b2"],
+              1 -> [],
+              2 -> [],
+              3 -> [],
+              4 -> [],
+              5 -> [],
+              6 -> []
+            ),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "val_b2",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: true,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n2" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n3" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n4" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        }
+    ),
+  main::replica::sent_certificate:
+    Set(
+      {
+        block: "inval_0",
+        ghost_sender: "n5",
+        kind: "NULLIFICATION_KIND",
+        signatures: Set(),
+        view: 1
+      },
+      {
+        block: "inval_1",
+        ghost_sender: "n5",
+        kind: "NOTARIZATION_KIND",
+        signatures: Set("n5"),
+        view: 6
+      }
+    ),
+  main::replica::sent_proposal:
+    Set(
+      {
+        block: "val_b0",
+        block_parent: "val_b2",
+        sig: "n5",
+        view: 1,
+        view_parent: 1
+      },
+      {
+        block: "val_b1",
+        block_parent: "inval_0",
+        sig: "n5",
+        view: 0,
+        view_parent: 1
+      },
+      {
+        block: "val_b2",
+        block_parent: "GENESIS_BLOCK",
+        sig: "n1",
+        view: 0,
+        view_parent: -1
+      }
+    ),
+  main::replica::sent_vote:
+    Set(
+      { block: "val_b2", kind: "NOTARIZE_KIND", sig: "n1", view: 0 },
+      { block: "val_b2", kind: "NULLIFY_KIND", sig: "n5", view: 2 }
+    ),
+  main::replica::store_certificate:
+    Map(
+      "n0" -> Set(),
+      "n1" -> Set(),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::store_vote:
+    Map(
+      "n0" -> Set(),
+      "n1" ->
+        Set({ block: "val_b2", kind: "NOTARIZE_KIND", sig: "n1", view: 0 }),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    )
+}
+
+[State 5]
+{
+  main::replica::ghost_committed_blocks:
+    Map("n0" -> [], "n1" -> [], "n2" -> [], "n3" -> [], "n4" -> []),
+  main::replica::ghost_proposal:
+    Map(
+      "n0" -> Set(),
+      "n1" ->
+        Set(
+          {
+            block: "val_b2",
+            block_parent: "GENESIS_BLOCK",
+            sig: "n1",
+            view: 0,
+            view_parent: -1
+          }
+        ),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::leader:
+    Map(
+      0 -> "n1",
+      1 -> "n0",
+      2 -> "n0",
+      3 -> "n1",
+      4 -> "n4",
+      5 -> "n0",
+      6 -> "n2"
+    ),
+  main::replica::replica_state:
+    Map(
+      "n0" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n1" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(
+              0 -> ["val_b2"],
+              1 -> [],
+              2 -> [],
+              3 -> [],
+              4 -> [],
+              5 -> [],
+              6 -> []
+            ),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "val_b2",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: true,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n2" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n3" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        },
+      "n4" ->
+        {
+          ghost_last_seen_notarization: -1,
+          ghost_sent_votes:
+            Map(0 -> [], 1 -> [], 2 -> [], 3 -> [], 4 -> [], 5 -> [], 6 -> []),
+          last_finalized: -1,
+          notarized:
+            Map(
+              0 -> "EMPTY_BLOCK",
+              1 -> "EMPTY_BLOCK",
+              2 -> "EMPTY_BLOCK",
+              3 -> "EMPTY_BLOCK",
+              4 -> "EMPTY_BLOCK",
+              5 -> "EMPTY_BLOCK",
+              6 -> "EMPTY_BLOCK"
+            ),
+          nullified: false,
+          propose_sent: false,
+          timer_cancelled: false,
+          view: 0
+        }
+    ),
+  main::replica::sent_certificate:
+    Set(
+      {
+        block: "inval_0",
+        ghost_sender: "n5",
+        kind: "NULLIFICATION_KIND",
+        signatures: Set(),
+        view: 1
+      },
+      {
+        block: "inval_1",
+        ghost_sender: "n5",
+        kind: "NOTARIZATION_KIND",
+        signatures: Set("n5"),
+        view: 6
+      }
+    ),
+  main::replica::sent_proposal:
+    Set(
+      {
+        block: "val_b0",
+        block_parent: "val_b2",
+        sig: "n5",
+        view: 1,
+        view_parent: 1
+      },
+      {
+        block: "val_b1",
+        block_parent: "inval_0",
+        sig: "n5",
+        view: 0,
+        view_parent: 1
+      },
+      {
+        block: "val_b2",
+        block_parent: "GENESIS_BLOCK",
+        sig: "n1",
+        view: 0,
+        view_parent: -1
+      }
+    ),
+  main::replica::sent_vote:
+    Set(
+      { block: "val_b2", kind: "NOTARIZE_KIND", sig: "n1", view: 0 },
+      { block: "val_b2", kind: "NULLIFY_KIND", sig: "n5", view: 2 }
+    ),
+  main::replica::store_certificate:
+    Map(
+      "n0" -> Set(),
+      "n1" -> Set(),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    ),
+  main::replica::store_vote:
+    Map(
+      "n0" -> Set(),
+      "n1" ->
+        Set({ block: "val_b2", kind: "NOTARIZE_KIND", sig: "n1", view: 0 }),
+      "n2" -> Set(),
+      "n3" -> Set(),
+      "n4" -> Set()
+    )
+}
+
+[ok] No violation found (30ms at 333 traces/second).
+Trace length statistics: max=6, min=6, average=6.00
+You may increase --max-samples and --max-steps.
+Use --verbosity to produce more (or less) output.
+Use --seed=0x41cd46a0f80b91c7 --backend=rust to reproduce.
+[0m
+[0m✗ [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt failed
+[91m[1mError: [0mThe edit tool was called with invalid arguments: SchemaError(Missing key
+  at ["oldString"]).
+Please rewrite the input so it satisfies the expected schema.
+[0m✗ [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt failed
+[91m[1mError: [0mNo changes to apply: oldString and newString are identical.
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 && cat > mini_rcv.qnt << 'EOF'
+module mini_rcv {
+  const CANDIDATES: List[str]
+  var x: int
+  action init = all { x' = 0 }
+  action step = any { all { x' = x + 1 } }
+}
+EOF
+cat > mini_main.qnt << 'EOF'
+module mini_main {
+  import mini_rcv(CANDIDATES = List("A")) .* from "./mini_rcv"
+}
+EOF
+quint run --max-steps=3 --max-samples=10 mini_main.qnt 2>&1
+An example execution:
+
+[State 0] { mini_main::mini_rcv::x: 0 }
+
+[State 1] { mini_main::mini_rcv::x: 1 }
+
+[State 2] { mini_main::mini_rcv::x: 2 }
+
+[State 3] { mini_main::mini_rcv::x: 3 }
+
+[ok] No violation found (8ms at 1250 traces/second).
+Trace length statistics: max=4, min=4, average=4.00
+You may increase --max-samples and --max-steps.
+Use --verbosity to produce more (or less) output.
+Use --seed=0x35775dc80dd707f7 --backend=rust to reproduce.
+[0m
+[0m→ [0mRead .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+@@ -5,6 +5,6 @@
+   import rcv(
+     CANDIDATES = List("A", "B", "C"),
+     START_AT = 2,
+     END_AT = 5
+-  ).* from "./rcv"
++  ) .* from "./rcv"
+ }
+
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 && quint run --invariant=all_invariants --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: [QNT404] Name 'init' not found
+error: Argument error
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 && quint run --invariant=witness_resolution_reachable --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: [QNT404] Name 'init' not found
+error: Argument error
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 && quint run --invariant=witness_ballot_submittable --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: [QNT404] Name 'init' not found
+error: Argument error
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 && quint run --invariant=witness_end_at_crossing --max-steps=30 --max-samples=100 main.qnt 2>&1
+error: [QNT404] Name 'init' not found
+error: Argument error
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 && quint typecheck rcv.qnt 2>&1
+Error [QNT000]: no viable alternative at input 'typeOptionT[T'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:17:16
+  17:   type OptionT[T] = { present: bool, value: T }
+                     ^
+
+
+ Error [QNT000]: extraneous input 'type' expecting {<EOF>, 'module', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:19:3
+  19:   type TallyResult = {
+        ^^^^
+
+error: parsing failed
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -12,11 +12,8 @@
+ // ---------------------------------------------------------------------------
+ // Types
+ // ---------------------------------------------------------------------------
+ 
+-// Option encoding (Quint has no built-in Option)
+-type OptionT[T] = { present: bool, value: T }
+-
+ type TallyResult = {
+   winners: List[str],
+   per_round_counts: List[str -> int],
+   eliminated_by_round: List[List[str]],
+
+[0m
+[0m→ [0mRead .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt[90m [limit=60][0m
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -30,9 +30,9 @@
+ var candidates: List[str]
+ var start_at: int
+ var end_at: int
+ var ballots: str -> str       // voter_addr -> encrypted_ballot (opaque)
+-var tally_result: OptionT[TallyResult]
++type TallyResultOpt = { present: bool, value: TallyResult }
+ var time: int                 // env.block.time
+ var phase: str                // "Created" | "Voting" | "Tallying" | "Resolved"
+ 
+ // ---------------------------------------------------------------------------
+
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -38,9 +38,9 @@
+ // ---------------------------------------------------------------------------
+ // Pure helpers
+ // ---------------------------------------------------------------------------
+ 
+-pure def noneT[T](): OptionT[T] = { present: false, value: {
++pure def noneTally(): TallyResultOpt = { present: false, value: {
+   winners: List(),
+   per_round_counts: List(),
+   eliminated_by_round: List(),
+   ballots_tallied: 0,
+@@ -48,12 +48,12 @@
+   dropped_voters: List(),
+   non_voters: List(),
+ } }
+ 
+-pure def someT[T](v: T): OptionT[T] = { present: true, value: v }
++pure def someTally(v: TallyResult): TallyResultOpt = { present: true, value: v }
+ 
+-pure def isNone[T](o: OptionT[T]): bool = not(o.present)
+-pure def isSome[T](o: OptionT[T]): bool = o.present
++pure def isNoneTally(o: TallyResultOpt): bool = not(o.present)
++pure def isSomeTally(o: TallyResultOpt): bool = o.present
+ 
+ // Set of keys in a map (Quint maps have .keys())
+ pure def mapKeys(m: str -> str): Set[str] = m.keys()
+ 
+
+[0m
+[0m✱ [0mGrep "noneT\(\)|someT\(|isNone\(|isSome\("[90m in .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 · 4 matches[0m
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -230,9 +230,9 @@
+   candidates' = CANDIDATES,
+   start_at' = START_AT,
+   end_at' = END_AT,
+   ballots' = Map(),
+-  tally_result' = noneT(),
++  tally_result' = noneTally(),
+   time' = 0,
+   phase' = "Created",
+ }
+ 
+@@ -293,9 +293,9 @@
+ // that is consistent with the raw ballots (subset of keys, each a permutation).
+ // In practice the enclave computes this; here we model the effect.
+ action publishResult: bool = all {
+   phase == "Tallying",
+-  tally_result == noneT(),
++  tally_result == noneTally(),
+   // Nondeterministically choose which submitted ballots are valid
+   nondet valid_voters = ballots.keys().powerset().oneOf()
+   // Build a valid_ballots map where each voter's prefs is a permutation of candidates
+   val valid_ballots = valid_voters.foldl(Map(), (acc, v) => {
+@@ -321,9 +321,9 @@
+   candidates' = List(),
+   start_at' = 0,
+   end_at' = 0,
+   ballots' = Map(),
+-  tally_result' = noneT(),
++  tally_result' = noneTally(),
+   time' = 0,
+   phase' = "Uninitialized",
+ }
+ 
+
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -303,9 +303,9 @@
+   // since the actual encrypted content is opaque to the chain.
+   acc.put(v, candidates)
+ })
+ val tally = computeTally(ballots, valid_ballots, candidates)
+-tally_result' = someT(tally),
++tally_result' = someTally(tally),
+ candidates' = candidates,
+ start_at' = start_at,
+ end_at' = end_at,
+ ballots' = ballots,
+
+[0m
+[0m✱ [0mGrep "isNone|isSome"[90m in .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 · 2 matches[0m
+[0m
+[0m$ [0mcd /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6 && quint typecheck rcv.qnt 2>&1
+[DEBUG] generating undefined expr to fill hole in: all{phase=="Created",time<start_at,time'=start_at,candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,tally_result'=tally_result,phase'=derivedPhase(time',start_at',end_at',tally_result'),}
+[DEBUG] generating undefined expr to fill hole in: all{phase=="Created",time<start_at,time'=start_at,candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,tally_result'=tally_result,phase'=derivedPhase(time',start_at',end_at',tally_result'),}
+[DEBUG] generating undefined expr to fill hole in: all{phase=="Created",time<start_at,time'=start_at,candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,tally_result'=tally_result,phase'=derivedPhase(time',start_at',end_at',tally_result'),}
+[DEBUG] generating undefined expr to fill hole in: all{phase=="Voting",time<end_at,time'=end_at,candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,tally_result'=tally_result,phase'=derivedPhase(time',start_at',end_at',tally_result'),}
+[DEBUG] generating undefined expr to fill hole in: all{phase=="Voting",time<end_at,time'=end_at,candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,tally_result'=tally_result,phase'=derivedPhase(time',start_at',end_at',tally_result'),}
+[DEBUG] generating undefined expr to fill hole in: all{phase=="Voting",time<end_at,time'=end_at,candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,tally_result'=tally_result,phase'=derivedPhase(time',start_at',end_at',tally_result'),}
+[DEBUG] generating undefined expr to fill hole in: all{phase=="Tallying",tally_result==noneTally(),nondetvalid_voters=ballots.keys().powerset().oneOf()valvalid_ballots=valid_voters.foldl(Map(),(acc,v)=>{acc.put(v,candidates)})valtally=computeTally(ballots,valid_ballots,candidates)tally_result'=someTally(tally),candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,time'=time,phase'=derivedPhase(time',start_at',end_at',tally_result'),}
+[DEBUG] generating undefined expr to fill hole in: all{phase=="Tallying",tally_result==noneTally(),nondetvalid_voters=ballots.keys().powerset().oneOf()valvalid_ballots=valid_voters.foldl(Map(),(acc,v)=>{acc.put(v,candidates)})valtally=computeTally(ballots,valid_ballots,candidates)tally_result'=someTally(tally),candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,time'=time,phase'=derivedPhase(time',start_at',end_at',tally_result'),}
+[DEBUG] generating undefined expr to fill hole in: all{phase=="Tallying",tally_result==noneTally(),nondetvalid_voters=ballots.keys().powerset().oneOf()valvalid_ballots=valid_voters.foldl(Map(),(acc,v)=>{acc.put(v,candidates)})valtally=computeTally(ballots,valid_ballots,candidates)tally_result'=someTally(tally),candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,time'=time,phase'=derivedPhase(time',start_at',end_at',tally_result'),}
+[DEBUG] generating undefined expr to fill hole in: any{instantiate,timeAdvanceToStart,nondetvoter=oneOf(listToSet(CANDIDATES))nondetenc=oneOf(Set("enc1","enc2","enc3"))submitBallot(voter,enc),timeAdvanceToEnd,closeAndTally,publishResult,all{phase!="Uninitialized",phase!="Resolved",time'=time+1,candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,tally_result'=tally_result,phase'=derivedPhase(time',start_at',end_at',tally_result'),}}
+[DEBUG] generating undefined expr to fill hole in: any{instantiate,timeAdvanceToStart,nondetvoter=oneOf(listToSet(CANDIDATES))nondetenc=oneOf(Set("enc1","enc2","enc3"))submitBallot(voter,enc),timeAdvanceToEnd,closeAndTally,publishResult,all{phase!="Uninitialized",phase!="Resolved",time'=time+1,candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,tally_result'=tally_result,phase'=derivedPhase(time',start_at',end_at',tally_result'),}}
+[DEBUG] generating undefined expr to fill hole in: any{instantiate,timeAdvanceToStart,nondetvoter=oneOf(listToSet(CANDIDATES))nondetenc=oneOf(Set("enc1","enc2","enc3"))submitBallot(voter,enc),timeAdvanceToEnd,closeAndTally,publishResult,all{phase!="Uninitialized",phase!="Resolved",time'=time+1,candidates'=candidates,start_at'=start_at,end_at'=end_at,ballots'=ballots,tally_result'=tally_result,phase'=derivedPhase(time',start_at',end_at',tally_result'),}}
+
+ Error [QNT000]: extraneous input '(' expecting {'}', ','}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:249:26
+  249:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                ^
+
+
+ Error [QNT000]: mismatched input ',' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:249:43
+  249:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                 ^
+
+
+ Error [QNT000]: mismatched input ',' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:249:52
+  249:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                          ^
+
+
+ Error [QNT000]: mismatched input ')' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:249:67
+  249:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                                         ^
+
+
+ Error [QNT000]: extraneous input '(' expecting {'}', ','}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:276:26
+  276:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                ^
+
+
+ Error [QNT000]: mismatched input ',' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:276:43
+  276:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                 ^
+
+
+ Error [QNT000]: mismatched input ',' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:276:52
+  276:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                          ^
+
+
+ Error [QNT000]: mismatched input ')' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:276:67
+  276:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                                         ^
+
+
+ Error [QNT000]: extraneous input '(' expecting {'}', ','}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:313:26
+  313:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                ^
+
+
+ Error [QNT000]: mismatched input ',' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:313:43
+  313:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                 ^
+
+
+ Error [QNT000]: mismatched input ',' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:313:52
+  313:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                          ^
+
+
+ Error [QNT000]: mismatched input ')' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:313:67
+  313:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                                         ^
+
+
+ Error [QNT000]: extraneous input '(' expecting {'}', ','}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:349:28
+  349:       phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                  ^
+
+
+ Error [QNT000]: mismatched input ',' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:349:45
+  349:       phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                   ^
+
+
+ Error [QNT000]: mismatched input ',' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:349:54
+  349:       phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                            ^
+
+
+ Error [QNT000]: mismatched input ')' expecting {''', '::'}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:349:69
+  349:       phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                                           ^
+
+
+ Error [QNT000]: missing 'else' at 'and'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:367:61
+  367:   val s6_winner_wellformed = if (tally_result.present) then and {
+                                                                   ^^^
+
+
+ Error [QNT000]: extraneous input 'else' expecting {'}', 'const', 'var', 'assume', 'val', 'pure', 'type', 'def', 'action', 'run', 'temporal', 'nondet', 'import', 'export', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:371:7
+  371:     } else true
+             ^^^^
+
+
+ Error [QNT000]: missing 'else' at 'tally_result'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:374:7
+  374:       tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()
+             ^^^^^^^^^^^^
+
+
+ Error [QNT000]: extraneous input 'else' expecting {'}', 'const', 'var', 'assume', 'val', 'pure', 'type', 'def', 'action', 'run', 'temporal', 'nondet', 'import', 'export', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:375:5
+  375:     else true
+           ^^^^
+
+
+ Error [QNT000]: missing 'else' at 'tally_result'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:378:7
+  378:       tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)
+             ^^^^^^^^^^^^
+
+
+ Error [QNT000]: extraneous input 'else' expecting {'}', 'const', 'var', 'assume', 'val', 'pure', 'type', 'def', 'action', 'run', 'temporal', 'nondet', 'import', 'export', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:379:5
+  379:     else true
+           ^^^^
+
+
+ Error [QNT000]: missing 'else' at '0'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:385:7
+  385:       0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i =>
+             ^
+
+
+ Error [QNT000]: extraneous input 'else' expecting {'}', 'const', 'var', 'assume', 'val', 'pure', 'type', 'def', 'action', 'run', 'temporal', 'nondet', 'import', 'export', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:392:5
+  392:     else true
+           ^^^^
+
+
+ Error [QNT000]: missing 'else' at 'time'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:394:72
+  394:   val s10_resolution_implies_past_end = if (tally_result.present) then time >= end_at else true
+                                                                              ^^^^
+
+
+ Error [QNT000]: no viable alternative at input '>=end_atelse'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:394:87
+  394:   val s10_resolution_implies_past_end = if (tally_result.present) then time >= end_at else true
+                                                                                             ^^^^
+
+
+ Error [QNT000]: extraneous input 'else' expecting {'}', 'const', 'var', 'assume', 'val', 'pure', 'type', 'def', 'action', 'run', 'temporal', 'nondet', 'import', 'export', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:394:87
+  394:   val s10_resolution_implies_past_end = if (tally_result.present) then time >= end_at else true
+                                                                                             ^^^^
+
+
+ Error [QNT000]: extraneous input 'true' expecting 'else'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:402:7
+  402:       true
+             ^^^^
+
+
+ Error [QNT000]: extraneous input 'true' expecting 'else'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:407:7
+  407:       true
+             ^^^^
+
+
+ Error [QNT000]: extraneous input 'false' expecting 'else'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:410:80
+  410:   val b3_no_premature_tally = if (tally_result.present and time < end_at) then false else true
+                                                                                      ^^^^^
+
+
+ Error [QNT000]: extraneous input 'true' expecting 'else'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:418:61
+  418:   val b7_terminal_immutable = if (phase == "Resolved") then true else true
+                                                                   ^^^^
+
+
+ Error [QNT404]: Name 'remove' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:102:29
+  102:     ks.foldl(m, (acc, k) => acc.remove(k))
+                                   ^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'toList' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:169:50
+  169:         (winners, List(counts).concat(prc), List(losers.toList()).concat(ebr), bt)
+                                                        ^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'toList' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:186:18
+  186:     val voters = valid_ballots.keys().toList()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'toList' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:197:23
+  197:       dropped_voters: raw_ballots.keys().toList().foldl(List(), (acc, v) =>
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Type alias 'OptionT' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:208:50
+  208:   def derivedPhase(t: int, st: int, en: int, tr: OptionT[TallyResult]): str = {
+                                                        ^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:234:5
+  234:     tally_result' = noneTally(),
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:248:5
+  248:     tally_result' = tally_result,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:248:21
+  248:     tally_result' = tally_result,
+                           ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:249:54
+  249:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                            ^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:262:5
+  262:     tally_result' = tally_result,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:262:21
+  262:     tally_result' = tally_result,
+                           ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:275:5
+  275:     tally_result' = tally_result,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:275:21
+  275:     tally_result' = tally_result,
+                           ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:276:54
+  276:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                            ^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:287:5
+  287:     tally_result' = tally_result,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:287:21
+  287:     tally_result' = tally_result,
+                           ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:297:5
+  297:     tally_result == noneTally(),
+           ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:307:5
+  307:     tally_result' = someTally(tally),
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:313:54
+  313:     phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                            ^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:325:5
+  325:     tally_result' = noneTally(),
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:348:7
+  348:       tally_result' = tally_result,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:348:23
+  348:       tally_result' = tally_result,
+                             ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:349:56
+  349:       phase' = derivedPhase(time', start_at', end_at', tally_result'),
+                                                              ^^^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:367:34
+  367:   val s6_winner_wellformed = if (tally_result.present) then and {
+                                        ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:368:7
+  368:       tally_result.value.winners.length() >= 1,
+             ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:369:7
+  369:       tally_result.value.winners.length() <= candidates.length(),
+             ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:370:7
+  370:       tally_result.value.winners.forall(w => listContains(candidates, w)),
+             ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:373:35
+  373:   val s7_tally_conservation = if (tally_result.present) then
+                                         ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:374:7
+  374:       tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()
+             ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:374:44
+  374:       tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()
+                                                  ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:374:81
+  374:       tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()
+                                                                                       ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:377:38
+  377:   val s8_per_round_consistency = if (tally_result.present) then
+                                            ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:378:7
+  378:       tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)
+             ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:378:71
+  378:       tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)
+                                                                             ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:381:41
+  381:   val s9_elimination_monotonicity = if (tally_result.present) then
+                                               ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:385:12
+  385:       0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i =>
+                  ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:386:9
+  386:         tally_result.value.eliminated_by_round[i].forall(c =>
+               ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:387:22
+  387:           (i + 1).to(tally_result.value.per_round_counts.length() - 1).forall(j =>
+                            ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:388:17
+  388:             not(tally_result.value.per_round_counts[j].keys().contains(c))
+                       ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:394:45
+  394:   val s10_resolution_implies_past_end = if (tally_result.present) then time >= end_at else true
+                                                   ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:400:31
+  400:   val b1_tally_monotone = if (tally_result.present) then
+                                     ^^^^^^^^^^^^
+
+
+ Error [QNT404]: Name 'tally_result' not found
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:410:35
+  410:   val b3_no_premature_tally = if (tally_result.present and time < end_at) then false else true
+                                         ^^^^^^^^^^^^
+
+
+ Error [QNT099]: Found cyclic declarations. Use fold and foldl instead of recursion
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:295:10
+  295:   action publishResult: bool = all {
+                ^^^^^^^^^^^^^
+
+
+ Error [QNT099]: Found cyclic declarations. Use fold and foldl instead of recursion
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:330:10
+  330:   action step = any {
+                ^^^^
+
+error: [QNT099] Found cyclic declarations. Use fold and foldl instead of recursion
+
+ Error [QNT099]: Found cyclic declarations. Use fold and foldl instead of recursion
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:168:9
+  168:         val (winners, prc, ebr, bt) = irvRounds(nextBallots, nextRemaining, total_ballots)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT099]: Found cyclic declarations. Use fold and foldl instead of recursion
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:190:5
+  190:     val (winners, prc, ebr, bt) = irvRounds(valid_ballots, all_candidates, voters.length())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT099]: Found cyclic declarations. Use fold and foldl instead of recursion
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:306:9
+  306:     val tally = computeTally(ballots, valid_ballots, candidates)
+               ^^^^^
+
+
+ Error [QNT099]: Found cyclic declarations. Use fold and foldl instead of recursion
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:147:12
+  147:   pure def irvRounds(
+                  ^^^^^^^^^
+
+
+ Error [QNT099]: Found cyclic declarations. Use fold and foldl instead of recursion
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:181:12
+  181:   pure def computeTally(
+                  ^^^^^^^^^^^^
+
+error: parsing failed
+[0m
+[0m← [0mWrite .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Wrote file successfully.
+[0m
+[0m$ [0mquint typecheck rcv.qnt
+error: file rcv.qnt does not exist
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Error [QNT000]: missing 'else' at 'tally_result'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:229:7
+  229:       tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()
+             ^^^^^^^^^^^^
+
+
+ Error [QNT000]: extraneous input 'else' expecting {'}', 'const', 'var', 'assume', 'val', 'pure', 'type', 'def', 'action', 'run', 'temporal', 'nondet', 'import', 'export', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:230:5
+  230:     else true
+           ^^^^
+
+
+ Error [QNT000]: missing 'else' at 'tally_result'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:233:7
+  233:       tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)
+             ^^^^^^^^^^^^
+
+
+ Error [QNT000]: extraneous input 'else' expecting {'}', 'const', 'var', 'assume', 'val', 'pure', 'type', 'def', 'action', 'run', 'temporal', 'nondet', 'import', 'export', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:234:5
+  234:     else true
+           ^^^^
+
+
+ Error [QNT000]: missing 'else' at '0'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:237:7
+  237:       0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i =>
+             ^
+
+
+ Error [QNT000]: extraneous input 'else' expecting {'}', 'const', 'var', 'assume', 'val', 'pure', 'type', 'def', 'action', 'run', 'temporal', 'nondet', 'import', 'export', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:244:5
+  244:     else true
+           ^^^^
+
+
+ Error [QNT000]: missing 'else' at 'time'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:246:72
+  246:   val s10_resolution_implies_past_end = if (tally_result.present) then time >= end_at else true
+                                                                              ^^^^
+
+
+ Error [QNT000]: no viable alternative at input '>=end_atelse'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:246:87
+  246:   val s10_resolution_implies_past_end = if (tally_result.present) then time >= end_at else true
+                                                                                             ^^^^
+
+
+ Error [QNT000]: extraneous input 'else' expecting {'}', 'const', 'var', 'assume', 'val', 'pure', 'type', 'def', 'action', 'run', 'temporal', 'nondet', 'import', 'export', DOCCOMMENT}
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:246:87
+  246:   val s10_resolution_implies_past_end = if (tally_result.present) then time >= end_at else true
+                                                                                             ^^^^
+
+
+ Error [QNT000]: extraneous input 'false' expecting 'else'
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:256:80
+  256:   val b3_no_premature_tally = if (tally_result.present and time < end_at) then false else true
+                                                                                      ^^^^^
+
+error: parsing failed
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -218,33 +218,17 @@
+ val s4_ballot_keys_are_candidates = ballots.keys().forall(k => listContains(candidates, k))
+ 
+ val s5_terminality = true
+ 
+-val s6_winner_wellformed = if (tally_result.present) then (
+-    tally_result.value.winners.length() >= 1 and
+-    tally_result.value.winners.length() <= candidates.length() and
+-    tally_result.value.winners.forall(w => listContains(candidates, w))
+-  ) else true
++val s6_winner_wellformed = if (tally_result.present) then (tally_result.value.winners.length() >= 1 and tally_result.value.winners.length() <= candidates.length() and tally_result.value.winners.forall(w => listContains(candidates, w))) else true
+ 
+-val s7_tally_conservation = if (tally_result.present) then
+-    tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()
+-  else true
++val s7_tally_conservation = if (tally_result.present) then (tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()) else true
+ 
+-val s8_per_round_consistency = if (tally_result.present) then
+-    tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)
+-  else true
++val s8_per_round_consistency = if (tally_result.present) then (tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)) else true
+ 
+-val s9_elimination_monotonicity = if (tally_result.present) then
+-    0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i =>
+-      tally_result.value.eliminated_by_round[i].forall(c =>
+-        (i + 1).to(tally_result.value.per_round_counts.length() - 1).forall(j =>
+-          not(tally_result.value.per_round_counts[j].keys().contains(c))
+-        )
+-      )
+-    )
+-  else true
++val s9_elimination_monotonicity = if (tally_result.present) then (tally_result.value.eliminated_by_round.length() == 0 or (0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i => tally_result.value.eliminated_by_round[i].forall(c => (i + 1).to(tally_result.value.per_round_counts.length() - 1).forall(j => not(tally_result.value.per_round_counts[j].keys().contains(c))))))) else true
+ 
+-val s10_resolution_implies_past_end = if (tally_result.present) then time >= end_at else true
++val s10_resolution_implies_past_end = if (tally_result.present) then (time >= end_at) else true
+ 
+ // ---------------------------------------------------------------------------
+ // Behavioral invariants (§3.2) — classical shadows where crypto is involved
+ // ---------------------------------------------------------------------------
+@@ -252,9 +236,9 @@
+ val b1_tally_monotone = true
+ 
+ val b2_no_late_ballots = true
+ 
+-val b3_no_premature_tally = if (tally_result.present and time < end_at) then false else true
++val b3_no_premature_tally = not(tally_result.present and time < end_at)
+ 
+ val b4_no_premature_voting = true
+ 
+ val b5_publish_once = true
+
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Error [QNT000]: Couldn't unify list and set
+Trying to unify List[_t26] and Set[str]
+Trying to unify (List[_t26], _t27, (_t27, _t26) => _t27) => _t27 and (Set[str], int, (int, str) => int) => _t28
+
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:57:5
+  57:     m.keys().foldl(0, (acc, k) => acc + m.get(k))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+ Error [QNT000]: Expected 2 arguments, got 1
+Trying to unify (Read[_v550] & Update[_v551], Read[_v552] & Update[_v551]) => Read[_v553] & Update[_v551] and (Read['tally_result', 'candidates']) => _e152
+Trying to infer effect for operator application in then(and(and(igte(length(field(field(tally_result, "value"), "winners")), 1), ilte(length(field(field(tally_result, "value"), "winners")), length(candidates))), forall(field(field(tally_result, "value"), "winners"), ((w) => listContains(candidates, w)))))
+
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:222:56
+  222:   val s6_winner_wellformed = if (tally_result.present) then (tally_result.value.winners.length() >= 1 and tally_result.value.winners.length() <= candidates.length() and tally_result.value.winners.forall(w => listContains(candidates, w))) else true
+                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: typechecking failed
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -53,9 +53,9 @@
+   lst.foldl((true, Set()), (acc, x) => (acc._1 and not(acc._2.contains(x)), acc._2.union(Set(x))))._1
+ }
+ 
+ pure def sumValues(m: str -> int): int = {
+-  m.keys().foldl(0, (acc, k) => acc + m.get(k))
++  m.keys().fold(0, (acc, k) => acc + m.get(k))
+ }
+ 
+ pure def filterList(lst: List[str], removeSet: Set[str]): List[str] = {
+   lst.foldl(List(), (acc, x) => if (removeSet.contains(x)) acc else acc.append(x))
+
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -218,17 +218,17 @@
+ val s4_ballot_keys_are_candidates = ballots.keys().forall(k => listContains(candidates, k))
+ 
+ val s5_terminality = true
+ 
+-val s6_winner_wellformed = if (tally_result.present) then (tally_result.value.winners.length() >= 1 and tally_result.value.winners.length() <= candidates.length() and tally_result.value.winners.forall(w => listContains(candidates, w))) else true
++val s6_winner_wellformed = if (tally_result.present) (tally_result.value.winners.length() >= 1 and tally_result.value.winners.length() <= candidates.length() and tally_result.value.winners.forall(w => listContains(candidates, w))) else true
+ 
+-val s7_tally_conservation = if (tally_result.present) then (tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()) else true
++val s7_tally_conservation = if (tally_result.present) (tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()) else true
+ 
+-val s8_per_round_consistency = if (tally_result.present) then (tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)) else true
++val s8_per_round_consistency = if (tally_result.present) (tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)) else true
+ 
+-val s9_elimination_monotonicity = if (tally_result.present) then (tally_result.value.eliminated_by_round.length() == 0 or (0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i => tally_result.value.eliminated_by_round[i].forall(c => (i + 1).to(tally_result.value.per_round_counts.length() - 1).forall(j => not(tally_result.value.per_round_counts[j].keys().contains(c))))))) else true
++val s9_elimination_monotonicity = if (tally_result.present) (tally_result.value.eliminated_by_round.length() == 0 or (0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i => tally_result.value.eliminated_by_round[i].forall(c => (i + 1).to(tally_result.value.per_round_counts.length() - 1).forall(j => not(tally_result.value.per_round_counts[j].keys().contains(c))))))) else true
+ 
+-val s10_resolution_implies_past_end = if (tally_result.present) then (time >= end_at) else true
++val s10_resolution_implies_past_end = if (tally_result.present) (time >= end_at) else true
+ 
+ // ---------------------------------------------------------------------------
+ // Behavioral invariants (§3.2) — classical shadows where crypto is involved
+ // ---------------------------------------------------------------------------
+
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Error [QNT000]: Couldn't unify set and list
+Trying to unify Set[_t263] and List[str]
+Trying to unify (Set[_t263], (_t263) => bool) => bool and (List[str], (str) => bool) => _t264
+
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:222:165
+  222:   val s6_winner_wellformed = if (tally_result.present) (tally_result.value.winners.length() >= 1 and tally_result.value.winners.length() <= candidates.length() and tally_result.value.winners.forall(w => listContains(candidates, w))) else true
+                                                                                                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: typechecking failed
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -218,9 +218,9 @@
+ val s4_ballot_keys_are_candidates = ballots.keys().forall(k => listContains(candidates, k))
+ 
+ val s5_terminality = true
+ 
+-val s6_winner_wellformed = if (tally_result.present) (tally_result.value.winners.length() >= 1 and tally_result.value.winners.length() <= candidates.length() and tally_result.value.winners.forall(w => listContains(candidates, w))) else true
++val s6_winner_wellformed = if (tally_result.present) (tally_result.value.winners.length() >= 1 and tally_result.value.winners.length() <= candidates.length() and tally_result.value.winners.foldl(true, (acc, w) => acc and listContains(candidates, w))) else true
+ 
+ val s7_tally_conservation = if (tally_result.present) (tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()) else true
+ 
+ val s8_per_round_consistency = if (tally_result.present) (tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)) else true
+
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Error [QNT000]: Couldn't unify set and list
+Trying to unify Set[_t295] and List[(str -> int)]
+Trying to unify (Set[_t295], (_t295) => bool) => bool and (List[(str -> int)], ((str -> int)) => bool) => _t296
+
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:226:61
+  226:   val s8_per_round_consistency = if (tally_result.present) (tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)) else true
+                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: typechecking failed
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -222,9 +222,9 @@
+ val s6_winner_wellformed = if (tally_result.present) (tally_result.value.winners.length() >= 1 and tally_result.value.winners.length() <= candidates.length() and tally_result.value.winners.foldl(true, (acc, w) => acc and listContains(candidates, w))) else true
+ 
+ val s7_tally_conservation = if (tally_result.present) (tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()) else true
+ 
+-val s8_per_round_consistency = if (tally_result.present) (tally_result.value.per_round_counts.forall(m => sumValues(m) == tally_result.value.ballots_tallied)) else true
++val s8_per_round_consistency = if (tally_result.present) (tally_result.value.per_round_counts.foldl(true, (acc, m) => acc and (sumValues(m) == tally_result.value.ballots_tallied))) else true
+ 
+ val s9_elimination_monotonicity = if (tally_result.present) (tally_result.value.eliminated_by_round.length() == 0 or (0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i => tally_result.value.eliminated_by_round[i].forall(c => (i + 1).to(tally_result.value.per_round_counts.length() - 1).forall(j => not(tally_result.value.per_round_counts[j].keys().contains(c))))))) else true
+ 
+ val s10_resolution_implies_past_end = if (tally_result.present) (time >= end_at) else true
+
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Error [QNT000]: Couldn't unify set and list
+Trying to unify Set[_t337] and List[str]
+Trying to unify (Set[_t337], (_t337) => bool) => bool and (List[str], (str) => bool) => _t338
+
+
+  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt:228:191
+  228:   val s9_elimination_monotonicity = if (tally_result.present) (tally_result.value.eliminated_by_round.length() == 0 or (0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i => tally_result.value.eliminated_by_round[i].forall(c => (i + 1).to(tally_result.value.per_round_counts.length() - 1).forall(j => not(tally_result.value.per_round_counts[j].keys().contains(c))))))) else true
+                                                                                                                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: typechecking failed
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -224,9 +224,9 @@
+ val s7_tally_conservation = if (tally_result.present) (tally_result.value.ballots_tallied + tally_result.value.ballots_dropped + tally_result.value.non_voters.length() == candidates.length()) else true
+ 
+ val s8_per_round_consistency = if (tally_result.present) (tally_result.value.per_round_counts.foldl(true, (acc, m) => acc and (sumValues(m) == tally_result.value.ballots_tallied))) else true
+ 
+-val s9_elimination_monotonicity = if (tally_result.present) (tally_result.value.eliminated_by_round.length() == 0 or (0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i => tally_result.value.eliminated_by_round[i].forall(c => (i + 1).to(tally_result.value.per_round_counts.length() - 1).forall(j => not(tally_result.value.per_round_counts[j].keys().contains(c))))))) else true
++val s9_elimination_monotonicity = if (tally_result.present) (tally_result.value.eliminated_by_round.length() == 0 or (0.to(tally_result.value.eliminated_by_round.length() - 1).forall(i => tally_result.value.eliminated_by_round[i].foldl(true, (acc, c) => acc and (i + 1).to(tally_result.value.per_round_counts.length() - 1).forall(j => not(tally_result.value.per_round_counts[j].keys().contains(c))))))) else true
+ 
+ val s10_resolution_implies_past_end = if (tally_result.present) (time >= end_at) else true
+ 
+ // ---------------------------------------------------------------------------
+
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+(no output)
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+(no output)
+[0m
+[0m$ [0mquint run --invariant=all_invariants --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: [],
+  main::rcv::end_at: 0,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[violation] Found an issue (11ms at 1636 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0xfd5c29664f481b81 --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m$ [0mquint run --invariant=all_invariants --max-steps=30 --max-samples=100 --verbosity=3 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: [],
+  main::rcv::end_at: 0,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[violation] Found an issue (11ms at 1636 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0xa6fff50529ba06b3 --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m← [0mEdit .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/rcv.qnt
+@@ -208,15 +208,15 @@
+ // ---------------------------------------------------------------------------
+ // Structural invariants (§3.1)
+ // ---------------------------------------------------------------------------
+ 
+-val s1_nonempty_candidates = candidates.length() >= 1
++val s1_nonempty_candidates = if (phase != "Uninitialized") candidates.length() >= 1 else true
+ 
+-val s2_distinct_candidates = distinct(candidates)
++val s2_distinct_candidates = if (phase != "Uninitialized") distinct(candidates) else true
+ 
+-val s3_well_ordered_window = start_at < end_at
++val s3_well_ordered_window = if (phase != "Uninitialized") start_at < end_at else true
+ 
+-val s4_ballot_keys_are_candidates = ballots.keys().forall(k => listContains(candidates, k))
++val s4_ballot_keys_are_candidates = if (phase != "Uninitialized") ballots.keys().forall(k => listContains(candidates, k)) else true
+ 
+ val s5_terminality = true
+ 
+ val s6_winner_wellformed = if (tally_result.present) (tally_result.value.winners.length() >= 1 and tally_result.value.winners.length() <= candidates.length() and tally_result.value.winners.foldl(true, (acc, w) => acc and listContains(candidates, w))) else true
+
+[0m
+[0m$ [0mquint run --invariant=all_invariants --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: [],
+  main::rcv::end_at: 0,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 1
+}
+
+[State 3]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[State 4]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 3
+}
+
+[State 5]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 4
+}
+
+[State 6]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 7]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 6
+}
+
+[State 8]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 7
+}
+
+[State 9]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 8
+}
+
+[State 10]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 9
+}
+
+[State 11]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 10
+}
+
+[State 12]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 11
+}
+
+[State 13]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 12
+}
+
+[State 14]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 13
+}
+
+[State 15]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 14
+}
+
+[State 16]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 15
+}
+
+[State 17]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 16
+}
+
+[State 18]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 17
+}
+
+[State 19]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 18
+}
+
+[State 20]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 19
+}
+
+[State 21]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 20
+}
+
+[State 22]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 21
+}
+
+[State 23]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 22
+}
+
+[State 24]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 23
+}
+
+[State 25]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 24
+}
+
+[State 26]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 25
+}
+
+[State 27]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 26
+}
+
+[State 28]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 27
+}
+
+[State 29]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 28
+}
+
+[State 30]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 29
+}
+
+[ok] No violation found (14ms at 7143 traces/second).
+Trace length statistics: max=31, min=6, average=14.08
+You may increase --max-samples and --max-steps.
+Use --verbosity to produce more (or less) output.
+Use --seed=0xa864a4fd7df04c65 --backend=rust to reproduce.
+[0m
+[0m$ [0mquint run --invariant=witness_resolution_reachable --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: [],
+  main::rcv::end_at: 0,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 1
+}
+
+[State 3]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Voting",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[State 4]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Tallying",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[State 5]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Resolved",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: true,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[violation] Found an issue (11ms at 2455 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0x17860f97b89a02b3 --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m$ [0mquint run --invariant=witness_ballot_submittable --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: [],
+  main::rcv::end_at: 0,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Voting",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[State 3]
+{
+  main::rcv::ballots: Map("B" -> "enc1"),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Voting",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[violation] Found an issue (11ms at 3455 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0x72a7af6e60d150f9 --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m$ [0mquint run --invariant=witness_end_at_crossing --max-steps=30 --max-samples=100 /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt
+An example execution:
+
+[State 0]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: [],
+  main::rcv::end_at: 0,
+  main::rcv::phase: "Uninitialized",
+  main::rcv::start_at: 0,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 1]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Created",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 0
+}
+
+[State 2]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Voting",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 2
+}
+
+[State 3]
+{
+  main::rcv::ballots: Map(),
+  main::rcv::candidates: ["A", "B", "C"],
+  main::rcv::end_at: 5,
+  main::rcv::phase: "Tallying",
+  main::rcv::start_at: 2,
+  main::rcv::tally_result:
+    {
+      present: false,
+      value:
+        {
+          ballots_dropped: 0,
+          ballots_tallied: 0,
+          dropped_voters: [],
+          eliminated_by_round: [],
+          non_voters: ["A", "B", "C"],
+          per_round_counts: [Map("A" -> 0, "B" -> 0, "C" -> 0)],
+          winners: ["A"]
+        }
+    },
+  main::rcv::time: 5
+}
+
+[violation] Found an issue (11ms at 2545 traces/second).
+Use --verbosity=3 to show executions.
+Use --seed=0x7c8196c3ebba8d44 --backend=rust to reproduce.
+error: Invariant violated
+[0m
+[0m← [0mWrite .colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/design-notes.md
+Wrote file successfully.
+[0m
+[0m$ [0mls -la /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/
+total 72
+drwxr-xr-x@ 8 mvid  staff   256 May 19 13:37 .
+drwxr-xr-x@ 5 mvid  staff   160 May 19 12:40 ..
+-rw-r--r--@ 1 mvid  staff  4755 May 19 13:37 design-notes.md
+-rw-r--r--@ 1 mvid  staff   215 May 19 13:30 main.qnt
+-rw-r--r--@ 1 mvid  staff    84 May 19 13:29 mini_main.qnt
+-rw-r--r--@ 1 mvid  staff   137 May 19 13:29 mini_rcv.qnt
+-rw-r--r--@ 1 mvid  staff  9589 May 19 13:36 rcv.qnt
+-rw-r--r--@ 1 mvid  staff   150 May 19 13:28 test.qnt
+[0m
+[0m$ [0mquint typecheck /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6/main.qnt && echo "TYPECHECK_OK"
+TYPECHECK_OK
+[0m

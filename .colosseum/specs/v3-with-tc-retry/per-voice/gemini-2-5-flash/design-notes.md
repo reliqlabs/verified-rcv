@@ -1,0 +1,54 @@
+### Design Notes for verified-rcv Quint Specification
+
+This Quint specification for the `verified-rcv` system aims to capture the core state transitions and invariants as described in the intent document (version 0.3.1). Due to Quint's limitations in directly modeling cryptographic primitives, off-chain systems, or probabilistic claims, some aspects are abstracted or represented as classical-Prop shadows.
+
+#### §2.5 Blocks to Quint Actions Mapping
+
+- **Block 1: instantiate** -> `action instantiate(new_candidates, new_start_at, new_end_at)`
+- **Block 2 & 4: time advances (implicit)** -> `action advanceTime(new_time)`
+- **Block 3: submit_ballot** -> `action submit_ballot(sender, encrypted_prefs)`
+- **Block 5: close_and_tally** -> `action close_and_tally()`
+- **Block 6: publish_result** -> `action publish_result(new_tally, attestation_blob)`
+- **Block E1: enclave tally computation (off-chain)**: This block's *effect* on the chain state is primarily via the inputs to `publish_result`. The `publish_result` action's `new_tally` parameter represents the `TallyResult` computed by the enclave, and its `Requires` clauses encode the chain's validation of this output. The complex `Tally_spec` algorithm (Section 2.5) is not modeled directly in Quint, as its correctness is a Lean-discharge obligation. Instead, the `publish_result` action assumes the provided `new_tally` satisfies the well-formedness properties.
+
+#### Encoding of Invariants (§3.1 Structural, §3.2 Behavioral)
+
+**Structural Invariants (§3.1):**
+
+- **S1 (non-empty candidates):** `pure def S1_nonEmptyCandidates(cands: List[Addr]): bool = size(cands) >= 1`. This predicate is called in `instantiate` with `new_candidates` and in `all_invariants` with `candidates_s`.
+- **S2 (distinct candidates):** `pure def S2_distinctCandidates(cands: List[Addr]): bool = Set(cands).size() == size(cands)`. Similar to S1, this is called with `new_candidates` and `candidates_s`.
+- **S3 (well-ordered voting window):** `pure def S3_wellOrderedVotingWindow(): bool = start_at_s < end_at_s`
+- **S4 (ballot keys are candidates):** `pure def S4_ballotKeysAreCandidates(): bool = ballots.keys().subset(Set(candidates_s))`
+- **S5 (terminality of resolution, handler-set property):** The intent clarifies S5 as a handler-set property. The `tally_result` state variable is initialized to `{ isSome: false, ... }` and can only be set to `{ isSome: true, ... }` by `publish_result`. The `publish_result` action's `isTallying()` precondition ensures it only fires when `tally_result.isSome` is false. Once `tally_result` is set, `isTallying()` becomes false, preventing further modification. The trajectory aspect ("once `Some`, always `Some` with the same value") is covered by **B1**. Thus, S5's implications are covered by action guards and B1.
+- **S6-S9 (winner well-formedness, tally count conservation, per-round count consistency, elimination monotonicity):** These are encoded as `pure def` predicates taking a `TallyResult`. They are asserted in the `publish_result` action's `Requires` clause. For `all_invariants`, these are conditionally checked `if tally_result.isSome`, ensuring that any published `tally_result` (which is then immutable per B1) always satisfies these properties.
+- **S10 (resolution implies past end_at):** `pure def S10_resolutionImpliesPastEndAt(): bool = tally_result.isSome => env_block_time >= end_at_s`. This is included in `all_invariants`.
+
+**Behavioral Invariants (§3.2):**
+
+- **B1 (tally_result monotone-once-set):** `def B1_tallyResultMonotoneOnceSet(): bool = tally_result.isSome => next.tally_result.isSome and next.tally_result.val == tally_result.val`. This uses Quint's `next` operator for temporal reasoning.
+- **B2 (no late ballots):** `def B2_noLateBallots(): bool = env_block_time >= end_at_s => ballots == ballots_at_end_at`. A ghost variable `ballots_at_end_at` is introduced to capture the `ballots` state when `env_block_time` first crosses `end_at_s`.
+- **B3 (no premature tally):** `def B3_noPrematureTally(): bool = not(tally_result.isSome) and next.tally_result.isSome => env_block_time' >= end_at_s`.
+- **B4 (no premature voting):** `def B4_noPrematureVoting(): bool = (ballots' != ballots) => (start_at_s <= env_block_time and env_block_time < end_at_s)`.
+- **B5 (publish_result fires at most once):** This is stated as a derived corollary of B1 + Block 6. Its essence is captured by **B1** and the fact that `publish_result` is guarded by `isTallying()` (which includes `not(tally_result.isSome)`). It's explicitly tied to `B1_tallyResultMonotoneOnceSet()` in the spec.
+- **B6 (ballot writer is the ballot voter):** `def B6_ballotWriterIsVoter(): bool = (ballots' != ballots) => submit_ballot_fired and submit_ballot_sender.isSome and ...`. This is modeled by ensuring that `ballots` can *only* change via the `submit_ballot` action, and that action enforces the `msg.sender` as the key. `submit_ballot_fired` and `submit_ballot_sender` ghost variables track the last successful `submit_ballot` operation to attribute changes. The `∃!` uniqueness is reflected by Quint's atomic actions, where only one action fires per step, and that action's parameters are the "message".
+- **B7 (terminal-state immutability):** `def B7_terminalStateImmutability(): bool = isResolved() => next.isResolved()`.
+- **B8 (attestation-binds-tally):** This is primarily encoded in the `publish_result` action's `Requires` clause. Abstract boolean constants (`TDX_QUOTE_VALIDATES`, `ZKDCAP_PROOF_VERIFIES`, `ENCLAVE_IDENTITY_MATCHES`) represent the verification outcomes. `user_data_hash_matches(new_tally)` is a placeholder for the actual cryptographic hash comparison, as Quint cannot perform SHA-256 or Borsh serialization. The specific content of the `attestation_blob` is not modeled.
+- **B9 (B8 negligibility-budget decomposition):** This is a `meta-security` invariant, fundamentally probabilistic and beyond the scope of Quint's deterministic state-machine modeling. It is explicitly omitted from the Quint spec and noted here. Its preconditions (`image_registration_honest`, `circuit_equivalence_honest`) are also not directly modeled but are assumed to hold (or are represented by `ENCLAVE_IDENTITY_MATCHES` and `ZKDCAP_PROOF_VERIFIES` for their classical shadow).
+- **B10 (tally-correctness) & B10_lean (Lean-internal image-IO obligation):** These are `cross-layer` and `off-chain` invariants respectively, discharged by the Lean proof and build pipeline. Quint cannot directly verify `tally = Tally_spec(...)`. Instead, the `publish_result` action *assumes* the provided `new_tally` is the correct `Tally_spec` output and enforces all the *well-formedness properties* (S6-S9, B6_wellFormedSetRelations) that `Tally_spec` is expected to guarantee for its output. The `dstack_kms_derived` and `enclave_input_fidelity` parts of B10 are not directly encoded.
+
+#### Omitted Invariants and Justification
+
+- **S5 (terminality of resolution, handler-set property):** While the spirit of S5 (at-most-once write to `tally_result`) is fully captured by action guards and B1, its statement as a purely static "handler-set property" from §3.1 is not translated as a direct `val` in `all_invariants` due to Quint's focus on state-based properties over a trace.
+- **B9 (B8 negligibility-budget decomposition):** Omitted as it is a `meta-security` (probabilistic) claim outside Quint's modeling capabilities.
+- **B10 (tally-correctness) & B10_lean (Lean-internal image-IO obligation):** The full semantic correctness of `Tally_spec` is off-chain (Lean). Quint captures the *syntactic well-formedness* requirements of the `TallyResult` as preconditions for `publish_result` and assumes the off-chain system produces a semantically correct result satisfying these. The `dstack_kms_derived` and `enclave_input_fidelity` parts of B10 are not directly encoded.
+
+#### Non-Obvious Encoding Choices
+
+- **Custom `Option` Types:** Quint does not have a built-in `Option` type. `TallyResultOption = { isSome: bool, val: TallyResult }` and `AddrOption = { isSome: bool, val: Addr }` are defined and used to represent optional values, replacing `Option[T]` and its `isSome()`, `get()` methods.
+- **Time Advancement (`advanceTime`):** Modeled as a non-deterministic jump in time to simplify exploration of the state space. It includes logic to capture `ballots_at_end_at` at the `end_at_s` boundary.
+- **Ghost Variables for Action Attribution:** `submit_ballot_fired` and `submit_ballot_sender` are introduced to track if the `submit_ballot` action fired and by whom in the current step. This is necessary for `B6` to attribute ballot changes. These variables are reset (`false` or `{ isSome: false, val: "" }`) by any other action or in the subsequent step, ensuring only one action is attributed per transition. `ballots_at_end_at` is another ghost variable crucial for `B2`.
+- **Abstracting Cryptography and Off-chain Components:** All cryptographic operations (ECIES, SHA-256, TDX quote, ZK proof) and the Dstack KMS are abstracted as boolean `const` parameters (e.g., `TDX_QUOTE_VALIDATES`) or `pure def`s returning `true` (`user_data_hash_matches`). This allows focusing on the protocol logic assuming honest/valid components, without delving into cryptographic detail beyond Quint's scope.
+- **Simplified TallyResult Generation in `step`:** For `publish_result` to fire, a `new_tally` must be provided that satisfies its `Requires` clause (well-formedness checks). The `step` action non-deterministically constructs a `mock_tally_for_publish` designed to satisfy these properties under simplified assumptions (e.g., usually one winner, no eliminations in the mock, `ballots_tallied + ballots_dropped + len(non_voters)` summing to `len(candidates)` as per S7). This simplification is crucial for model checking to progress into the `Resolved` state without getting stuck on complex `Tally_spec` logic. The manual implementation of `take` using `filter` and index access for lists is an adaptation to Quint's `List` capabilities.
+- **Action Guards in `step`:** For actions like `instantiate`, `submit_ballot`, `close_and_tally`, and `publish_result`, explicit conditions (e.g., `(size(candidates_s) == 0)`) are added to their branches in the `step` action. This ensures that these actions only fire when their general preconditions (like `isTallying()` or `isVoting()`) are met, preventing `nondet` choices from leading to invalid state transitions that would be immediately rejected anyway. This is especially important for `instantiate` to fire only once.
+
+This specification adheres to the output contract and provides an idiomatic Quint representation of the `verified-rcv` intent, highlighting where abstractions are made due to modeling scope.

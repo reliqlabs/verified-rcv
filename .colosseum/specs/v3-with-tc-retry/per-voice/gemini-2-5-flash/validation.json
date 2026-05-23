@@ -1,0 +1,64 @@
+{
+  "typecheck": {
+    "exit": 0,
+    "stderr": ""
+  },
+  "all_invariants": {
+    "exit": 1,
+    "holds": false,
+    "tail": "error: [QNT404] Name 'init' not found\nerror: Argument error\n"
+  },
+  "witnesses": {
+    "witness_resolution_reachable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "error: [QNT404] Name 'init' not found\nerror: Argument error\n"
+    },
+    "witness_ballot_submittable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "error: [QNT404] Name 'init' not found\nerror: Argument error\n"
+    },
+    "witness_end_at_crossing": {
+      "exit": 1,
+      "violated": false,
+      "tail": "error: [QNT404] Name 'init' not found\nerror: Argument error\n"
+    }
+  },
+  "fix_rounds": [
+    {
+      "round": 1,
+      "tc_exit_before": 1,
+      "call": {
+        "voice": "gemini-2-5-flash",
+        "elapsed_s": 87.570729,
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 8122,
+          "prompt_tokens": 50345,
+          "prompt_tokens_details": {
+            "cached_tokens": 40932
+          },
+          "total_tokens": 72547
+        }
+      }
+    },
+    {
+      "round": 2,
+      "tc_exit_before": 1,
+      "call": {
+        "voice": "gemini-2-5-flash",
+        "elapsed_s": 43.71328,
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 8293,
+          "prompt_tokens": 59433,
+          "prompt_tokens_details": {
+            "cached_tokens": 50140
+          },
+          "total_tokens": 69501
+        }
+      }
+    }
+  ]
+}

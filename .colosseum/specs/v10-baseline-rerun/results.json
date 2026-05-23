@@ -1,0 +1,113 @@
+{
+  "run_tag": "v10-baseline-rerun",
+  "intent": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md",
+  "canonical_examples": [
+    "/Users/mvid/go/pkg/mod/github.com/cometbft/cometbft@v0.38.21/spec/p2p/reactor-api/reactor.qnt",
+    "/Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/replica.qnt",
+    "/Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/types.qnt",
+    "/Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/main_n6f1b1.qnt",
+    "/opt/homebrew/lib/node_modules/@informalsystems/quint/dist/src/builtin.qnt"
+  ],
+  "witness_specs": [
+    "witness_resolution_reachable",
+    "witness_ballot_submittable",
+    "witness_end_at_crossing"
+  ],
+  "safety_invariant": "all_invariants",
+  "voices": [
+    {
+      "voice": "kimi-k2-6",
+      "generation": {
+        "voice": "kimi-k2-6",
+        "elapsed_s": 3400.219409,
+        "out_dir": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/kimi-k2-6"
+      },
+      "validation": {
+        "typecheck": {
+          "exit": 0,
+          "stderr": ""
+        },
+        "all_invariants": {
+          "exit": 0,
+          "holds": true,
+          "expected": "holds (no violation)",
+          "tail": "],\n          per_round_counts: [Map(\"A\" -> 0, \"B\" -> 0, \"C\" -> 0)],\n          winners: [\"A\"]\n        }\n    },\n  main::rcv::time: 29\n}\n\n[ok] No violation found (14ms at 7143 traces/second).\nTrace length statistics: max=31, min=5, average=10.56\nYou may increase --max-samples and --max-steps.\nUse --verbosity to produce more (or less) output.\nUse --seed=0x14cf925fb7cb25d7 --backend=rust to reproduce.\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": true,
+            "expected": "violated (reachability witness)",
+            "tail": "ed_voters: [],\n          eliminated_by_round: [],\n          non_voters: [\"A\", \"B\", \"C\"],\n          per_round_counts: [Map(\"A\" -> 0, \"B\" -> 0, \"C\" -> 0)],\n          winners: [\"A\"]\n        }\n    },\n  main::rcv::time: 5\n}\n\n[violation] Found an issue (11ms at 2455 traces/second).\nUse --verbosity=3 to show executions.\nUse --seed=0x746552ce6878899a --backend=rust to reproduce.\nerror: Invariant violated\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": true,
+            "expected": "violated (reachability witness)",
+            "tail": "ped_voters: [],\n          eliminated_by_round: [],\n          non_voters: [\"A\", \"B\", \"C\"],\n          per_round_counts: [Map(\"A\" -> 0, \"B\" -> 0, \"C\" -> 0)],\n          winners: [\"A\"]\n        }\n    },\n  main::rcv::time: 2\n}\n\n[violation] Found an issue (12ms at 4250 traces/second).\nUse --verbosity=3 to show executions.\nUse --seed=0xd1989b9c2d9242a --backend=rust to reproduce.\nerror: Invariant violated\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": true,
+            "expected": "violated (reachability witness)",
+            "tail": "ed_voters: [],\n          eliminated_by_round: [],\n          non_voters: [\"A\", \"B\", \"C\"],\n          per_round_counts: [Map(\"A\" -> 0, \"B\" -> 0, \"C\" -> 0)],\n          winners: [\"A\"]\n        }\n    },\n  main::rcv::time: 5\n}\n\n[violation] Found an issue (12ms at 3167 traces/second).\nUse --verbosity=3 to show executions.\nUse --seed=0x852bd289e5b3af75 --backend=rust to reproduce.\nerror: Invariant violated\n"
+          }
+        }
+      },
+      "passes": true
+    },
+    {
+      "voice": "claude-opus-4-7",
+      "generation": {
+        "voice": "claude-opus-4-7",
+        "error": "missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']",
+        "elapsed_s": 3.84978
+      },
+      "validation": null,
+      "passes": false
+    },
+    {
+      "voice": "gpt-5-5-native",
+      "generation": {
+        "voice": "gpt-5-5-native",
+        "elapsed_s": 123.212524,
+        "out_dir": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun/per-voice/gpt-5-5-native"
+      },
+      "validation": {
+        "typecheck": {
+          "exit": 0,
+          "stderr": ""
+        },
+        "all_invariants": {
+          "exit": 0,
+          "holds": true,
+          "expected": "holds (no violation)",
+          "tail": ": 0,\n          ballots_tallied: 0,\n          non_voters: Set(\"A\", \"B\", \"C\"),\n          winners: Set(\"A\", \"B\", \"C\")\n        }\n    }\n}\n\n[ok] No violation found (12ms at 8333 traces/second).\nTrace length statistics: max=31, min=31, average=31.00\nYou may increase --max-samples and --max-steps.\nUse --verbosity to produce more (or less) output.\nUse --seed=0x68ce14c5ed13eace --backend=rust to reproduce.\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": true,
+            "expected": "violated (reachability witness)",
+            "tail": "lly_result:\n    {\n      present: true,\n      value:\n        {\n          ballots_dropped: 0,\n          ballots_tallied: 0,\n          non_voters: Set(\"A\", \"B\", \"C\"),\n          winners: Set(\"A\", \"B\", \"C\")\n        }\n    }\n}\n\n[violation] Found an issue (9ms at 2000 traces/second).\nUse --verbosity=3 to show executions.\nUse --seed=0x2d67cbfab40d5a39 --backend=rust to reproduce.\nerror: Invariant violated\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": true,
+            "expected": "violated (reachability witness)",
+            "tail": "in::rcv::tally_result:\n    {\n      present: false,\n      value:\n        {\n          ballots_dropped: 0,\n          ballots_tallied: 0,\n          non_voters: Set(\"A\", \"B\", \"C\"),\n          winners: Set()\n        }\n    }\n}\n\n[violation] Found an issue (11ms at 6545 traces/second).\nUse --verbosity=3 to show executions.\nUse --seed=0x19e8799510b4911d --backend=rust to reproduce.\nerror: Invariant violated\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": true,
+            "expected": "violated (reachability witness)",
+            "tail": "ain::rcv::tally_result:\n    {\n      present: false,\n      value:\n        {\n          ballots_dropped: 0,\n          ballots_tallied: 0,\n          non_voters: Set(\"A\", \"B\", \"C\"),\n          winners: Set()\n        }\n    }\n}\n\n[violation] Found an issue (9ms at 2000 traces/second).\nUse --verbosity=3 to show executions.\nUse --seed=0x9c1a3ea987febaf7 --backend=rust to reproduce.\nerror: Invariant violated\n"
+          }
+        }
+      },
+      "passes": true
+    }
+  ],
+  "n_pass": 2,
+  "n_total": 3
+}

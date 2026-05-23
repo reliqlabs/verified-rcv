@@ -1,0 +1,277 @@
+{
+  "run_tag": "v3-with-tc-retry",
+  "intent": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md",
+  "canonical_example": "/Users/mvid/go/pkg/mod/github.com/cometbft/cometbft@v0.38.21/spec/p2p/reactor-api/reactor.qnt",
+  "witness_specs": [
+    "witness_resolution_reachable",
+    "witness_ballot_submittable",
+    "witness_end_at_crossing"
+  ],
+  "safety_invariant": "all_invariants",
+  "system_prompt_chars": 3622,
+  "user_prompt_chars": 150648,
+  "voices": [
+    {
+      "voice": "kimi-k2-6",
+      "call": {
+        "voice": "kimi-k2-6",
+        "elapsed_s": 166.490276,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 46027,
+          "completion_tokens": 17782,
+          "total_tokens": 63809,
+          "prompt_tokens_details": {
+            "cached_tokens": 42688
+          }
+        }
+      },
+      "files_parsed": [
+        "design-notes.md",
+        "main.qnt",
+        "rcv.qnt"
+      ],
+      "fix_rounds_count": 2,
+      "validation": {
+        "typecheck": {
+          "exit": 1,
+          "stderr": "6/main.qnt:4:9\n  4:         START_AT = 2,\n             ^^^^^^^^\n\n\n Error [QNT404]: Name 'END_AT' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "all_invariants": {
+          "exit": 1,
+          "holds": false,
+          "tail": " found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": false,
+            "tail": " found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": false,
+            "tail": " found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": false,
+            "tail": " found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+          }
+        },
+        "fix_rounds": [
+          {
+            "round": 1,
+            "tc_exit_before": 1,
+            "call": {
+              "voice": "kimi-k2-6",
+              "elapsed_s": 206.872356,
+              "finish_reason": "stop",
+              "usage": {
+                "prompt_tokens": 42716,
+                "completion_tokens": 19550,
+                "total_tokens": 62266,
+                "prompt_tokens_details": {
+                  "cached_tokens": 38656
+                }
+              }
+            }
+          },
+          {
+            "round": 2,
+            "tc_exit_before": 1,
+            "call": {
+              "voice": "kimi-k2-6",
+              "elapsed_s": 166.490276,
+              "finish_reason": "stop",
+              "usage": {
+                "prompt_tokens": 46027,
+                "completion_tokens": 17782,
+                "total_tokens": 63809,
+                "prompt_tokens_details": {
+                  "cached_tokens": 42688
+                }
+              }
+            }
+          }
+        ]
+      },
+      "passes": false
+    },
+    {
+      "voice": "gpt-oss-120b",
+      "call": {
+        "voice": "gpt-oss-120b",
+        "elapsed_s": 47.856979,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 46261,
+          "completion_tokens": 3380,
+          "total_tokens": 49641,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        }
+      },
+      "files_parsed": [
+        "main.qnt",
+        "rcv.qnt"
+      ],
+      "fix_rounds_count": 2,
+      "validation": {
+        "typecheck": {
+          "exit": 1,
+          "stderr": "NDIDATE_SET' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/gpt-oss-120b/main.qnt:6:9\n  6:         CANDIDATE_SET = Set(\"A\", \"B\", \"C\", \"D\", \"E\"),\n             ^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'ENCLAVE_PUBKEY' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/gpt-oss-120b/main.qnt:7:9\n  7:         ENCLAVE_PUBKEY = \"pubkey_placeholder\"\n             ^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "all_invariants": {
+          "exit": 1,
+          "holds": false,
+          "tail": "retry/per-voice/gpt-oss-120b/main.qnt:6:9\n  6:         CANDIDATE_SET = Set(\"A\", \"B\", \"C\", \"D\", \"E\"),\n             ^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'ENCLAVE_PUBKEY' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/gpt-oss-120b/main.qnt:7:9\n  7:         ENCLAVE_PUBKEY = \"pubkey_placeholder\"\n             ^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "retry/per-voice/gpt-oss-120b/main.qnt:6:9\n  6:         CANDIDATE_SET = Set(\"A\", \"B\", \"C\", \"D\", \"E\"),\n             ^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'ENCLAVE_PUBKEY' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/gpt-oss-120b/main.qnt:7:9\n  7:         ENCLAVE_PUBKEY = \"pubkey_placeholder\"\n             ^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "retry/per-voice/gpt-oss-120b/main.qnt:6:9\n  6:         CANDIDATE_SET = Set(\"A\", \"B\", \"C\", \"D\", \"E\"),\n             ^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'ENCLAVE_PUBKEY' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/gpt-oss-120b/main.qnt:7:9\n  7:         ENCLAVE_PUBKEY = \"pubkey_placeholder\"\n             ^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": false,
+            "tail": "retry/per-voice/gpt-oss-120b/main.qnt:6:9\n  6:         CANDIDATE_SET = Set(\"A\", \"B\", \"C\", \"D\", \"E\"),\n             ^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'ENCLAVE_PUBKEY' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/gpt-oss-120b/main.qnt:7:9\n  7:         ENCLAVE_PUBKEY = \"pubkey_placeholder\"\n             ^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+          }
+        },
+        "fix_rounds": [
+          {
+            "round": 1,
+            "tc_exit_before": 1,
+            "call": {
+              "voice": "gpt-oss-120b",
+              "elapsed_s": 66.96568,
+              "finish_reason": "stop",
+              "usage": {
+                "prompt_tokens": 42699,
+                "completion_tokens": 4911,
+                "total_tokens": 47610,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0
+                }
+              }
+            }
+          },
+          {
+            "round": 2,
+            "tc_exit_before": 1,
+            "call": {
+              "voice": "gpt-oss-120b",
+              "elapsed_s": 47.856979,
+              "finish_reason": "stop",
+              "usage": {
+                "prompt_tokens": 46261,
+                "completion_tokens": 3380,
+                "total_tokens": 49641,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0
+                }
+              }
+            }
+          }
+        ]
+      },
+      "passes": false
+    },
+    {
+      "voice": "gemini-2-5-flash",
+      "call": {
+        "voice": "gemini-2-5-flash",
+        "elapsed_s": 43.71328,
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 8293,
+          "prompt_tokens": 59433,
+          "prompt_tokens_details": {
+            "cached_tokens": 50140
+          },
+          "total_tokens": 69501
+        }
+      },
+      "files_parsed": [
+        "design-notes.md",
+        "main.qnt",
+        "rcv.qnt"
+      ],
+      "fix_rounds_count": 2,
+      "validation": {
+        "typecheck": {
+          "exit": 0,
+          "stderr": ""
+        },
+        "all_invariants": {
+          "exit": 1,
+          "holds": false,
+          "tail": "error: [QNT404] Name 'init' not found\nerror: Argument error\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "error: [QNT404] Name 'init' not found\nerror: Argument error\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "error: [QNT404] Name 'init' not found\nerror: Argument error\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": false,
+            "tail": "error: [QNT404] Name 'init' not found\nerror: Argument error\n"
+          }
+        },
+        "fix_rounds": [
+          {
+            "round": 1,
+            "tc_exit_before": 1,
+            "call": {
+              "voice": "gemini-2-5-flash",
+              "elapsed_s": 87.570729,
+              "finish_reason": "stop",
+              "usage": {
+                "completion_tokens": 8122,
+                "prompt_tokens": 50345,
+                "prompt_tokens_details": {
+                  "cached_tokens": 40932
+                },
+                "total_tokens": 72547
+              }
+            }
+          },
+          {
+            "round": 2,
+            "tc_exit_before": 1,
+            "call": {
+              "voice": "gemini-2-5-flash",
+              "elapsed_s": 43.71328,
+              "finish_reason": "stop",
+              "usage": {
+                "completion_tokens": 8293,
+                "prompt_tokens": 59433,
+                "prompt_tokens_details": {
+                  "cached_tokens": 50140
+                },
+                "total_tokens": 69501
+              }
+            }
+          }
+        ]
+      },
+      "passes": false
+    }
+  ],
+  "n_pass": 0,
+  "n_total": 3
+}

@@ -1,0 +1,11 @@
+Output dir: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/cross-critique-2026-05-19
+Pairs: [('kimi-k2-6', 'gpt-5-5-native'), ('gpt-5-5-native', 'kimi-k2-6')]
+Variant: high reasoning effort per voice
+[12:55:43Z] kimi-k2-6 -> gpt-5-5-native dispatching
+[12:55:43Z] gpt-5-5-native -> kimi-k2-6 dispatching
+  ✓ gpt-5-5-native -> kimi-k2-6 done in 42s (2411 bytes)
+  ✓ kimi-k2-6 -> gpt-5-5-native done in 700s (4140 bytes)
+
+=== Summary ===
+  ✓ kimi-k2-6 -> gpt-5-5-native: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/cross-critique-2026-05-19/kimi-k2-6-reviews-gpt-5-5-native/critique.md
+  ✓ gpt-5-5-native -> kimi-k2-6: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/cross-critique-2026-05-19/gpt-5-5-native-reviews-kimi-k2-6/critique.md

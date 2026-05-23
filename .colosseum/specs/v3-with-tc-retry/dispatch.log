@@ -1,0 +1,27 @@
+
+=== Inline Quint dispatch starting 2026-05-16T19:52:04.225892+00:00 ===
+Voices: ['kimi-k2-6', 'gpt-oss-120b', 'gemini-2-5-flash']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry
+
+19:52:04Z → kimi-k2-6: dispatching (gateway/kimi-k2-6)
+19:56:02Z     ⚠ kimi-k2-6 attempt 1 failed (238s): HTTP 408: {"errors":[{"message":"AiError: AiError: Request timeout (efabac7e-f249-4b91-9ec6-92f916d6b504)","code":3046}],"success":false,"result":{},"messages":[]}
+19:59:19Z   ↳ kimi-k2-6 got 197s response (finish=stop), parsed files: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+19:59:19Z     ⟳ kimi-k2-6 typecheck failed (exit=1), sending fix request round 1/2
+20:02:46Z     ↳ kimi-k2-6 fix round 1 got 207s response (finish=stop), parsed: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+20:02:46Z     ⟳ kimi-k2-6 typecheck failed (exit=1), sending fix request round 2/2
+20:05:33Z     ↳ kimi-k2-6 fix round 2 got 166s response (finish=stop), parsed: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+20:05:34Z   ✗ VALIDATION FAILED kimi-k2-6: typecheck=1 safety_holds=False witnesses_violated=0/3 (fix_rounds=2)
+20:05:34Z → gpt-oss-120b: dispatching (gateway/gpt-oss-120b)
+20:07:43Z   ↳ gpt-oss-120b got 129s response (finish=stop), parsed files: ['main.qnt', 'rcv.qnt']
+20:07:43Z     ⟳ gpt-oss-120b typecheck failed (exit=1), sending fix request round 1/2
+20:08:50Z     ↳ gpt-oss-120b fix round 1 got 67s response (finish=stop), parsed: ['main.qnt', 'rcv.qnt']
+20:08:51Z     ⟳ gpt-oss-120b typecheck failed (exit=1), sending fix request round 2/2
+20:09:38Z     ↳ gpt-oss-120b fix round 2 got 48s response (finish=stop), parsed: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+20:09:39Z   ✗ VALIDATION FAILED gpt-oss-120b: typecheck=1 safety_holds=False witnesses_violated=0/3 (fix_rounds=2)
+20:09:39Z → gemini-2-5-flash: dispatching (gateway/gemini-2-5-flash)
+20:11:37Z   ↳ gemini-2-5-flash got 118s response (finish=stop), parsed files: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+20:11:37Z     ⟳ gemini-2-5-flash typecheck failed (exit=1), sending fix request round 1/2
+20:13:05Z     ↳ gemini-2-5-flash fix round 1 got 88s response (finish=stop), parsed: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+20:13:05Z     ⟳ gemini-2-5-flash typecheck failed (exit=1), sending fix request round 2/2
+20:13:49Z     ↳ gemini-2-5-flash fix round 2 got 44s response (finish=stop), parsed: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+20:13:50Z   ✗ VALIDATION FAILED gemini-2-5-flash: typecheck=0 safety_holds=False witnesses_violated=0/3 (fix_rounds=2)

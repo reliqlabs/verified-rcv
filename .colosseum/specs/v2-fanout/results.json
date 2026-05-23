@@ -1,0 +1,163 @@
+{
+  "run_tag": "v2-fanout",
+  "intent": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md",
+  "canonical_example": "/Users/mvid/go/pkg/mod/github.com/cometbft/cometbft@v0.38.21/spec/p2p/reactor-api/reactor.qnt",
+  "witness_specs": [
+    "witness_resolution_reachable",
+    "witness_ballot_submittable",
+    "witness_end_at_crossing"
+  ],
+  "safety_invariant": "all_invariants",
+  "system_prompt_chars": 3622,
+  "user_prompt_chars": 150648,
+  "voices": [
+    {
+      "voice": "kimi-k2-6",
+      "call": {
+        "voice": "kimi-k2-6",
+        "elapsed_s": 206.711984,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 38705,
+          "completion_tokens": 25009,
+          "total_tokens": 63714,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        }
+      },
+      "files_parsed": [
+        "design-notes.md",
+        "main.qnt",
+        "rcv.qnt"
+      ],
+      "validation": {
+        "typecheck": {
+          "exit": 1,
+          "stderr": "oice/kimi-k2-6/rcv.qnt:67:19\n  67:       val pairs = t.eliminated_by_round.zip(t.per_round_counts)\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+        },
+        "all_invariants": {
+          "exit": 1,
+          "holds": false,
+          "tail": "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": false,
+            "tail": "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n Error [QNT404]: Name 'None' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/kimi-k2-6/rcv.qnt:78:68\n  78:   val b1 = resolved_ever => (phase == Resolved and tally_result != None)\n                                                                         ^^^^\n\nerror: parsing failed\n"
+          }
+        }
+      },
+      "passes": false
+    },
+    {
+      "voice": "gpt-oss-120b",
+      "call": {
+        "voice": "gpt-oss-120b",
+        "elapsed_s": 78.48948,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 39247,
+          "completion_tokens": 5399,
+          "total_tokens": 44646,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        }
+      },
+      "files_parsed": [
+        "main.qnt",
+        "rcv.qnt"
+      ],
+      "validation": {
+        "typecheck": {
+          "exit": 1,
+          "stderr": "\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/rcv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "all_invariants": {
+          "exit": 1,
+          "holds": false,
+          "tail": "cv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "cv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "cv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": false,
+            "tail": "cv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+          }
+        }
+      },
+      "passes": false
+    },
+    {
+      "voice": "gemini-2-5-flash",
+      "call": {
+        "voice": "gemini-2-5-flash",
+        "elapsed_s": 113.736459,
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 10235,
+          "prompt_tokens": 41554,
+          "total_tokens": 68085
+        }
+      },
+      "files_parsed": [
+        "design-notes.md",
+        "main.qnt",
+        "rcv.qnt"
+      ],
+      "validation": {
+        "typecheck": {
+          "exit": 1,
+          "stderr": "Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:17\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "all_invariants": {
+          "exit": 1,
+          "holds": false,
+          "tail": "  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+        },
+        "witnesses": {
+          "witness_resolution_reachable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_ballot_submittable": {
+            "exit": 1,
+            "violated": false,
+            "tail": "  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+          },
+          "witness_end_at_crossing": {
+            "exit": 1,
+            "violated": false,
+            "tail": "  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+          }
+        }
+      },
+      "passes": false
+    }
+  ],
+  "n_pass": 0,
+  "n_total": 3
+}

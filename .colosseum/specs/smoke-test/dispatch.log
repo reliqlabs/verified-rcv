@@ -1,0 +1,9 @@
+
+=== Quint fan-out dispatch starting 2026-05-16T18:32:22.413388+00:00 ===
+Voices: ['kimi-k2-6']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/smoke-test
+
+18:32:22Z → voice kimi-k2-6: dispatching
+18:38:08Z     ⚠ kimi-k2-6 attempt 1 failed (346s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+18:43:32Z     ⚠ kimi-k2-6 attempt 2 failed (325s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+18:43:32Z   ✗ kimi-k2-6 ABANDONED after 2 attempts

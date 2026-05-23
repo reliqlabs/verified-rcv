@@ -1,0 +1,68 @@
+{
+  "run_id": "intent-2026-05-16T121243Z",
+  "target": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md",
+  "created": "2026-05-16T121243Z",
+  "voices": [
+    {
+      "id": "claude",
+      "harness": "claude-code",
+      "file": "claude.md",
+      "status": "complete",
+      "elapsed_s": 219.0,
+      "finish_reason": "stop"
+    },
+    {
+      "id": "mistral-small-4-119b-2603",
+      "harness": "shell",
+      "file": "shell-mistral-small-4-119b-2603.md",
+      "status": "complete",
+      "elapsed_s": 270.0,
+      "finish_reason": "stop"
+    },
+    {
+      "id": "qwen3.6-27b-mlx",
+      "harness": "shell",
+      "file": "shell-qwen3.6-27b-mlx.md",
+      "status": "complete",
+      "elapsed_s": 1059.0,
+      "finish_reason": "stop"
+    },
+    {
+      "id": "google/gemma-4-26b-a4b",
+      "harness": "shell",
+      "file": "shell-google-gemma-4-26b-a4b.md",
+      "status": "complete",
+      "elapsed_s": 281.0,
+      "finish_reason": "stop"
+    },
+    {
+      "id": "kimi-k2-6",
+      "harness": "shell",
+      "file": "shell-kimi-k2-6.md",
+      "status": "complete",
+      "elapsed_s": 125.0,
+      "finish_reason": "length"
+    },
+    {
+      "id": "glm-4-7-flash",
+      "harness": "shell",
+      "file": "shell-glm-4-7-flash.md",
+      "status": "complete",
+      "elapsed_s": 138.0,
+      "finish_reason": "length"
+    },
+    {
+      "id": "gpt-oss-120b",
+      "harness": "shell",
+      "file": "shell-gpt-oss-120b.md",
+      "status": "error",
+      "error_detail": "HTTP 400 No such model: gpt-oss-120b \u2014 removed from /colosseum/v1 route between 2026-05-14 and 2026-05-16",
+      "elapsed_s": 4.0
+    }
+  ],
+  "synthesis": {
+    "file": "synthesis.md",
+    "harness": "claude-code",
+    "status": "pending"
+  }
+}

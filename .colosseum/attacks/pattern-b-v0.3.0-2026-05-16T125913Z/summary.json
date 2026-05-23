@@ -1,0 +1,9 @@
+[
+  {
+    "voice": "mistral-small-4-119b-2603",
+    "slices_ok": 1,
+    "slices_total": 1,
+    "total_elapsed_s": 195.4503,
+    "total_chars": 7327
+  }
+]

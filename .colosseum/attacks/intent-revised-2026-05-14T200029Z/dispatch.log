@@ -1,0 +1,139 @@
+Installed 8 packages in 7ms
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ local/mistral-small-4-119b-2603 ...
+  OK (211.3s, 16,313 chars) → local-mistral-small-4-119b-2603.md
+  VERDICT: BREAKS
+
+→ local/qwen3.6-27b-mlx ...
+  OK (638.0s, 3,031 chars) → local-qwen3.6-27b-mlx.md
+  VERDICT: BREAKS-AGAIN
+
+→ local/google/gemma-4-26b-a4b ...
+  OK (161.3s, 28,712 chars) → local-google-gemma-4-26b-a4b.md
+  <no verdict line found>
+
+→ local/goedel-prover-v2-32b (shortened) ...
+  OK (852.0s, 20,306 chars) → local-goedel-prover-v2-32b.md
+  <no verdict line found>
+
+→ gateway/kimi-k2-6 ...
+  OK (174.6s, 33,667 chars) → gateway-kimi-k2-6.md
+  <no verdict line found>
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/kimi-k2-6 (max_tokens=32768) ...
+  ERR (238.6s): HTTP 408: {"errors":[{"message":"AiError: AiError: Request timeout (a08bea6d-1159-4152-a1fd-fd04fc23d83d)","code":3046}],"success":false,"result":{},"messages":[]}
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ local/qwen3.6-27b-mlx (max_tokens=32768) ...
+  ERR (369.4s): HTTP 400: {"error":"Model unloaded."}
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ local/qwen3.6-27b-mlx (max_tokens=32768) ...
+  ERR (17.4s): HTTP 400: {"error":"Model unloaded."}
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/kimi-k2-6 (max_tokens=16384) ...
+  ERR (239.3s): HTTP 408: {"errors":[{"message":"AiError: AiError: Request timeout (3bbed370-787a-4695-85c8-4d5131311600)","code":3046}],"success":false,"result":{},"messages":[]}
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/kimi-k2-6 (max_tokens=16384) ...
+  ERR (239.8s): HTTP 408: {"errors":[{"message":"AiError: AiError: Request timeout (86d6f3a0-5ac6-4449-bc21-1a9bf141cf0f)","code":3046}],"success":false,"result":{},"messages":[]}
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/kimi-k2-6 (max_tokens=8192) ...
+  OK (133.3s, 34,306 chars, finish=length) → gateway-kimi-k2-6.md
+  <no verdict line found>
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/claude-opus-4-7 (max_tokens=16384) ...
+  ERR (6.7s): HTTP 400: {"type":"error","error":{"type":"invalid_request_error","message":"`temperature` is deprecated for this model."},"request_id":"req_011Cb39GhRSx8MCZaSw8MBbk"}
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/glm-4-7-flash (max_tokens=16384) ...
+  OK (139.5s, 58,791 chars, finish=length) → gateway-glm-4-7-flash.md
+  *   *Verdict:* BREAKS.
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ local/qwen3.6-27b-mlx (max_tokens=32768) ...
+  ... `lms load qwen3.6-27b-mlx` ...
+  ERR (900.1s): ReadTimeout: 
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/claude-opus-4-7 (max_tokens=16384) ...
+  ERR (127.7s): HTTP 524: {"error":{"message":"<!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![end
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/glm-4-7-flash (max_tokens=24576) ...
+  ERR (238.7s): HTTP 408: {"errors":[{"message":"AiError: AiError: Request timeout (0cee7990-2f1e-40c1-8af5-93cc66050df5)","code":3046}],"success":false,"result":{},"messages":[]}
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/glm-4-7-flash (max_tokens=16384) ...
+  OK (84.4s, 7,738 chars, finish=stop) → gateway-glm-4-7-flash.md
+  **Estimated confidence in verdict:** High. The contradictions and misclassifications are explicit in the text provided.
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ local/qwen3.6-27b-mlx (max_tokens=32768) ...
+  ... `lms load qwen3.6-27b-mlx` ...
+  OK (863.7s, 10,136 chars, finish=stop) → local-qwen3.6-27b-mlx.md
+  - **Estimated confidence in verdict:** `high` (attacks 1, 2, and 3 are grounded in direct textual contradictions and vacuous dependencies that will block downstream formalization; the spec cannot comm
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ gateway/gpt-oss-120b (max_tokens=16384) ...
+  OK (52.9s, 14,121 chars, finish=stop) → gateway-gpt-oss-120b.md
+  - **Confidence in verdict:** **high** – the critical contradictions and temporal mismatches are concrete, unambiguous, and directly violate the intent’s stated guarantees.
+System prompt: 8,802 chars
+User prompt:   77,936 chars (full)
+User prompt:   76,251 chars (shortened — goedel)
+Output dir:    /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/intent-revised-2026-05-14T200029Z
+
+→ local/google/gemma-4-26b-a4b (max_tokens=32768) ...
+  ... `lms load google/gemma-4-26b-a4b` ...
+  OK (2454.7s, 101,489 chars, finish=length) → local-google-gemma-4-26b-a4b.md
+  *   **Final Verdict: BREAKS.** (Due to Triviality and Vacuity in the core security claims).

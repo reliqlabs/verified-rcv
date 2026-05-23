@@ -1,0 +1,12 @@
+Wrote and self-verified:
+
+- `rcv.qnt`
+- `main.qnt`
+- `design-notes.md`
+
+Checks passed:
+- `quint typecheck`
+- `all_invariants`: No violation found
+- all 3 witness invariants: violated as expected
+
+STATUS: ok

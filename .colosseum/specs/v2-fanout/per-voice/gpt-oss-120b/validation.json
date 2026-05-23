@@ -1,0 +1,28 @@
+{
+  "typecheck": {
+    "exit": 1,
+    "stderr": "\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/rcv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "all_invariants": {
+    "exit": 1,
+    "holds": false,
+    "tail": "cv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "witnesses": {
+    "witness_resolution_reachable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "cv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_ballot_submittable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "cv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_end_at_crossing": {
+      "exit": 1,
+      "violated": false,
+      "tail": "cv.qnt:45:23\n  45: \tpure def distinct(v: Vec[Addr]) : bool = {\n                            ^^^^^^^^^\n\n\n Error [QNT404]: Name 'Vec' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gpt-oss-120b/main.qnt:3:28\n  3:         CANDIDATES       = Vec(\"A\", \"B\", \"C\", \"D\", \"E\"),\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+    }
+  }
+}

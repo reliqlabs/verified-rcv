@@ -1,0 +1,23 @@
+
+=== Quint fan-out dispatch starting 2026-05-18T05:19:57.388846+00:00 ===
+Voices: ['gemini-2-5-flash-native', 'gpt-5-5-native']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v7-native-providers
+
+05:19:57Z → voice gemini-2-5-flash-native: dispatching
+05:19:57Z → voice gpt-5-5-native: dispatching
+05:48:51Z     ⚠ gpt-5-5-native attempt 1 failed (1734s): exit=-9: [0m
+> quint-spec-generator · gpt-5.5
+[0m
+
+05:49:29Z     ⚠ gpt-5-5-native attempt 2 failed (38s): exit=-9: [0m
+> quint-spec-generator · gpt-5.5
+[0m
+
+05:49:29Z   ✗ gpt-5-5-native ABANDONED after 2 attempts
+05:59:57Z     ⚠ gemini-2-5-flash-native attempt 1 failed (2400s): timeout after 2400s
+06:01:04Z     ⚠ gemini-2-5-flash-native attempt 2 failed (67s): exit=-9: [0m
+> quint-spec-generator · gemini-2.5-flash
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+06:01:04Z   ✗ gemini-2-5-flash-native ABANDONED after 2 attempts

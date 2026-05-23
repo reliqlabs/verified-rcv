@@ -1,0 +1,8 @@
+
+=== Inline Quint dispatch starting 2026-05-16T19:26:37.625260+00:00 ===
+Voices: ['kimi-k2-6']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/inline-smoke-test
+
+19:26:37Z → kimi-k2-6: dispatching (gateway/kimi-k2-6)
+19:30:13Z   ↳ kimi-k2-6 got 216s response (finish=stop), parsed files: ['design-notes.md', 'main.qnt', 'rcv.qnt']
+19:30:14Z   ✗ VALIDATION FAILED kimi-k2-6: typecheck=1 safety_holds=False witnesses_violated=0/3

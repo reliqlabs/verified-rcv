@@ -1,0 +1,10 @@
+Installed 8 packages in 13ms
+System: 8,635 chars  User: 75,534 chars  max_tokens=16384
+Probing 3 gateway models in parallel: glm-4-7-flash, gpt-oss-120b, claude-sonnet-4-6
+
+  glm-4-7-flash            OK      152.6s  finish=length    content=46,334 chars  usage={'prompt_tokens': 20372, 'completion_tokens': 16384, 'total_tokens': 36756, 'prompt_tokens_details': {'cached_tokens': 0}}
+  gpt-oss-120b             OK       47.7s  finish=stop      content=13,056 chars  usage={'prompt_tokens': 20538, 'completion_tokens': 5076, 'total_tokens': 25614, 'prompt_tokens_details': {'cached_tokens': 0}}
+  claude-sonnet-4-6        524     127.6s  err={"error":{"message":"<!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!
+
+Summary: 2/3 succeeded, 0 hit ~240s timeout
+HYPOTHESIS (b) supported — kimi-k2-6-specific routing slowdown.

@@ -1,0 +1,28 @@
+{
+  "typecheck": {
+    "exit": 1,
+    "stderr": "r\"\n         ^^^^^\n\n\n Error [QNT405]: Module main imports an unknown module rcv\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "all_invariants": {
+    "exit": 1,
+    "holds": false,
+    "tail": "elopment/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "witnesses": {
+    "witness_resolution_reachable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "elopment/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_ballot_submittable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "elopment/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_end_at_crossing": {
+      "exit": 1,
+      "violated": false,
+      "tail": "elopment/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\n\n Error [QNT405]: Module 'rcv' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v1-fanout/per-voice/gemini-2-5-flash/main.qnt:2:5\n  2:     import rcv hiding { init, step }\n         ^^^^^^^^^^\n\nerror: parsing failed\n"
+    }
+  }
+}

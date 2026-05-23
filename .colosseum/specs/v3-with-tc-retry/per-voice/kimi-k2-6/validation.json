@@ -1,0 +1,64 @@
+{
+  "typecheck": {
+    "exit": 1,
+    "stderr": "6/main.qnt:4:9\n  4:         START_AT = 2,\n             ^^^^^^^^\n\n\n Error [QNT404]: Name 'END_AT' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "all_invariants": {
+    "exit": 1,
+    "holds": false,
+    "tail": " found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "witnesses": {
+    "witness_resolution_reachable": {
+      "exit": 1,
+      "violated": false,
+      "tail": " found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_ballot_submittable": {
+      "exit": 1,
+      "violated": false,
+      "tail": " found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_end_at_crossing": {
+      "exit": 1,
+      "violated": false,
+      "tail": " found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:5:9\n  5:         END_AT = 4,\n             ^^^^^^\n\n\n Error [QNT404]: Name 'MAX_TIME' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v3-with-tc-retry/per-voice/kimi-k2-6/main.qnt:6:9\n  6:         MAX_TIME = 6\n             ^^^^^^^^\n\nerror: parsing failed\n"
+    }
+  },
+  "fix_rounds": [
+    {
+      "round": 1,
+      "tc_exit_before": 1,
+      "call": {
+        "voice": "kimi-k2-6",
+        "elapsed_s": 206.872356,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 42716,
+          "completion_tokens": 19550,
+          "total_tokens": 62266,
+          "prompt_tokens_details": {
+            "cached_tokens": 38656
+          }
+        }
+      }
+    },
+    {
+      "round": 2,
+      "tc_exit_before": 1,
+      "call": {
+        "voice": "kimi-k2-6",
+        "elapsed_s": 166.490276,
+        "finish_reason": "stop",
+        "usage": {
+          "prompt_tokens": 46027,
+          "completion_tokens": 17782,
+          "total_tokens": 63809,
+          "prompt_tokens_details": {
+            "cached_tokens": 42688
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "run_tag": "v9-gateway-retry",
+  "intent": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md",
+  "canonical_examples": [
+    "/Users/mvid/go/pkg/mod/github.com/cometbft/cometbft@v0.38.21/spec/p2p/reactor-api/reactor.qnt",
+    "/Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/replica.qnt",
+    "/Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/types.qnt",
+    "/Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/main_n6f1b1.qnt",
+    "/opt/homebrew/lib/node_modules/@informalsystems/quint/dist/src/builtin.qnt"
+  ],
+  "witness_specs": [
+    "witness_resolution_reachable",
+    "witness_ballot_submittable",
+    "witness_end_at_crossing"
+  ],
+  "safety_invariant": "all_invariants",
+  "voices": [
+    {
+      "voice": "gpt-oss-120b",
+      "generation": {
+        "voice": "gpt-oss-120b",
+        "error": "missing output files: ['design-notes.md']",
+        "elapsed_s": 128.198277
+      },
+      "validation": null,
+      "passes": false
+    },
+    {
+      "voice": "nemotron-3-120b-a12b",
+      "generation": {
+        "voice": "nemotron-3-120b-a12b",
+        "error": "timeout after 2400s",
+        "elapsed_s": 2399.982402
+      },
+      "validation": null,
+      "passes": false
+    },
+    {
+      "voice": "gemini-2-5-flash",
+      "generation": {
+        "voice": "gemini-2-5-flash",
+        "error": "exit=-9: \u001b[0m\n> quint-spec-generator \u00b7 gemini-2-5-flash\n\u001b[0m\n",
+        "elapsed_s": 6.668619
+      },
+      "validation": null,
+      "passes": false
+    }
+  ],
+  "n_pass": 0,
+  "n_total": 3
+}

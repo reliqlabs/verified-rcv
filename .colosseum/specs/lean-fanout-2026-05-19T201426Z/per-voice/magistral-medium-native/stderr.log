@@ -1,0 +1,557 @@
+[0m
+> lean-spec-generator · magistral-medium-latest
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead specs/RcvSpec.lean
+[0m
+[0m← [0mWrite .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+Wrote file successfully.
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:142:15: error: unterminated comment
+[0m
+[0m→ [0mRead .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean[90m [offset=130][0m
+[0m
+[0m← [0mEdit .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+@@ -129,9 +129,9 @@
+ documented extraction discipline (Aeneas Rust-to-Lean extraction or
+ hand-written translation with stated extraction-soundness obligations).
+ The tautological-shadow check at extraction time is: `EnclaveImage` is
+ declared via `axiom` or `opaque` and never refined to `Tally_spec`.
+--
++-/
+ 
+ axiom EnclaveImage : RawBallots → CandidateSet → PrivKey → TallyResult
+ 
+ theorem B10_lean
+
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:142:15: error: unterminated comment
+[0m
+[0m→ [0mRead .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean[90m [offset=130][0m
+[0m→ [0mRead .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:142:15: error: unterminated comment
+[0m
+[0m$ [0mcat /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/-
+RcvSpec.lean — verified-rcv math spec (magistral-medium-native voice)
+
+This is the Lean math-layer spec for the IRV tally pipeline named in
+`.colosseum/intent.md` v0.3.2 §2.5 and §3.2. It is one voice in a multi-model
+fan-out experiment.
+
+Scope:
+  - Types (§2.5)
+  - Stage 1 `decrypt_and_validate` (opaque — modeled, not implemented)
+  - Stage 2 `IRV_spec`         (opaque — modeled, not implemented)
+  - Composition `Tally_spec`    (defined — composes Stage 1 + Stage 2)
+  - Structural well-formedness theorems S6, S7, S8, S9 (§3.1)
+  - B10_lean: the image-IO obligation (§3.2)
+
+Proof bodies are all `sorry`. The methodology question this layer answers is
+"does the theorem statement encode the intent's claim?", not "is the proof
+discharged?". Discharge is a downstream task for a Lean-specialist model.
+
+Stdlib only — no Mathlib import.
+-
+
+namespace VerifiedRcv
+
+abbrev Addr  := String
+abbrev Bytes := List UInt8
+
+structure Ballot where
+  ranking : List Addr
+  deriving Repr, BEq
+
+structure RawEntry where
+  voter      : Addr
+  ciphertext : Bytes
+  deriving Repr
+
+abbrev RawBallots   := List RawEntry
+abbrev CandidateSet := List Addr
+abbrev PrivKey      := Bytes
+
+structure RoundCount where
+  candidate : Addr
+  count     : Nat
+  deriving Repr, BEq
+
+abbrev RoundCounts := List RoundCount
+
+structure TallyResult where
+  winners             : List Addr
+  per_round_counts    : List RoundCounts
+  eliminated_by_round : List (List Addr)
+  ballots_tallied     : Nat
+  ballots_dropped     : Nat
+  dropped_voters      : List Addr
+  non_voters          : List Addr
+  deriving Repr, Inhabited
+
+structure DecryptedSet where
+  valid   : List (Addr × Ballot)
+  dropped : List Addr
+  deriving Repr, Inhabited
+
+/-- Stage 1 (§2.5). Opaque: decrypts ciphertexts under `privkey`, classifies
+each into the (valid, dropped) partition. Validity criteria (well-formed
+ranking, no duplicates, all candidates in `candidates`) are part of the
+extracted model and not re-stated here. -/
+opaque decrypt_and_validate
+  (raw : RawBallots) (candidates : CandidateSet) (privkey : PrivKey) : DecryptedSet
+
+/-- Stage 2 (§2.5). Opaque: the combinatorial IRV core. Repeatedly counts
+first-preference votes, eliminates the lowest, until a winner reaches a
+majority or all remaining are tied. -/
+opaque IRV_spec
+  (valid : List (Addr × Ballot)) (candidates : CandidateSet) : TallyResult
+
+/-- Composition (§2.5). Threads dropped-voter bookkeeping from Stage 1 into
+the Stage 2 output. -/
+def Tally_spec
+    (raw : RawBallots) (candidates : CandidateSet) (privkey : PrivKey) : TallyResult :=
+  let d := decrypt_and_validate raw candidates privkey
+  let r := IRV_spec d.valid candidates
+  { r with
+    dropped_voters  := d.dropped
+    ballots_dropped := d.dropped.length }
+
+/-- S6 — winner well-formedness (§3.1). Winners are a non-empty subset of
+candidates, bounded above by `|candidates|`. -/
+theorem s6_winner_subset
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    let t := Tally_spec raw cs pk
+    (∀ w ∈ t.winners, w ∈ cs) ∧ 1 ≤ t.winners.length ∧ t.winners.length ≤ cs.length := by
+  sorry
+
+/-- S7 — voter partition (§3.1). The candidate set decomposes as
+tallied ⊔ dropped ⊔ non_voters. Stated here as the conservation equation;
+disjointness is a corollary at extraction time. -/
+theorem s7_voter_partition
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    let t := Tally_spec raw cs pk
+    t.ballots_tallied + t.ballots_dropped + t.non_voters.length = cs.length := by
+  sorry
+
+/-- S8 — round counts sum (§3.1). For each round, the per-candidate counts
+sum to `ballots_tallied`. -/
+theorem s8_round_counts_sum
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    let t := Tally_spec raw cs pk
+    ∀ rc ∈ t.per_round_counts,
+      (rc.foldl (fun acc r => acc + r.count) 0) = t.ballots_tallied := by
+  sorry
+
+/-- S9 — no reappearance (§3.1). A candidate eliminated at round i does
+not appear as a key in `per_round_counts[j]` for any j > i. -/
+theorem s9_no_reappearance
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    let t := Tally_spec raw cs pk
+    ∀ i j, i < j → j < t.per_round_counts.length → i < t.eliminated_by_round.length →
+      ∀ c ∈ t.eliminated_by_round[i]!,
+        ∀ rc ∈ t.per_round_counts[j]!, rc.candidate ≠ c := by
+  sorry
+
+/-
+B10_lean (§3.2) — image-IO obligation.
+
+`EnclaveImage` is the **fixed extracted-model symbol** representing the
+externally observable input-output relation of the enclave binary. A proof
+author MAY NOT instantiate `EnclaveImage := Tally_spec` to discharge
+`B10_lean` by `rfl`; the symbol is reserved for the model produced by the
+documented extraction discipline (Aeneas Rust-to-Lean extraction or
+hand-written translation with stated extraction-soundness obligations).
+The tautological-shadow check at extraction time is: `EnclaveImage` is
+declared via `axiom` or `opaque` and never refined to `Tally_spec`.
+-/
+
+axiom EnclaveImage : RawBallots → CandidateSet → PrivKey → TallyResult
+
+theorem B10_lean
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    EnclaveImage raw cs pk = Tally_spec raw cs pk := by
+  sorry
+
+end VerifiedRcv
+[0m
+[0m← [0mEdit .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+@@ -138,5 +138,5 @@
+     (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+     EnclaveImage raw cs pk = Tally_spec raw cs pk := by
+   sorry
+ 
+-end VerifiedRcv
+\ No newline at end of file
++end VerifiedRcv
+
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:143:0: error: unterminated comment
+[0m
+[0m$ [0mcat /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/-
+RcvSpec.lean — verified-rcv math spec (magistral-medium-native voice)
+
+This is the Lean math-layer spec for the IRV tally pipeline named in
+`.colosseum/intent.md` v0.3.2 §2.5 and §3.2. It is one voice in a multi-model
+fan-out experiment.
+
+Scope:
+  - Types (§2.5)
+  - Stage 1 `decrypt_and_validate` (opaque — modeled, not implemented)
+  - Stage 2 `IRV_spec`         (opaque — modeled, not implemented)
+  - Composition `Tally_spec`    (defined — composes Stage 1 + Stage 2)
+  - Structural well-formedness theorems S6, S7, S8, S9 (§3.1)
+  - B10_lean: the image-IO obligation (§3.2)
+
+Proof bodies are all `sorry`. The methodology question this layer answers is
+"does the theorem statement encode the intent's claim?", not "is the proof
+discharged?". Discharge is a downstream task for a Lean-specialist model.
+
+Stdlib only — no Mathlib import.
+-
+
+namespace VerifiedRcv
+
+abbrev Addr  := String
+abbrev Bytes := List UInt8
+
+structure Ballot where
+  ranking : List Addr
+  deriving Repr, BEq
+
+structure RawEntry where
+  voter      : Addr
+  ciphertext : Bytes
+  deriving Repr
+
+abbrev RawBallots   := List RawEntry
+abbrev CandidateSet := List Addr
+abbrev PrivKey      := Bytes
+
+structure RoundCount where
+  candidate : Addr
+  count     : Nat
+  deriving Repr, BEq
+
+abbrev RoundCounts := List RoundCount
+
+structure TallyResult where
+  winners             : List Addr
+  per_round_counts    : List RoundCounts
+  eliminated_by_round : List (List Addr)
+  ballots_tallied     : Nat
+  ballots_dropped     : Nat
+  dropped_voters      : List Addr
+  non_voters          : List Addr
+  deriving Repr, Inhabited
+
+structure DecryptedSet where
+  valid   : List (Addr × Ballot)
+  dropped : List Addr
+  deriving Repr, Inhabited
+
+/-- Stage 1 (§2.5). Opaque: decrypts ciphertexts under `privkey`, classifies
+each into the (valid, dropped) partition. Validity criteria (well-formed
+ranking, no duplicates, all candidates in `candidates`) are part of the
+extracted model and not re-stated here. -/
+opaque decrypt_and_validate
+  (raw : RawBallots) (candidates : CandidateSet) (privkey : PrivKey) : DecryptedSet
+
+/-- Stage 2 (§2.5). Opaque: the combinatorial IRV core. Repeatedly counts
+first-preference votes, eliminates the lowest, until a winner reaches a
+majority or all remaining are tied. -/
+opaque IRV_spec
+  (valid : List (Addr × Ballot)) (candidates : CandidateSet) : TallyResult
+
+/-- Composition (§2.5). Threads dropped-voter bookkeeping from Stage 1 into
+the Stage 2 output. -/
+def Tally_spec
+    (raw : RawBallots) (candidates : CandidateSet) (privkey : PrivKey) : TallyResult :=
+  let d := decrypt_and_validate raw candidates privkey
+  let r := IRV_spec d.valid candidates
+  { r with
+    dropped_voters  := d.dropped
+    ballots_dropped := d.dropped.length }
+
+/-- S6 — winner well-formedness (§3.1). Winners are a non-empty subset of
+candidates, bounded above by `|candidates|`. -/
+theorem s6_winner_subset
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    let t := Tally_spec raw cs pk
+    (∀ w ∈ t.winners, w ∈ cs) ∧ 1 ≤ t.winners.length ∧ t.winners.length ≤ cs.length := by
+  sorry
+
+/-- S7 — voter partition (§3.1). The candidate set decomposes as
+tallied ⊔ dropped ⊔ non_voters. Stated here as the conservation equation;
+disjointness is a corollary at extraction time. -/
+theorem s7_voter_partition
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    let t := Tally_spec raw cs pk
+    t.ballots_tallied + t.ballots_dropped + t.non_voters.length = cs.length := by
+  sorry
+
+/-- S8 — round counts sum (§3.1). For each round, the per-candidate counts
+sum to `ballots_tallied`. -/
+theorem s8_round_counts_sum
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    let t := Tally_spec raw cs pk
+    ∀ rc ∈ t.per_round_counts,
+      (rc.foldl (fun acc r => acc + r.count) 0) = t.ballots_tallied := by
+  sorry
+
+/-- S9 — no reappearance (§3.1). A candidate eliminated at round i does
+not appear as a key in `per_round_counts[j]` for any j > i. -/
+theorem s9_no_reappearance
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    let t := Tally_spec raw cs pk
+    ∀ i j, i < j → j < t.per_round_counts.length → i < t.eliminated_by_round.length →
+      ∀ c ∈ t.eliminated_by_round[i]!,
+        ∀ rc ∈ t.per_round_counts[j]!, rc.candidate ≠ c := by
+  sorry
+
+/-
+B10_lean (§3.2) — image-IO obligation.
+
+`EnclaveImage` is the **fixed extracted-model symbol** representing the
+externally observable input-output relation of the enclave binary. A proof
+author MAY NOT instantiate `EnclaveImage := Tally_spec` to discharge
+`B10_lean` by `rfl`; the symbol is reserved for the model produced by the
+documented extraction discipline (Aeneas Rust-to-Lean extraction or
+hand-written translation with stated extraction-soundness obligations).
+The tautological-shadow check at extraction time is: `EnclaveImage` is
+declared via `axiom` or `opaque` and never refined to `Tally_spec`.
+-/
+
+axiom EnclaveImage : RawBallots → CandidateSet → PrivKey → TallyResult
+
+theorem B10_lean
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    EnclaveImage raw cs pk = Tally_spec raw cs pk := by
+  sorry
+
+end VerifiedRcv
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:143:0: error: unterminated comment
+[0m
+[0m← [0mWrite .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+Wrote file successfully.
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:142:15: error: unterminated comment
+[0m
+[0m$ [0mcat -n /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+1	/-
+     2	RcvSpec.lean — verified-rcv math spec (magistral-medium-native voice)
+     3	
+     4	This is the Lean math-layer spec for the IRV tally pipeline named in
+     5	`.colosseum/intent.md` v0.3.2 §2.5 and §3.2. It is one voice in a multi-model
+     6	fan-out experiment.
+     7	
+     8	Scope:
+     9	  - Types (§2.5)
+    10	  - Stage 1 `decrypt_and_validate` (opaque — modeled, not implemented)
+    11	  - Stage 2 `IRV_spec`         (opaque — modeled, not implemented)
+    12	  - Composition `Tally_spec`    (defined — composes Stage 1 + Stage 2)
+    13	  - Structural well-formedness theorems S6, S7, S8, S9 (§3.1)
+    14	  - B10_lean: the image-IO obligation (§3.2)
+    15	
+    16	Proof bodies are all `sorry`. The methodology question this layer answers is
+    17	"does the theorem statement encode the intent's claim?", not "is the proof
+    18	discharged?". Discharge is a downstream task for a Lean-specialist model.
+    19	
+    20	Stdlib only — no Mathlib import.
+    21	-
+    22	
+    23	namespace VerifiedRcv
+    24	
+    25	abbrev Addr  := String
+    26	abbrev Bytes := List UInt8
+    27	
+    28	structure Ballot where
+    29	  ranking : List Addr
+    30	  deriving Repr, BEq
+    31	
+    32	structure RawEntry where
+    33	  voter      : Addr
+    34	  ciphertext : Bytes
+    35	  deriving Repr
+    36	
+    37	abbrev RawBallots   := List RawEntry
+    38	abbrev CandidateSet := List Addr
+    39	abbrev PrivKey      := Bytes
+    40	
+    41	structure RoundCount where
+    42	  candidate : Addr
+    43	  count     : Nat
+    44	  deriving Repr, BEq
+    45	
+    46	abbrev RoundCounts := List RoundCount
+    47	
+    48	structure TallyResult where
+    49	  winners             : List Addr
+    50	  per_round_counts    : List RoundCounts
+    51	  eliminated_by_round : List (List Addr)
+    52	  ballots_tallied     : Nat
+    53	  ballots_dropped     : Nat
+    54	  dropped_voters      : List Addr
+    55	  non_voters          : List Addr
+    56	  deriving Repr, Inhabited
+    57	
+    58	structure DecryptedSet where
+    59	  valid   : List (Addr × Ballot)
+    60	  dropped : List Addr
+    61	  deriving Repr, Inhabited
+    62	
+    63	/-- Stage 1 (§2.5). Opaque: decrypts ciphertexts under `privkey`, classifies
+    64	each into the (valid, dropped) partition. Validity criteria (well-formed
+    65	ranking, no duplicates, all candidates in `candidates`) are part of the
+    66	extracted model and not re-stated here. -/
+    67	opaque decrypt_and_validate
+    68	  (raw : RawBallots) (candidates : CandidateSet) (privkey : PrivKey) : DecryptedSet
+    69	
+    70	/-- Stage 2 (§2.5). Opaque: the combinatorial IRV core. Repeatedly counts
+    71	first-preference votes, eliminates the lowest, until a winner reaches a
+    72	majority or all remaining are tied. -/
+    73	opaque IRV_spec
+    74	  (valid : List (Addr × Ballot)) (candidates : CandidateSet) : TallyResult
+    75	
+    76	/-- Composition (§2.5). Threads dropped-voter bookkeeping from Stage 1 into
+    77	the Stage 2 output. -/
+    78	def Tally_spec
+    79	    (raw : RawBallots) (candidates : CandidateSet) (privkey : PrivKey) : TallyResult :=
+    80	  let d := decrypt_and_validate raw candidates privkey
+    81	  let r := IRV_spec d.valid candidates
+    82	  { r with
+    83	    dropped_voters  := d.dropped
+    84	    ballots_dropped := d.dropped.length }
+    85	
+    86	/-- S6 — winner well-formedness (§3.1). Winners are a non-empty subset of
+    87	candidates, bounded above by `|candidates|`. -/
+    88	theorem s6_winner_subset
+    89	    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    90	    let t := Tally_spec raw cs pk
+    91	    (∀ w ∈ t.winners, w ∈ cs) ∧ 1 ≤ t.winners.length ∧ t.winners.length ≤ cs.length := by
+    92	  sorry
+    93	
+    94	/-- S7 — voter partition (§3.1). The candidate set decomposes as
+    95	tallied ⊔ dropped ⊔ non_voters. Stated here as the conservation equation;
+    96	disjointness is a corollary at extraction time. -/
+    97	theorem s7_voter_partition
+    98	    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    99	    let t := Tally_spec raw cs pk
+   100	    t.ballots_tallied + t.ballots_dropped + t.non_voters.length = cs.length := by
+   101	  sorry
+   102	
+   103	/-- S8 — round counts sum (§3.1). For each round, the per-candidate counts
+   104	sum to `ballots_tallied`. -/
+   105	theorem s8_round_counts_sum
+   106	    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+   107	    let t := Tally_spec raw cs pk
+   108	    ∀ rc ∈ t.per_round_counts,
+   109	      (rc.foldl (fun acc r => acc + r.count) 0) = t.ballots_tallied := by
+   110	  sorry
+   111	
+   112	/-- S9 — no reappearance (§3.1). A candidate eliminated at round i does
+   113	not appear as a key in `per_round_counts[j]` for any j > i. -/
+   114	theorem s9_no_reappearance
+   115	    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+   116	    let t := Tally_spec raw cs pk
+   117	    ∀ i j, i < j → j < t.per_round_counts.length → i < t.eliminated_by_round.length →
+   118	      ∀ c ∈ t.eliminated_by_round[i]!,
+   119	        ∀ rc ∈ t.per_round_counts[j]!, rc.candidate ≠ c := by
+   120	  sorry
+   121	
+   122	/-
+   123	B10_lean (§3.2) — image-IO obligation.
+   124	
+   125	`EnclaveImage` is the **fixed extracted-model symbol** representing the
+   126	externally observable input-output relation of the enclave binary. A proof
+   127	author MAY NOT instantiate `EnclaveImage := Tally_spec` to discharge
+   128	`B10_lean` by `rfl`; the symbol is reserved for the model produced by the
+   129	documented extraction discipline (Aeneas Rust-to-Lean extraction or
+   130	hand-written translation with stated extraction-soundness obligations).
+   131	The tautological-shadow check at extraction time is: `EnclaveImage` is
+   132	declared via `axiom` or `opaque` and never refined to `Tally_spec`.
+   133	-
+   134	
+   135	axiom EnclaveImage : RawBallots → CandidateSet → PrivKey → TallyResult
+   136	
+   137	theorem B10_lean
+   138	    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+   139	    EnclaveImage raw cs pk = Tally_spec raw cs pk := by
+   140	  sorry
+   141	
+   142	end VerifiedRcv
+[0m
+[0m← [0mEdit .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+Index: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+===================================================================
+--- /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
++++ /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+@@ -129,10 +129,9 @@
+ documented extraction discipline (Aeneas Rust-to-Lean extraction or
+ hand-written translation with stated extraction-soundness obligations).
+ The tautological-shadow check at extraction time is: `EnclaveImage` is
+ declared via `axiom` or `opaque` and never refined to `Tally_spec`.
+--
+-
++-/
+ axiom EnclaveImage : RawBallots → CandidateSet → PrivKey → TallyResult
+ 
+ theorem B10_lean
+     (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:141:15: error: unterminated comment
+[0m
+[0m← [0mWrite .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+Wrote file successfully.
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:142:15: error: unterminated comment
+[0m
+[0m← [0mWrite .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+Wrote file successfully.
+[0m
+[0m$ [0mlean /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:55:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:61:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:67:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:74:8: warning: declaration uses `sorry`
+/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:84:8: warning: declaration uses `sorry`
+[0m
+[0m$ [0mgrep -E "^(theorem|axiom|opaque) (s6_winner_subset|s7_voter_partition|s8_round_counts_sum|s9_no_reappearance|B10_lean|EnclaveImage)" /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+theorem s6_winner_subset
+theorem s7_voter_partition
+theorem s8_round_counts_sum
+theorem s9_no_reappearance
+axiom EnclaveImage : RawBallots → CandidateSet → PrivKey → TallyResult
+theorem B10_lean
+[0m
+[0m$ [0mgrep -E ":= (rfl|trivial|True\.intro)" /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean
+(no output)
+[0m
+[0m← [0mWrite .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/design-notes.md
+Wrote file successfully.
+[0m
+[0m→ [0mRead .colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/design-notes.md
+[0m
+[0m$ [0mecho "STATUS: ok"
+STATUS: ok
+[0m

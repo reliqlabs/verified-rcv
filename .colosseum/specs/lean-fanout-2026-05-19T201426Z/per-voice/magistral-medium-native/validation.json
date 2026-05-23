@@ -1,0 +1,21 @@
+{
+  "typecheck": {
+    "exit": 0,
+    "has_errors": false,
+    "sorry_count": 5,
+    "tail": "/per-voice/magistral-medium-native/RcvSpec.lean:55:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:61:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:67:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:74:8: warning: declaration uses `sorry`\n/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/lean-fanout-2026-05-19T201426Z/per-voice/magistral-medium-native/RcvSpec.lean:84:8: warning: declaration uses `sorry`\n"
+  },
+  "presence": {
+    "s6_winner_subset": true,
+    "s7_voter_partition": true,
+    "s8_round_counts_sum": true,
+    "s9_no_reappearance": true,
+    "B10_lean": true,
+    "EnclaveImage": true,
+    "Tally_spec": true
+  },
+  "no_tautologies": {
+    "tautology_hits": [],
+    "enclave_image_is_tally_spec": false
+  }
+}

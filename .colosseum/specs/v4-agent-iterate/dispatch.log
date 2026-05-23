@@ -1,0 +1,94 @@
+
+=== Quint fan-out dispatch starting 2026-05-16T22:04:05.478910+00:00 ===
+Voices: ['kimi-k2-6']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate
+
+22:04:05Z → voice kimi-k2-6: dispatching
+22:12:55Z   ↳ kimi-k2-6 generated in 530s, validating...
+22:12:56Z   ✓ PASS kimi-k2-6: typecheck=0 safety_holds=True witnesses_violated=3/3
+
+=== Quint fan-out dispatch starting 2026-05-16T22:13:50.769188+00:00 ===
+Voices: ['gpt-oss-120b', 'nemotron-3-120b-a12b', 'gemma-4-26b-a4b', 'qwen3.6-27b', 'mistral-small-4-119b-2603']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate
+
+22:13:50Z → voice gpt-oss-120b: dispatching
+22:13:57Z     ⚠ gpt-oss-120b attempt 1 failed (7s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+22:14:03Z     ⚠ gpt-oss-120b attempt 2 failed (6s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+22:14:03Z   ✗ gpt-oss-120b ABANDONED after 2 attempts
+22:14:03Z → voice nemotron-3-120b-a12b: dispatching
+23:47:08Z     ⚠ nemotron-3-120b-a12b attempt 1 failed (5585s): exit=-15: [0m
+> quint-spec-generator · cloudflare-100-cf-nvidia-nemotron-3-120b-a12b
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead /Users/mvid/go/pkg/mod/github.com/cometbft/cometbft@v0.38.
+23:47:49Z     ⚠ nemotron-3-120b-a12b attempt 2 failed (41s): exit=-9: [0m
+> quint-spec-generator · cloudflare-100-cf-nvidia-nemotron-3-120b-a12b
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+23:47:49Z   ✗ nemotron-3-120b-a12b ABANDONED after 2 attempts
+23:47:49Z → voice gemma-4-26b-a4b: dispatching
+
+=== Quint fan-out dispatch starting 2026-05-16T23:48:02.738941+00:00 ===
+Voices: ['gemini-2-5-flash', 'gemma-4-26b-a4b', 'qwen3.6-27b', 'mistral-small-4-119b-2603']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate
+
+23:48:02Z → voice gemini-2-5-flash: dispatching
+00:22:41Z     ⚠ gemini-2-5-flash attempt 1 failed (2079s): exit=-9: [0m
+> quint-spec-generator · gemini-2-5-flash
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead /Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/main_n6f1b1.qnt
+[0m→ 
+00:23:05Z     ⚠ gemini-2-5-flash attempt 2 failed (24s): exit=-9: [0m
+> quint-spec-generator · gemini-2-5-flash
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead /Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/main_n6f1b1.qnt
+[0m→ 
+00:23:05Z   ✗ gemini-2-5-flash ABANDONED after 2 attempts
+00:23:05Z → voice gemma-4-26b-a4b: dispatching
+
+=== Quint fan-out dispatch starting 2026-05-17T00:23:08.485256+00:00 ===
+Voices: ['gemma-4-26b-a4b', 'qwen3.6-27b', 'mistral-small-4-119b-2603']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate
+
+00:23:08Z → voice gemma-4-26b-a4b: dispatching
+00:57:40Z     ⚠ gemma-4-26b-a4b attempt 1 failed (2072s): exit=-9: [0m
+> quint-spec-generator · google/gemma-4-26b-a4b
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead .colosseum/intent.md[90m [offset=379][0m
+
+
+=== Quint fan-out dispatch starting 2026-05-17T00:58:02.039640+00:00 ===
+Voices: ['qwen3.6-27b', 'mistral-small-4-119b-2603']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate
+
+00:58:02Z → voice qwen3.6-27b: dispatching
+01:14:32Z     ⚠ gemma-4-26b-a4b attempt 2 failed (1012s): exit=-9: [0m
+> quint-spec-generator · google/gemma-4-26b-a4b
+[0m
+
+01:14:32Z   ✗ gemma-4-26b-a4b ABANDONED after 2 attempts
+01:14:32Z → voice qwen3.6-27b: dispatching
+01:15:04Z     ⚠ qwen3.6-27b attempt 1 failed (33s): exit=-9: [0m
+> quint-spec-generator · qwen/qwen3.6-27b
+[0m
+
+01:15:04Z     ⚠ qwen3.6-27b attempt 1 failed (1023s): exit=-9: [0m
+> quint-spec-generator · qwen/qwen3.6-27b
+[0m
+
+
+=== Quint fan-out dispatch starting 2026-05-17T01:15:08.032380+00:00 ===
+Voices: ['qwen3.6-27b', 'mistral-small-4-119b-2603']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v4-agent-iterate
+
+01:15:08Z → voice qwen3.6-27b: dispatching
+01:38:42Z     ⚠ qwen3.6-27b attempt 1 failed (1415s): exit=-9: [0m
+> quint-spec-generator · qwen/qwen3.6-27b
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead .colosseum/intent.md[90m [offset=379][0m
+[0m→ [0mRead .colosseum/intent.md[90m [off

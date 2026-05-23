@@ -1,0 +1,12 @@
+Wrote `RcvSpec.lean` + `design-notes.md` in the output directory.
+
+**Typecheck result**: `lean` exits 0 with only 5 `sorry` warnings (no errors).
+
+**Verification checklist**:
+- 5 theorems present with `sorry` bodies: `s6_winner_subset`, `s7_voter_partition`, `s8_round_counts_sum`, `s9_no_reappearance`, `B10_lean`
+- `EnclaveImage` declared as `axiom` (not `def := Tally_spec`)
+- `Tally_spec` declared as `def` (composes `decrypt_and_validate` + `IRV_spec`)
+- No theorem discharged by `rfl`/`trivial`/`True.intro`
+- Stdlib only; `IrvOutput`/`DecryptedSet` split makes Stage 1 vs Stage 2 boundary explicit; `DecryptedSet` includes `non_voters` per intent §2.5 composition clause
+
+STATUS: ok

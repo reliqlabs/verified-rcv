@@ -1,0 +1,28 @@
+{
+  "typecheck": {
+    "exit": 1,
+    "stderr": "Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:17\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "all_invariants": {
+    "exit": 1,
+    "holds": false,
+    "tail": "  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+  },
+  "witnesses": {
+    "witness_resolution_reachable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_ballot_submittable": {
+      "exit": 1,
+      "violated": false,
+      "tail": "  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+    },
+    "witness_end_at_crossing": {
+      "exit": 1,
+      "violated": false,
+      "tail": "  15:   action step = rcv_init.or(rcv_step_one_contract)\n                      ^^^^^^^^\n\n\n Error [QNT404]: Name 'rcv_step_one_contract' not found\n\n  at /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v2-fanout/per-voice/gemini-2-5-flash/main.qnt:15:29\n  15:   action step = rcv_init.or(rcv_step_one_contract)\n                                  ^^^^^^^^^^^^^^^^^^^^^\n\nerror: parsing failed\n"
+    }
+  }
+}

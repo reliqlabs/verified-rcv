@@ -1,0 +1,122 @@
+{
+  "run_id": "intent-revised-2026-05-14T200029Z",
+  "target": "/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md",
+  "created": "2026-05-14T200029Z",
+  "notes": "Retrofitted manifest for the Round 3a re-adversarial pass. Original dispatch predates the colosseum_run.py tool; voice statuses + elapsed times reconstructed from per-voice file headers + dispatch.log.",
+  "voices": [
+    {
+      "id": "claude",
+      "harness": "claude-code",
+      "file": "claude.md",
+      "status": "complete",
+      "elapsed_s": 339.1,
+      "finish_reason": "stop",
+      "metadata": {
+        "model": "claude-opus-4-7",
+        "channel": "agent-subagent",
+        "file_access": true
+      }
+    },
+    {
+      "id": "mistral-small-4-119b-2603",
+      "harness": "shell",
+      "file": "local-mistral-small-4-119b-2603.md",
+      "status": "complete",
+      "elapsed_s": 211.3,
+      "finish_reason": "stop",
+      "metadata": {
+        "channel": "lm-studio-local",
+        "max_tokens": 16384
+      }
+    },
+    {
+      "id": "qwen3.6-27b-mlx",
+      "harness": "shell",
+      "file": "local-qwen3.6-27b-mlx.md",
+      "status": "complete",
+      "elapsed_s": 863.7,
+      "finish_reason": "stop",
+      "metadata": {
+        "channel": "lm-studio-local",
+        "max_tokens": 16384,
+        "reasoning_model": true,
+        "retries_required": 2
+      }
+    },
+    {
+      "id": "google/gemma-4-26b-a4b",
+      "harness": "shell",
+      "file": "local-google-gemma-4-26b-a4b.md",
+      "status": "complete",
+      "elapsed_s": 2454.7,
+      "finish_reason": "length",
+      "metadata": {
+        "channel": "lm-studio-local",
+        "max_tokens": 32768,
+        "reasoning_model": true,
+        "note": "ran ~40 min; finish=length but 100KB substantive content + verdict found"
+      }
+    },
+    {
+      "id": "goedel-prover-v2-32b",
+      "harness": "shell",
+      "file": "local-goedel-prover-v2-32b.md",
+      "status": "error",
+      "elapsed_s": 852.0,
+      "finish_reason": "length",
+      "error_detail": "Degenerated into tautology loops with abstract variable lists; theorem-prover specialist unsuited to general adversarial review",
+      "metadata": {
+        "channel": "lm-studio-local",
+        "max_tokens": 8192,
+        "methodology_note": "skip theorem-prover specialists for general adversarial spec review"
+      }
+    },
+    {
+      "id": "kimi-k2-6",
+      "harness": "shell",
+      "file": "gateway-kimi-k2-6.md",
+      "status": "complete",
+      "elapsed_s": 133.3,
+      "finish_reason": "length",
+      "metadata": {
+        "channel": "gateway",
+        "max_tokens": 8192,
+        "reasoning_model": true,
+        "note": "truncated structured content; 3 prior retries at 16K/32K hit gateway Bug 3 (~240s cap)"
+      }
+    },
+    {
+      "id": "glm-4-7-flash",
+      "harness": "shell",
+      "file": "gateway-glm-4-7-flash.md",
+      "status": "complete",
+      "elapsed_s": 84.4,
+      "finish_reason": "stop",
+      "metadata": {
+        "channel": "gateway",
+        "max_tokens": 16384,
+        "reasoning_model": true,
+        "note": "verdict line is template-echo; content unambiguously votes BREAKS-AGAIN"
+      }
+    },
+    {
+      "id": "gpt-oss-120b",
+      "harness": "shell",
+      "file": "gateway-gpt-oss-120b.md",
+      "status": "complete",
+      "elapsed_s": 52.9,
+      "finish_reason": "stop",
+      "metadata": {
+        "channel": "gateway",
+        "max_tokens": 16384,
+        "reasoning_model": true
+      }
+    }
+  ],
+  "synthesis": {
+    "file": "synthesis.md",
+    "harness": "claude-code",
+    "status": "complete",
+    "elapsed_s": 0
+  }
+}

@@ -1,0 +1,18 @@
+Output dir: /Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v10-baseline-rerun
+Voices (3): ['kimi-k2-6', 'claude-opus-4-7', 'gpt-5-5-native']
+10:40:54Z → voice kimi-k2-6: dispatching
+10:40:54Z → voice claude-opus-4-7: dispatching
+10:40:54Z → voice gpt-5-5-native: dispatching
+10:41:03Z     ⚠ claude-opus-4-7 attempt 1 failed (9s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+10:41:07Z     ⚠ claude-opus-4-7 attempt 2 failed (4s): missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+10:41:07Z   ✗ claude-opus-4-7 ABANDONED after 2 attempts
+10:42:57Z   ↳ gpt-5-5-native generated in 123s, validating...
+10:42:58Z   ✓ PASS gpt-5-5-native: typecheck=0 safety_holds=True witnesses_violated=3/3
+11:37:34Z   ↳ kimi-k2-6 generated in 3400s, validating...
+11:37:36Z   ✓ PASS kimi-k2-6: typecheck=0 safety_holds=True witnesses_violated=3/3
+
+=== Summary ===
+2/3 voices produced specs that pass all validation checks.
+  ✓ kimi-k2-6
+  ✗ claude-opus-4-7: missing output files: ['rcv.qnt', 'main.qnt', 'design-notes.md']
+  ✓ gpt-5-5-native

@@ -1,0 +1,71 @@
+## Goal
+- Produce `rcv.qnt`, `main.qnt`, and `design-notes.md` in the per-voice output directory for a Quint model of the verified RCV protocol, then self-verify with `quint typecheck` and `quint run`.
+
+## Constraints & Preferences
+- Output paths fixed under `/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v11-intent-tightened/per-voice/kimi-k2-6/`
+- Witness invariants (`witness_resolution_reachable`, `witness_ballot_submittable`, `witness_end_at_crossing`) must be VIOLATED (phrased as negations)
+- Safety invariant `all_invariants` must HOLD across all sampled traces
+- Self-verify commands: `quint typecheck`, `quint run --invariant=all_invariants`, `quint run --invariant=<each witness>`
+- Must follow idioms from canonical CometBFT and Minimmit Quint examples
+- Model must encode v0.3.2 intent including enclave-side state and B2 snapshot discipline
+
+## Progress
+### Done
+- Read and analyzed `/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md` (v0.3.2)
+- Reviewed canonical examples: `reactor.qnt`, `replica.qnt`, `types.qnt`, `main_n6f1b1.qnt`, `builtin.qnt`
+- Created output directory
+- Designed module structure, state variables, actions, and invariant set
+
+### In Progress
+- Drafting `rcv.qnt` parameterized module with IRV pure def, state machine, and temporal invariants
+- Drafting `main.qnt` with concrete 2-candidate instantiation
+- Preparing `design-notes.md`
+
+### Blocked
+- (none)
+
+## Key Decisions
+- Use 2-candidate model (`List("A", "B")`) to keep state space small for `max-steps=30`
+- Represent `Option[TallyResult]` as a record `{ present: bool, value: TallyResult }` instead of a sum type for Quint compatibility
+- Model `enclave_tally` as a separate action distinct from `publish_result` to satisfy v0.3.2 encoding discipline
+- Compute IRV via bounded `foldl` over `range(0, candidates.length())` since Quint lacks general recursion
+- Snapshot `ballots_at_end` updated atomically on the `advance_time` step that first crosses `end_at`
+- Declare `all_invariants` as a single `temporal` formula wrapping both state predicates and `next`-based temporal properties
+
+## Next Steps
+1. Write `rcv.qnt` with pure defs for `list_to_set`, `count_first_place`, `irv_spec`, `tally_spec`, plus actions and invariants
+2. Write `main.qnt` importing `rcv` with `CANDIDATES = List("A", "B")`, `START_AT = 2`, `END_AT = 4`
+3. Write `design-notes.md` explaining modeling choices and intent-to-spec mapping
+4. Run `quint typecheck` and `quint run` for `all_invariants` and each witness
+5. Debug and rewrite if any check fails
+
+## Critical Context
+- `end_crossed` boolean tracks the first crossing of `end_at` to set `ballots_at_end` exactly once
+- `submit_ballot` guard requires `is_voting()` (`start_at <= time < end_at`) and `voter.in(candidate_set)`
+- `enclave_tally` guard requires `is_tallying()` and `not(enclave_has_session_key)`; it honestly computes `tally_spec(ballots, candidates)`
+- `publish_result` guard requires `is_tallying()` and `enclave_computed_tally.present`
+- B10 cross-layer property modeled as classical shadow: `tally_result.value == enclave_computed_tally.value ∧ enclave_consumed_ballots == ballots_at_end`
+- Witness invariants are negations: `not(tally_result.present)`, `not(ballots.keys().size() > 0)`, `not(end_crossed)`
+
+## Relevant Files
+- `/Users/mvid/Development/reliq/verified-rcv/.colosseum/intent.md`: Source of truth for invariants, state machine, and trust boundaries
+- `/Users/mvid/go/pkg/mod/github.com/cometbft/cometbft@v0.38.21/spec/p2p/reactor-api/reactor.qnt`: Idiom reference for Quint module structure and map usage
+- `/Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/replica.qnt`: Idiom reference for state machine actions and `nondet`/`oneOf`
+- `/Users/mvid/Development/burnt/commonware/pipeline/minimmit/quint/main_n6f1b1.qnt`: Idiom reference for parameter instantiation
+- `/opt/homebrew/lib/node_modules/@informalsystems/quint/dist/src/builtin.qnt`: Reference for built-in operators (`range`, `foldl`, `always`, `next`)
+- `/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v11-intent-tightened/per-voice/kimi-k2-6/`: Output directory for generated specs
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+All checks pass.
+
+- `quint typecheck main.qnt` — exit 0
+- `quint run --invariant=all_invariants` — `No violation found` (2857 traces/sec)
+- `quint run --invariant=witness_resolution_reachable` — `Invariant violated` (Resolved reached)
+- `quint run --invariant=witness_ballot_submittable` — `Invariant violated` (ballots submitted)
+- `quint run --invariant=witness_end_at_crossing` — `Invariant violated` (Tallying reached)
+
+Files written to `/Users/mvid/Development/reliq/verified-rcv/.colosseum/specs/v11-intent-tightened/per-voice/kimi-k2-6/`:
+- `rcv.qnt` — parameterized module with state machine, invariants, and witnesses
+- `main.qnt` — concrete instantiation (3 candidates, START_AT=2, END_AT=5)
+- `design-notes.md` — intent-to-spec mapping and encoding choices
+
+STATUS: ok

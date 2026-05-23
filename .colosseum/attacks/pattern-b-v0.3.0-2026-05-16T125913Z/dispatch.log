@@ -1,0 +1,737 @@
+
+=== Pattern B dispatch starting 2026-05-16T12:59:13.667142+00:00 ===
+Voices: ['claude-opus-4-7', 'kimi-k2-6', 'glm-4-7-flash', 'gpt-oss-120b', 'gemma-4-26b-a4b', 'qwen3.6-27b']
+Slices: ['scope', 'behaviors-core', 'behaviors-types', 'state-invariants', 'temporal-invariants', 'failure-modes', 'trust-quartz', 'scenarios', 'off-chain-witness']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/pattern-b-v0.3.0-2026-05-16T125913Z
+
+[claude-opus-4-7/scope] attempt 1 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/scope] attempt 2 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[gpt-oss-120b/scope] attempt 1 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[claude-opus-4-7/scope] attempt 3 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/scope] ABANDONED after 3 attempts (4.9s)
+[claude-opus-4-7/behaviors-core] attempt 1 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[gpt-oss-120b/scope] attempt 2 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+
+[claude-opus-4-7/behaviors-core] attempt 2 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[gpt-oss-120b/scope] attempt 3 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+
+[gpt-oss-120b/scope] ABANDONED after 3 attempts (5.4s)
+[claude-opus-4-7/behaviors-core] attempt 3 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/behaviors-core] ABANDONED after 3 attempts (3.7s)
+[claude-opus-4-7/behaviors-types] attempt 1 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/behaviors-types] attempt 2 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/behaviors-types] attempt 3 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/behaviors-types] ABANDONED after 3 attempts (4.0s)
+[gpt-oss-120b/behaviors-core] attempt 1 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[claude-opus-4-7/state-invariants] attempt 1 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/state-invariants] attempt 2 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/state-invariants] attempt 3 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/state-invariants] ABANDONED after 3 attempts (3.7s)
+[claude-opus-4-7/temporal-invariants] attempt 1 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/temporal-invariants] attempt 2 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/temporal-invariants] attempt 3 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/temporal-invariants] ABANDONED after 3 attempts (4.2s)
+[claude-opus-4-7/failure-modes] attempt 1 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/failure-modes] attempt 2 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[gpt-oss-120b/behaviors-core] attempt 2 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[claude-opus-4-7/failure-modes] attempt 3 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/failure-modes] ABANDONED after 3 attempts (4.2s)
+[claude-opus-4-7/trust-quartz] attempt 1 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[gpt-oss-120b/behaviors-core] attempt 3 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+
+[gpt-oss-120b/behaviors-core] ABANDONED after 3 attempts (7.0s)
+[glm-4-7-flash/scope] OK (83.1s, 17,719 chars)
+[claude-opus-4-7/trust-quartz] attempt 2 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/trust-quartz] attempt 3 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/trust-quartz] ABANDONED after 3 attempts (4.8s)
+[claude-opus-4-7/scenarios] attempt 1 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/scenarios] attempt 2 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/scenarios] attempt 3 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/scenarios] ABANDONED after 3 attempts (4.2s)
+[claude-opus-4-7/off-chain-witness] attempt 1 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/off-chain-witness] attempt 2 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/off-chain-witness] attempt 3 failed: exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+[claude-opus-4-7/off-chain-witness] ABANDONED after 3 attempts (4.4s)
+[gpt-oss-120b/behaviors-types] OK (48.0s, 8,546 chars)
+[gpt-oss-120b/state-invariants] attempt 1 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+[0m✱ [0mGrep "S5"[90m 111 matches[0m
+
+[gpt-oss-120b/state-invariants] attempt 2 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=310, limit=50][0m
+
+[gpt-oss-120b/state-invariants] attempt 3 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+
+[gpt-oss-120b/state-invariants] ABANDONED after 3 attempts (6.1s)
+[gpt-oss-120b/temporal-invariants] attempt 1 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/temporal-invariants] attempt 2 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[glm-4-7-flash/behaviors-core] attempt 1 failed: exit=0: [0m
+> spec-adversary · glm-4-7-flash
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+[gpt-oss-120b/temporal-invariants] attempt 3 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/temporal-invariants] ABANDONED after 3 attempts (11.5s)
+[kimi-k2-6/scope] attempt 1 failed: exit=0: [0m
+> spec-adversary · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead .colosseum/intent.md[90m [offset=461][0m
+
+[gpt-oss-120b/failure-modes] OK (39.9s, 5,389 chars)
+[gpt-oss-120b/trust-quartz] attempt 1 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/trust-quartz] attempt 2 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/trust-quartz] attempt 3 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/trust-quartz] ABANDONED after 3 attempts (10.9s)
+[gpt-oss-120b/scenarios] attempt 1 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/scenarios] attempt 2 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/scenarios] attempt 3 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/scenarios] ABANDONED after 3 attempts (11.7s)
+[glm-4-7-flash/behaviors-core] OK (123.1s, 91 chars)
+[gpt-oss-120b/off-chain-witness] attempt 1 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+[0m✱ [0mGrep "8\.7"[90m in .colosseum/intent.md · 8 matches[0m
+
+[gpt-oss-120b/off-chain-witness] attempt 2 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/off-chain-witness] attempt 3 failed: exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+[gpt-oss-120b/off-chain-witness] ABANDONED after 3 attempts (12.0s)
+[glm-4-7-flash/behaviors-types] attempt 1 failed: exit=0: [0m
+> spec-adversary · glm-4-7-flash
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+[kimi-k2-6/scope] attempt 2 failed: exit=0: [0m
+> spec-adversary · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [limit=200][0m
+[0m→ [0mRead .colosseum/intent.md[90m [limit=200, offset=201][0m
+[0m→ [0mRead .colosseum/i
+[glm-4-7-flash/behaviors-types] attempt 2 failed: exit=0: [0m
+> spec-adversary · glm-4-7-flash
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+[gemma-4-26b-a4b/scope] attempt 1 failed: timeout after 600s
+[qwen3.6-27b/scope] attempt 1 failed: timeout after 600s
+[kimi-k2-6/scope] OK (160.7s, 8,697 chars)
+[gemma-4-26b-a4b/scope] OK (88.4s, 5,053 chars)
+[qwen3.6-27b/scope] OK (127.0s, 5,786 chars)
+[glm-4-7-flash/behaviors-types] OK (144.9s, 80 chars)
+
+=== Pattern B dispatch starting 2026-05-16T13:12:12.944955+00:00 ===
+Voices: ['kimi-k2-6']
+Slices: ['scope', 'behaviors-core', 'behaviors-types', 'state-invariants', 'temporal-invariants', 'failure-modes', 'trust-quartz', 'scenarios', 'off-chain-witness']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/pattern-b-v0.3.0-2026-05-16T125913Z
+
+[kimi-k2-6/scope] OK (121.2s, 7,395 chars)
+[kimi-k2-6/behaviors-core] attempt 1 failed: exit=0: [0m
+> spec-adversary · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+[kimi-k2-6/behaviors-core] OK (376.2s, 6,573 chars)
+[kimi-k2-6/behaviors-types] attempt 1 failed: exit=0: [0m
+> spec-adversary · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+[kimi-k2-6/behaviors-types] OK (260.4s, 5,430 chars)
+[kimi-k2-6/state-invariants] OK (260.3s, 6,978 chars)
+[kimi-k2-6/temporal-invariants] OK (303.3s, 12,008 chars)
+[kimi-k2-6/failure-modes] OK (216.9s, 9,240 chars)
+[kimi-k2-6/trust-quartz] attempt 1 failed: exit=0: [0m
+> spec-adversary · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [limit=2000][0m
+[0m→ [0mRead .colosseum/intent.md[90m [limit=2000, offset=461][0m
+
+[kimi-k2-6/trust-quartz] OK (296.8s, 15,065 chars)
+[kimi-k2-6/scenarios] OK (187.8s, 10,497 chars)
+
+=== Pattern B dispatch starting 2026-05-16T14:19:09.535400+00:00 ===
+Voices: ['kimi-k2-6']
+Slices: ['scope', 'behaviors-core', 'behaviors-types', 'state-invariants', 'temporal-invariants', 'failure-modes', 'trust-quartz', 'scenarios', 'off-chain-witness']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/pattern-b-v0.3.0-2026-05-16T125913Z
+
+[kimi-k2-6/scope] OK (143.1s, 9,119 chars)
+[kimi-k2-6/behaviors-core] OK (273.6s, 8,160 chars)
+[kimi-k2-6/behaviors-types] OK (219.3s, 10,227 chars)
+[kimi-k2-6/state-invariants] OK (371.1s, 6,770 chars)
+[kimi-k2-6/temporal-invariants] attempt 1 failed: exit=0: [0m
+> spec-adversary · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md
+[0m→ [0mRead .colosseum/intent.md[90m [offset=110, limit=80][0m
+[0m✱ [0mGrep "Section 8\.7|8\.7"[90m in .colos
+
+=== Pattern B dispatch starting 2026-05-16T14:47:02.009612+00:00 ===
+Voices: ['gemma-4-26b-a4b']
+Slices: ['scope', 'behaviors-core', 'behaviors-types', 'state-invariants', 'temporal-invariants', 'failure-modes', 'trust-quartz', 'scenarios', 'off-chain-witness']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/pattern-b-v0.3.0-2026-05-16T125913Z
+
+[kimi-k2-6/temporal-invariants] OK (249.2s, 13,789 chars)
+[kimi-k2-6/failure-modes] OK (141.5s, 10,742 chars)
+[kimi-k2-6/trust-quartz] attempt 1 failed: exit=0: [0m
+> spec-adversary · kimi-k2-6
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [limit=2000][0m
+[0m→ [0mRead .colosseum/intent.md[90m [limit=2000, offset=461][0m
+
+[gemma-4-26b-a4b/scope] attempt 1 failed: timeout after 600s
+[kimi-k2-6/trust-quartz] OK (432.4s, 14,326 chars)
+[kimi-k2-6/scenarios] OK (176.9s, 9,964 chars)
+[gemma-4-26b-a4b/scope] attempt 2 failed: timeout after 600s
+[kimi-k2-6/off-chain-witness] OK (288.5s, 10,678 chars)
+
+=== Pattern B dispatch starting 2026-05-16T15:13:40.729492+00:00 ===
+Voices: ['gemma-4-26b-a4b']
+Slices: ['scope', 'behaviors-core', 'behaviors-types', 'state-invariants', 'temporal-invariants', 'failure-modes', 'trust-quartz', 'scenarios', 'off-chain-witness']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/pattern-b-v0.3.0-2026-05-16T125913Z
+
+15:13:40Z → voice gemma-4-26b-a4b: starting 9-slice dispatch
+15:13:40Z   ⇢ [1/9] gemma-4-26b-a4b/scope dispatching...
+
+=== Pattern B dispatch starting 2026-05-16T15:17:42.267416+00:00 ===
+Voices: ['claude-opus-4-7', 'glm-4-7-flash', 'gpt-oss-120b']
+Slices: ['scope', 'behaviors-core', 'behaviors-types', 'state-invariants', 'temporal-invariants', 'failure-modes', 'trust-quartz', 'scenarios', 'off-chain-witness']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/pattern-b-v0.3.0-2026-05-16T125913Z
+
+15:17:42Z → voice claude-opus-4-7: starting 9-slice dispatch
+15:17:42Z   ⇢ [1/9] claude-opus-4-7/scope dispatching...
+15:17:42Z → voice glm-4-7-flash: starting 9-slice dispatch
+15:17:42Z   ⇢ [1/9] glm-4-7-flash/scope dispatching...
+15:17:42Z → voice gpt-oss-120b: starting 9-slice dispatch
+15:17:42Z   ⇢ [1/9] gpt-oss-120b/scope dispatching...
+15:17:50Z     ⚠ claude-opus-4-7/scope attempt 1 failed (8s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:17:51Z     ⚠ gpt-oss-120b/scope attempt 1 failed (10s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+
+15:17:54Z     ⚠ claude-opus-4-7/scope attempt 2 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:17:59Z     ⚠ claude-opus-4-7/scope attempt 3 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:17:59Z   ✗ [1/9] claude-opus-4-7/scope ABANDONED after 3 attempts (cum 5s)
+15:17:59Z   ⇢ [2/9] claude-opus-4-7/behaviors-core dispatching...
+15:18:04Z     ⚠ claude-opus-4-7/behaviors-core attempt 1 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:05Z     ⚠ gpt-oss-120b/scope attempt 2 failed (14s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:18:09Z     ⚠ claude-opus-4-7/behaviors-core attempt 2 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:14Z     ⚠ claude-opus-4-7/behaviors-core attempt 3 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:14Z   ✗ [2/9] claude-opus-4-7/behaviors-core ABANDONED after 3 attempts (cum 5s)
+15:18:14Z   ⇢ [3/9] claude-opus-4-7/behaviors-types dispatching...
+15:18:18Z     ⚠ claude-opus-4-7/behaviors-types attempt 1 failed (4s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:18Z     ⚠ gpt-oss-120b/scope attempt 3 failed (13s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:18:18Z   ✗ [1/9] gpt-oss-120b/scope ABANDONED after 3 attempts (cum 13s)
+15:18:18Z   ⇢ [2/9] gpt-oss-120b/behaviors-core dispatching...
+15:18:23Z     ⚠ claude-opus-4-7/behaviors-types attempt 2 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:28Z     ⚠ claude-opus-4-7/behaviors-types attempt 3 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:28Z   ✗ [3/9] claude-opus-4-7/behaviors-types ABANDONED after 3 attempts (cum 5s)
+15:18:28Z   ⇢ [4/9] claude-opus-4-7/state-invariants dispatching...
+15:18:30Z     ⚠ gpt-oss-120b/behaviors-core attempt 1 failed (12s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:18:33Z     ⚠ claude-opus-4-7/state-invariants attempt 1 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:37Z     ⚠ claude-opus-4-7/state-invariants attempt 2 failed (4s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:42Z     ⚠ claude-opus-4-7/state-invariants attempt 3 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:42Z   ✗ [4/9] claude-opus-4-7/state-invariants ABANDONED after 3 attempts (cum 5s)
+15:18:42Z   ⇢ [5/9] claude-opus-4-7/temporal-invariants dispatching...
+15:18:47Z     ⚠ claude-opus-4-7/temporal-invariants attempt 1 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:52Z     ⚠ claude-opus-4-7/temporal-invariants attempt 2 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:57Z     ⚠ claude-opus-4-7/temporal-invariants attempt 3 failed (4s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:18:57Z   ✗ [5/9] claude-opus-4-7/temporal-invariants ABANDONED after 3 attempts (cum 4s)
+15:18:57Z   ⇢ [6/9] claude-opus-4-7/failure-modes dispatching...
+15:19:02Z     ⚠ claude-opus-4-7/failure-modes attempt 1 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:03Z     ↻ gpt-oss-120b/behaviors-core succeeded on attempt 2
+15:19:03Z   ✓ [2/9] gpt-oss-120b/behaviors-core OK (33s, 4,263 chars)
+15:19:03Z   ⇢ [3/9] gpt-oss-120b/behaviors-types dispatching...
+15:19:07Z     ⚠ claude-opus-4-7/failure-modes attempt 2 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:11Z     ⚠ claude-opus-4-7/failure-modes attempt 3 failed (4s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:11Z   ✗ [6/9] claude-opus-4-7/failure-modes ABANDONED after 3 attempts (cum 4s)
+15:19:11Z   ⇢ [7/9] claude-opus-4-7/trust-quartz dispatching...
+15:19:16Z     ⚠ claude-opus-4-7/trust-quartz attempt 1 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:21Z     ⚠ claude-opus-4-7/trust-quartz attempt 2 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:22Z     ⚠ gpt-oss-120b/behaviors-types attempt 1 failed (19s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:19:26Z     ⚠ claude-opus-4-7/trust-quartz attempt 3 failed (4s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:26Z   ✗ [7/9] claude-opus-4-7/trust-quartz ABANDONED after 3 attempts (cum 4s)
+15:19:26Z   ⇢ [8/9] claude-opus-4-7/scenarios dispatching...
+15:19:30Z     ⚠ claude-opus-4-7/scenarios attempt 1 failed (4s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:35Z     ⚠ claude-opus-4-7/scenarios attempt 2 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:35Z     ⚠ gpt-oss-120b/behaviors-types attempt 2 failed (13s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:19:40Z     ⚠ claude-opus-4-7/scenarios attempt 3 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:40Z   ✗ [8/9] claude-opus-4-7/scenarios ABANDONED after 3 attempts (cum 5s)
+15:19:40Z   ⇢ [9/9] claude-opus-4-7/off-chain-witness dispatching...
+15:19:45Z     ⚠ claude-opus-4-7/off-chain-witness attempt 1 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:49Z     ⚠ gpt-oss-120b/behaviors-types attempt 3 failed (14s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:19:49Z   ✗ [3/9] gpt-oss-120b/behaviors-types ABANDONED after 3 attempts (cum 14s)
+15:19:49Z   ⇢ [4/9] gpt-oss-120b/state-invariants dispatching...
+15:19:49Z     ⚠ claude-opus-4-7/off-chain-witness attempt 2 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:55Z     ⚠ claude-opus-4-7/off-chain-witness attempt 3 failed (5s): exit=0: [0m
+> spec-adversary · claude-opus-4-7
+[0m
+[91m[1mError: [0m`temperature` is deprecated for this model.
+
+15:19:55Z   ✗ [9/9] claude-opus-4-7/off-chain-witness ABANDONED after 3 attempts (cum 5s)
+15:19:55Z ─ voice claude-opus-4-7 done: 0/9 slices OK in 133s
+15:20:02Z     ⚠ gpt-oss-120b/state-invariants attempt 1 failed (13s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:20:39Z     ↻ gpt-oss-120b/state-invariants succeeded on attempt 2
+15:20:39Z   ✓ [4/9] gpt-oss-120b/state-invariants OK (37s, 5,322 chars)
+15:20:39Z   ⇢ [5/9] gpt-oss-120b/temporal-invariants dispatching...
+15:20:52Z     ⚠ gpt-oss-120b/temporal-invariants attempt 1 failed (13s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:21:34Z     ↻ gpt-oss-120b/temporal-invariants succeeded on attempt 2
+15:21:34Z   ✓ [5/9] gpt-oss-120b/temporal-invariants OK (42s, 7,243 chars)
+15:21:34Z   ⇢ [6/9] gpt-oss-120b/failure-modes dispatching...
+15:22:20Z   ✓ [6/9] gpt-oss-120b/failure-modes OK (47s, 8,114 chars)
+15:22:20Z   ⇢ [7/9] gpt-oss-120b/trust-quartz dispatching...
+15:22:33Z     ⚠ gpt-oss-120b/trust-quartz attempt 1 failed (13s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:22:42Z   ✓ [1/9] glm-4-7-flash/scope OK (301s, 95 chars)
+15:22:42Z   ⇢ [2/9] glm-4-7-flash/behaviors-core dispatching...
+15:22:56Z     ⚠ gpt-oss-120b/trust-quartz attempt 2 failed (22s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+[
+15:23:06Z     ⚠ gpt-oss-120b/trust-quartz attempt 3 failed (11s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:23:06Z   ✗ [7/9] gpt-oss-120b/trust-quartz ABANDONED after 3 attempts (cum 11s)
+15:23:06Z   ⇢ [8/9] gpt-oss-120b/scenarios dispatching...
+15:23:16Z     ⚠ gpt-oss-120b/scenarios attempt 1 failed (10s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:23:28Z     ⚠ gpt-oss-120b/scenarios attempt 2 failed (11s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:23:38Z     ⚠ gpt-oss-120b/scenarios attempt 3 failed (10s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:23:38Z   ✗ [8/9] gpt-oss-120b/scenarios ABANDONED after 3 attempts (cum 10s)
+15:23:38Z   ⇢ [9/9] gpt-oss-120b/off-chain-witness dispatching...
+15:23:48Z     ⚠ gpt-oss-120b/off-chain-witness attempt 1 failed (10s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:24:06Z     ⚠ gpt-oss-120b/off-chain-witness attempt 2 failed (17s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:24:16Z     ⚠ gpt-oss-120b/off-chain-witness attempt 3 failed (11s): exit=0: [0m
+> spec-adversary · gpt-oss-120b
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=1, limit=2000][0m
+
+15:24:16Z   ✗ [9/9] gpt-oss-120b/off-chain-witness ABANDONED after 3 attempts (cum 11s)
+15:24:16Z ─ voice gpt-oss-120b done: 4/9 slices OK in 395s
+15:27:27Z   ✓ [2/9] glm-4-7-flash/behaviors-core OK (285s, 91 chars)
+15:27:27Z   ⇢ [3/9] glm-4-7-flash/behaviors-types dispatching...
+15:28:24Z   ✓ [3/9] glm-4-7-flash/behaviors-types OK (57s, 8,607 chars)
+15:28:24Z   ⇢ [4/9] glm-4-7-flash/state-invariants dispatching...
+15:28:59Z   ✓ [1/9] gemma-4-26b-a4b/scope OK (919s, 3,008 chars)
+15:28:59Z   ⇢ [2/9] gemma-4-26b-a4b/behaviors-core dispatching...
+15:33:28Z   ✓ [4/9] glm-4-7-flash/state-invariants OK (304s, 74 chars)
+15:33:28Z   ⇢ [5/9] glm-4-7-flash/temporal-invariants dispatching...
+15:38:38Z   ✓ [5/9] glm-4-7-flash/temporal-invariants OK (310s, 107 chars)
+15:38:38Z   ⇢ [6/9] glm-4-7-flash/failure-modes dispatching...
+15:39:45Z   ✓ [6/9] glm-4-7-flash/failure-modes OK (67s, 11,415 chars)
+15:39:45Z   ⇢ [7/9] glm-4-7-flash/trust-quartz dispatching...
+15:41:49Z     ⚠ gemma-4-26b-a4b/behaviors-core attempt 1 failed (769s): exit=0: [0m
+> spec-adversary · google/gemma-4-26b-a4b
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+15:44:33Z   ✓ [7/9] glm-4-7-flash/trust-quartz OK (289s, 77 chars)
+15:44:33Z   ⇢ [8/9] glm-4-7-flash/scenarios dispatching...
+15:45:39Z   ✓ [8/9] glm-4-7-flash/scenarios OK (66s, 11,124 chars)
+15:45:39Z   ⇢ [9/9] glm-4-7-flash/off-chain-witness dispatching...
+15:50:20Z   ✓ [9/9] glm-4-7-flash/off-chain-witness OK (280s, 79 chars)
+15:50:20Z ─ voice glm-4-7-flash done: 9/9 slices OK in 1958s
+15:54:28Z     ⚠ gemma-4-26b-a4b/behaviors-core attempt 2 failed (760s): exit=0: [0m
+> spec-adversary · google/gemma-4-26b-a4b
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+
+=== Pattern B dispatch starting 2026-05-16T15:55:32.747661+00:00 ===
+Voices: ['glm-4-7-flash']
+Slices: ['scope', 'behaviors-core', 'state-invariants', 'temporal-invariants', 'trust-quartz', 'off-chain-witness']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/pattern-b-v0.3.0-2026-05-16T125913Z
+
+15:55:32Z → voice glm-4-7-flash: starting 6-slice dispatch
+15:55:32Z   ⇢ [1/6] glm-4-7-flash/scope dispatching...
+15:59:39Z     ⚠ glm-4-7-flash/scope attempt 1 failed (247s): truncated stub (exit=0, 105 chars, no structural markers — model announced intent but did not produce structured report)
+16:00:39Z     ↻ glm-4-7-flash/scope succeeded on attempt 2
+16:00:39Z   ✓ [1/6] glm-4-7-flash/scope OK (60s, 12,223 chars)
+16:00:39Z   ⇢ [2/6] glm-4-7-flash/behaviors-core dispatching...
+16:05:10Z   ✓ [2/6] glm-4-7-flash/behaviors-core OK (271s, 112,826 chars)
+16:05:10Z   ⇢ [3/6] glm-4-7-flash/state-invariants dispatching...
+16:07:37Z     ⚠ gemma-4-26b-a4b/behaviors-core attempt 3 failed (788s): exit=0: [0m
+> spec-adversary · google/gemma-4-26b-a4b
+[0m
+[0m→ [0mRead .colosseum/intent.md
+
+16:07:37Z   ✗ [2/9] gemma-4-26b-a4b/behaviors-core ABANDONED after 3 attempts (cum 788s)
+16:07:37Z   ⇢ [3/9] gemma-4-26b-a4b/behaviors-types dispatching...
+16:09:25Z   ✓ [3/9] gemma-4-26b-a4b/behaviors-types OK (109s, 5,996 chars)
+16:09:25Z   ⇢ [4/9] gemma-4-26b-a4b/state-invariants dispatching...
+16:10:00Z     ⚠ glm-4-7-flash/state-invariants attempt 1 failed (290s): exit=0: [0m
+> spec-adversary · glm-4-7-flash
+[0m
+[0m→ [0mRead .colosseum/intent.md[90m [offset=0, limit=500][0m
+[
+16:12:08Z   ✓ [4/9] gemma-4-26b-a4b/state-invariants OK (163s, 2,491 chars)
+16:12:08Z   ⇢ [5/9] gemma-4-26b-a4b/temporal-invariants dispatching...
+16:12:48Z     ↻ glm-4-7-flash/state-invariants succeeded on attempt 2
+16:12:48Z   ✓ [3/6] glm-4-7-flash/state-invariants OK (168s, 5,666 chars)
+16:12:48Z   ⇢ [4/6] glm-4-7-flash/temporal-invariants dispatching...
+16:13:52Z   ✓ [4/6] glm-4-7-flash/temporal-invariants OK (64s, 16,239 chars)
+16:13:52Z   ⇢ [5/6] glm-4-7-flash/trust-quartz dispatching...
+16:15:03Z   ✓ [5/9] gemma-4-26b-a4b/temporal-invariants OK (175s, 3,554 chars)
+16:15:03Z   ⇢ [6/9] gemma-4-26b-a4b/failure-modes dispatching...
+16:16:19Z   ✓ [6/9] gemma-4-26b-a4b/failure-modes OK (76s, 6,026 chars)
+16:16:19Z   ⇢ [7/9] gemma-4-26b-a4b/trust-quartz dispatching...
+16:18:30Z     ⚠ glm-4-7-flash/trust-quartz attempt 1 failed (278s): truncated stub (exit=0, 71 chars, no structural markers — model announced intent but did not produce structured report)
+16:19:40Z     ↻ glm-4-7-flash/trust-quartz succeeded on attempt 2
+16:19:40Z   ✓ [5/6] glm-4-7-flash/trust-quartz OK (70s, 16,121 chars)
+16:19:40Z   ⇢ [6/6] glm-4-7-flash/off-chain-witness dispatching...
+16:20:37Z   ✓ [6/6] glm-4-7-flash/off-chain-witness OK (57s, 13,016 chars)
+16:20:37Z ─ voice glm-4-7-flash done: 6/6 slices OK in 1505s
+16:29:14Z   ✓ [7/9] gemma-4-26b-a4b/trust-quartz OK (775s, 4,396 chars)
+16:29:14Z   ⇢ [8/9] gemma-4-26b-a4b/scenarios dispatching...
+16:31:34Z   ✓ [8/9] gemma-4-26b-a4b/scenarios OK (140s, 3,557 chars)
+16:31:34Z   ⇢ [9/9] gemma-4-26b-a4b/off-chain-witness dispatching...
+16:44:12Z   ✓ [9/9] gemma-4-26b-a4b/off-chain-witness OK (758s, 4,387 chars)
+16:44:12Z ─ voice gemma-4-26b-a4b done: 8/9 slices OK in 5432s
+
+=== Pattern B dispatch starting 2026-05-16T17:13:28.776023+00:00 ===
+Voices: ['mistral-small-4-119b-2603']
+Slices: ['state-invariants']
+Output: /Users/mvid/Development/reliq/verified-rcv/.colosseum/attacks/pattern-b-v0.3.0-2026-05-16T125913Z
+
+17:13:28Z → voice mistral-small-4-119b-2603: starting 1-slice dispatch
+17:13:28Z   ⇢ [1/1] mistral-small-4-119b-2603/state-invariants dispatching...
+17:16:44Z   ✓ [1/1] mistral-small-4-119b-2603/state-invariants OK (195s, 7,327 chars)
+17:16:44Z ─ voice mistral-small-4-119b-2603 done: 1/1 slices OK in 195s
