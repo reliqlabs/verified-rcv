@@ -1,10 +1,10 @@
 # Colosseum integration ledger — verified-rcv
 
 - Project: `/Users/mvid/Development/reliq/verified-rcv`
-- Generated: 2026-05-23
-- Intent version: v0.3.3 (`.colosseum/intent.md`)
-- Compared against: ledger.md @ 2026-05-20 (initial emission; preserved in git history once committed)
-- Scope this cycle: spec layer with Lake project + Mathlib + VCV-io available; no CosmWasm contract, no enclave Rust crate, no proptest, no Kani, no Verus.
+- Generated: 2026-05-24
+- Intent version: v0.3.4 (`.colosseum/intent.md`)
+- Compared against: ledger.md @ 2026-05-23 (prior commit)
+- Scope this cycle: Round 3c+3d implementation push — Rust contract crate, Aeneas-extractable enclave-core, Aeneas extraction completed, Lean bridge module in place. Round 3e (B10_lean discharge) and Round 3c verification harnesses (Kani/Verus) in progress.
 
 ## Composition theorems
 
@@ -88,11 +88,16 @@
 
 | Tool | Artifacts | Proven / Verified | Outstanding |
 |------|-----------|-------------------|-------------|
-| Lean (`specs/RcvSpec.lean`, Lake project with Mathlib + VCV-io) | 5 theorems + 6 axioms + 2 opaque functions | **4 theorems discharged** (S6, S7, S8, S9 — proven against the 4 new Stage-1/Stage-2 axioms) | 1 `sorry` (B10_lean — pending enclave Rust crate + Aeneas extraction) |
-| Quint (`specs/rcv.qnt` + `specs/main.qnt`) | 6 named state invariants + 1 composite `all_invariants` + 5 witness invariants | 6 named invariants + composite hold across sampled traces; 5/5 witnesses violated (reachability witnesses) | model-checked at `--max-steps=30 --max-samples=100` only; not exhaustively proven |
-| Verus | 0 | 0 | not in scope this cycle |
-| Kani | 0 | 0 | not in scope this cycle |
-| proptest | 0 | 0 | not in scope this cycle |
+| Lean math spec (`specs/RcvSpec.lean`, Lake project with Mathlib 4.30.0-rc2 + Aeneas) | 5 theorems + 6 axioms + 2 opaque functions | **4 theorems discharged** (S6, S7, S8, S9 — proven against the 4 Stage-1/Stage-2 axioms + irv_ballots_tallied) | 1 `sorry` (B10_lean — pending bridge proof to extracted enclave) |
+| Lean extracted (`specs/EnclaveExtracted.lean` + `crates/enclave-core/`) | Aeneas extraction COMPLETE 2026-05-24 — 1440 lines extracted Lean (`tally_spec` + `irv_spec` + `decrypt_and_validate` stub + 8 helpers) | extracted module compiles under `lake build EnclaveExtracted` | extracted `decrypt_and_validate` is `fail panic` (Stage 1 runtime crate extraction queued for future round) |
+| Lean bridge (`specs/EnclaveBridge.lean`) | B10_lean_irv refinement theorem statement + 3 lift function stubs | bridge module compiles; theorem statement is concrete | 1 `sorry` on B10_lean_irv proof + 3 lift stubs (in flight via subagent at the time of this commit) |
+| Quint (`specs/rcv.qnt` + `specs/main.qnt`) | 6 named state invariants + 1 composite `all_invariants` + 5 witness invariants | 6 named invariants + composite hold across sampled traces; 5/5 witnesses violated (reachability witnesses) | model-checked at `--max-steps=30 --max-samples=100` only; not exhaustively proven (Apalache hit `NotInKeraError` on the dynamic `0.to(CANDIDATES.length())` range — re-encoding for Apalache compat is a tradeoff against parametric coverage) |
+| Rust contract (`crates/contract/`) | `cargo check`, `cargo build --target wasm32-unknown-unknown --features library` clean. Handlers refine Quint actions: instantiate, CreateElection, SubmitBallot, CloseAndTally, PublishResult. Chain-syntactic S6-S9 well-formedness checks at PublishResult. | compiles cleanly to wasm | no Kani / Verus harnesses yet (Kani agent stalled on CosmWasm storage's serde_json layer; see Outstanding work) |
+| Rust enclave-core (`crates/enclave-core/`) | IRV implementation per intent §2.5 (Australian Federal full preferential, batch elimination on lowest tied). 11 unit tests covering 6 scenarios. Aeneas-extractable shape (no nested-return-in-loops, no array-element-mutation, no closures-with-captures-in-loops). | 11/11 tests pass; Aeneas extraction succeeded after two refactor passes for Aeneas patterns. | none — clean state |
+| Rust enclave runtime (`crates/enclave/`) | stub binary; gRPC + dstack-TDX + Quartz attestation integration queued for next round | compiles | full implementation pending |
+| Kani | scaffolding at `crates/contract/src/verification.rs` (372 lines, gated behind `verification` feature, type-checks under `cargo build --features verification`) | 0 harnesses successfully verified | **BLOCKER**: subagent attempt 2026-05-24 stalled at 10min wall-time on CosmWasm storage's `serde_json` layer (too heavy for Kani's symbolic execution). Workarounds: (a) refactor handlers to expose pure guard logic separately and Kani those; (b) switch to Verus; (c) proptest the guard logic. |
+| Verus | 0 | 0 | queued as alternative to Kani per (b) above |
+| proptest | 0 | 0 | queued as alternative per (c) above |
 
 ## Trust density
 
@@ -108,31 +113,45 @@ The (b) bucket grew by 4. All four new axioms are bucket (b) `derived-from-spec-
 
 The trust surface widened in number but stayed in the same risk class. There are no new bucket (c) `unforgeability` or `knowledge-soundness` axioms; nothing in bucket (d).
 
-## Coverage delta vs. prior ledger (2026-05-20 emission)
+## Coverage delta vs. prior ledger (2026-05-23 emission)
 
-**Discharged**:
-- S6 `s6_winner_subset` — was `sorry`, now proven against `irv_winners_shape`.
-- S7 `s7_voter_partition` — was `sorry`, now proven against `irv_ballots_tallied` + `decrypt_partition_length`.
-- S8 `s8_round_counts_sum` — was `sorry`, now proven against `irv_round_counts_sum`.
-- S9 `s9_no_reappearance` — was `sorry`, now proven against `irv_no_reappearance`.
+**Lean spec layer** (`specs/`):
+- Toolchain upgraded to Lean 4.30.0-rc2 + Mathlib4 v4.30.0-rc2 + Aeneas backend (main, 4.30.0-rc2 pinned). VCV-io temporarily dropped (no v4.30.0 release yet).
+- The 4 discharged theorems (S6, S7, S8, S9) survived the toolchain bump unchanged.
+- `specs/EnclaveExtracted.lean` added (1440 lines) — copy of the Aeneas-extracted IRV core, built by `lake build EnclaveExtracted`.
+- `specs/EnclaveBridge.lean` added — refinement bridge module with `B10_lean_irv` theorem statement (`sorry`-d), three type-conversion lift stubs (`lift_valid_slice`, `lift_candidate_vec`, `lift_irv_result`).
 
-**Axioms added** (4 new): `decrypt_partition_length`, `irv_winners_shape`, `irv_round_counts_sum`, `irv_no_reappearance`. All bucket (b) `derived-from-spec-model`.
+**Rust workspace** (`crates/`):
+- `Cargo.toml` workspace + 3 crates added: `contract/` (compiles to wasm), `enclave-core/` (11 unit tests pass, Aeneas-extractable), `enclave/` (stub).
+- 4956 lines of Rust + extracted Lean across the implementation push.
 
-**Project state changes**:
-- Lake project established at `specs/`: `lakefile.lean` + `lean-toolchain` (Lean 4.29.0), Mathlib4 v4.29.0 + VCV-io v4.29.0 as deps. Mathlib oleans cached via `lake exe cache get` (no full Mathlib compile required).
-- `RcvSpec.lean` header revision log updated to record the discharge cycle.
+**Aeneas extraction** (`lean-extraction/`):
+- Successful extraction of `crates/enclave-core/` after two refactor passes:
+  - `first_active_index` rewrite to avoid nested-return-in-loops (Aeneas limitation)
+  - `tally_round` rewrite to avoid `arr[i] = arr[i] + 1` (Aeneas `expand_symbolic_value_no_branching` failure on indexed mutation)
+- Output: `Enclave-core.lean` 1440 lines, builds cleanly.
 
-**Net effect**: 4 sorries closed; trust surface widened by 4 axioms (all demotable); 1 sorry remains (B10_lean, blocked on Rust crate). The 4-axioms-for-4-theorems trade is the standard "opaque + axiomatic-spec-model" pattern.
+**Trust surface**: no new axioms in this cycle (axiom count still 9). The 4 (b)-bucket axioms (`irv_winners_shape`, `decrypt_partition_length`, `irv_round_counts_sum`, `irv_no_reappearance`) are now **pending demotion**: the extracted IRV core provides the concrete `irv_spec` that these axioms describe, so they become derivable theorems once `B10_lean_irv` is discharged. Demotion will land in the next ledger when `B10_lean_irv` proves.
+
+**Kani harness blocker**:
+- `crates/contract/src/verification.rs` written (372 lines) with 5 Kani harnesses for state invariants (B1 state-shape, S4 ballot-keys, S10 resolution-after-end-at, AlreadyVoted, AlreadyResolved).
+- Type-checks under `cargo build --features verification` but Kani symbolic execution stalls on CosmWasm's `serde_json` storage layer (10min wall-time, no progress).
+- Three workaround paths queued: (a) pure-guard-logic refactor, (b) Verus annotations, (c) proptest.
+
+**Methodology**: intent v0.3.4 (length-relation A6) reflected in spec references; no new intent revisions this cycle.
 
 ## Outstanding work
 
 Ordered by criticality:
 
-1. **B10_lean discharge** — `specs/RcvSpec.lean:263` is `sorry`. Discharge requires (a) the enclave Rust crate to exist with documented extraction discipline (Aeneas Rust-to-Lean or hand-written), and (b) a proof model to produce the proof. Blocked on enclave Rust crate (out of scope this cycle).
-2. **Demote 5 (b)-bucket axioms** — `irv_ballots_tallied`, `decrypt_partition_length`, `irv_winners_shape`, `irv_round_counts_sum`, `irv_no_reappearance` all become provable theorems once `decrypt_and_validate` and `IRV_spec` get concrete definitions. Tracked together with B10_lean discharge (same enclave-extraction prerequisite).
-3. **Image-identity-binding formalization** — currently an intent-level operational obligation with no Lean / chain-side encoding. Becomes load-bearing as soon as the enclave Rust crate enters scope.
-4. **Quint model-checker coverage** — `quint run --max-samples=100` samples 100 traces. For load-bearing invariants (B10's chain-side projection, B2's snapshot freeze, B8's classical-Prop shadow), exhaustive verification (`quint verify` via Apalache) would tighten the coverage claim. Not blocking; methodology decision.
-5. **Outstanding intent-level encoding-discipline candidate**: per the lean-critique-revised-canonical meta-analysis Q3 optional notes, kimi flagged an implicit length relation `eliminated_by_round.length = per_round_counts.length - 1` (with all-abstain boundary case `0 = 1 - 1`) that is in the worked example but not encoded as a well-formedness predicate. Queued for intent v0.3.4 or v0.4.
+1. **B10_lean_irv discharge** (the Round 3e central obligation) — `specs/EnclaveBridge.lean` carries the statement with `sorry`. The proof is multi-week work even with good tools: requires lift functions from Aeneas's `Slice`/`Vec`/`Result` to math `List`/plain; induction matching the extracted recursion to the math algorithm; helper lemmas relating each extracted function to its math counterpart. A Claude subagent is attempting partial discharge at the time of this commit; full discharge likely needs a Lean-specialist proof model iterating.
+2. **B10_lean (full, Stage 1 + Stage 2)** — composition of `B10_lean_irv` (above) + `B10_lean_decrypt`. The latter currently has only an axiom placeholder because the extracted Stage 1 returns `fail panic` (Rust `unimplemented!()` body in enclave-core; real decryption is in the runtime crate). Discharge requires extracting the runtime crate (which uses `ecies`, `k256`) — known-hard via Aeneas but tractable. Queued for a follow-on round.
+3. **Demote 5 (b)-bucket axioms** — once `B10_lean_irv` proves, the 4 IRV-shape axioms (`irv_winners_shape`, `decrypt_partition_length`-but-wait-that's-decrypt, `irv_round_counts_sum`, `irv_no_reappearance`) + `irv_ballots_tallied` become derivable theorems about the concrete extracted `irv_spec`. Trust density (b) goes to 0 in the next ledger.
+4. **Kani / Verus contract refinement harnesses (Round 3c task #54)** — BLOCKED on CosmWasm storage's `serde_json` layer being too heavy for Kani's symbolic execution. The verification.rs scaffolding (372 lines) is type-checked but no harness has been successfully Kani-verified. Path forward: refactor handlers to expose pure guard logic separately (Kani-testable), OR switch to Verus annotations (handles complex Rust patterns).
+5. **Rust enclave runtime crate** — `crates/enclave/` is a stub. Real implementation needs gRPC server, dstack-TDX integration, Quartz attestation, ecies decryption. Round 3d second half.
+6. **Image-identity-binding formalization** — currently an intent-level operational obligation. Becomes load-bearing once the enclave Rust crate has a stable build artifact whose `(mrtd, rtmr)` matches the on-chain registry.
+7. **Quint model-checker coverage** — `quint run --max-samples=100` samples 100 traces. Exhaustive verification via `quint verify` (Apalache) hit `NotInKeraError` on the dynamic `0.to(CANDIDATES.length())` range from the bt_tallied fix. Re-encoding for Apalache compat is a tradeoff against parametric coverage; left as a methodology decision.
+8. **Outstanding intent-level encoding-discipline candidate** (carried from prior ledger): the implicit length relation `per_round_counts.length = eliminated_by_round.length + 1` is documented in intent §2.5 (v0.3.4 A6 note) but not encoded as a separate well-formedness predicate. Optional — A6 is non-mandatory per the intent.
 
 ## Reviewer checklist
 
