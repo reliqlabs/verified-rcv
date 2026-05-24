@@ -3,29 +3,20 @@ EnclaveBridge.lean — refinement bridge between the Aeneas-extracted enclave
 core (`EnclaveExtracted.lean`, produced by charon + aeneas from
 `crates/enclave-core/`) and the math spec (`RcvSpec.lean`).
 
-The bridge is the proof-side anchor for B10_lean: it carries lemmas
-relating the extracted (`Vec`/`Slice`/`Result`-monad) representation of
-the IRV core to the math (`List`/plain) representation. The full
-B10_lean = `EnclaveImage = Tally_spec` decomposes here as:
+This file carries the lifts that translate Aeneas's representation
+(`Slice` / `Vec` / `Result` monad) to the math representation (`List` /
+plain) and states the central refinement theorem `B10_lean_irv` that
+anchors B10_lean.
 
-  B10_lean_irv:      extracted_irv_spec  refines  math IRV_spec
-  B10_lean_decrypt:  extracted_decrypt   refines  math decrypt_and_validate
-                     (currently `fail panic` in enclave-core — Stage 1 lives
-                     in the runtime crate; a future round extracts it)
-  B10_lean:          composition of the two
+The lift functions use Aeneas's `Slice.v` and `Vec.v` abbreviations that
+project to the underlying `List`. The per-element conversions for the
+extracted `Ballot` and `RoundCount` structs are direct field rewrites
+since the underlying types are isomorphic (both are records with
+`Vec String` / `Nat`-counted fields).
 
-This file currently states the bridge theorems with `sorry` proofs. The
-actual proofs are the heavy lift of Round 3e (this is the methodology's
-central correctness obligation). Each lemma in the chain requires:
-
-  - Lifting Aeneas's `Slice T` / `alloc.vec.Vec T` to `List T`
-  - Unwrapping `Result T` to plain `T` (requires showing no panic)
-  - Induction matching the extracted loop structure to the math recursion
-
-These proofs are non-trivial but tractable; the Aeneas community has
-patterns (`progress`, `simp` with `_spec` lemmas, etc.). A dedicated
-Lean-specialist proof model (Leanstral when reliable, Goedel) iterating
-with `lake env lean` should be able to discharge them with effort.
+`B10_lean_irv`'s proof is `sorry` — the discharge is multi-week work
+even with good tools. The lifts being implemented means the theorem
+statement is now concrete and the goal is inspectable in `lake env lean`.
 -/
 
 import RcvSpec
@@ -35,60 +26,76 @@ namespace VerifiedRcv
 
 open Aeneas Aeneas.Std
 
-/-! ## Type-conversion lifts -/
+/-! ## Per-element type conversions
 
-/-- Lift an Aeneas `Slice` of pairs to a `List` of the math types. The
-extracted IRV core uses `Slice (String × verified_rcv_enclave_core.Ballot)`;
-our math spec uses `List (Addr × Ballot)`. Both `Addr := String` and the
-two `Ballot` types are isomorphic (single `ranking : List Addr` field),
-so the lift is a `Slice.toList` followed by a `Ballot` projection. -/
+The extracted IRV core defines its own `Ballot` and `RoundCount` structs
+(matching the Rust crate's types). These are isomorphic to the math
+spec's types but use `Aeneas.Std.alloc.vec.Vec` instead of `List` for
+inner sequences. The conversions below unwrap one layer at a time.
+-/
+
+/-- Convert an extracted `Ballot` (with `Vec String` ranking) to the math
+`Ballot` (with `List Addr` ranking). `Addr := String` so the element type
+matches; only the container wraps differently. -/
+def liftBallot (b : verified_rcv_enclave_core.Ballot) : Ballot :=
+  { ranking := b.ranking.v }
+
+/-- Convert an extracted `RoundCount` to the math `RoundCount`. The
+`count` field is `Std.U32` on the extracted side, `Nat` on the math
+side; `U32.toNat` is the underlying conversion. -/
+def liftRoundCount (rc : verified_rcv_enclave_core.RoundCount) : RoundCount :=
+  { candidate := rc.candidate
+    count     := rc.count.val }
+
+/-! ## Container-level lifts -/
+
+/-- Lift an Aeneas `Slice` of (Addr, Ballot) pairs to a math `List` of
+the math types. Used for the `valid` ballots input to `irv_spec`. -/
 def lift_valid_slice
-    (s : Aeneas.Std.Slice (String × verified_rcv_enclave_core.Ballot))
-    : List (Addr × Ballot) :=
-  -- TODO: implement using Aeneas's `Slice.toList` + per-element conversion.
-  -- For now, an axiom-free stub; the proof uses this opaquely.
-  []
+    (s : Aeneas.Std.Slice (String × verified_rcv_enclave_core.Ballot)) :
+    List (Addr × Ballot) :=
+  s.v.map (fun p => (p.fst, liftBallot p.snd))
 
-/-- Lift the extracted `alloc.vec.Vec String` to the math `CandidateSet`
-(`List Addr`). Aeneas-side `String` and our math-side `Addr` are the same
-underlying type. -/
+/-- Lift the extracted `Vec String` to a math `CandidateSet`. Since
+`Addr := String` and `CandidateSet := List Addr`, this is just `.v`. -/
 def lift_candidate_vec (v : Aeneas.Std.alloc.vec.Vec String) : CandidateSet :=
-  -- TODO: implement using Aeneas's `alloc.vec.Vec.toList`.
-  []
+  v.v
 
-/-- Lift the extracted `IRVResult` (with `alloc.vec.Vec` fields) to the
-math `IRVResult` (with `List` fields). Per-field conversion of the four
-`alloc.vec.Vec` arguments. -/
+/-- Lift the extracted `IRVResult` (with `Vec` fields and `U32` count) to
+the math `IRVResult` (with `List` fields and `Nat` count). Per-field
+projection with appropriate per-element lifts. -/
 def lift_irv_result
-    (r : verified_rcv_enclave_core.IRVResult) : IRVResult := {
-  winners := []                         -- TODO: r.winners.toList
-  per_round_counts := []                -- TODO: r.per_round_counts.toList.map (...)
-  eliminated_by_round := []             -- TODO: r.eliminated_by_round.toList.map (...)
-  ballots_tallied := 0                  -- TODO: r.ballots_tallied.toNat
-}
+    (r : verified_rcv_enclave_core.IRVResult) : IRVResult :=
+  { winners             := r.winners.v
+    per_round_counts    := r.per_round_counts.v.map (fun rc_vec =>
+                             rc_vec.v.map liftRoundCount)
+    eliminated_by_round := r.eliminated_by_round.v.map (fun v => v.v)
+    ballots_tallied     := r.ballots_tallied.val }
 
-/-! ## B10_lean_irv: extracted IRV matches math IRV -/
+/-! ## B10_lean_irv: extracted IRV matches math IRV
 
-/-- The central Stage-2 obligation: the extracted enclave's `irv_spec`
-agrees with the math `IRV_spec` on lifted inputs/outputs. This is the
-refinement claim that anchors B10_lean for the IRV core; combined with a
-parallel claim about Stage 1 (`B10_lean_decrypt`), it gives the full
-B10_lean = `EnclaveImage = Tally_spec`.
+The central Stage-2 obligation: the extracted enclave's `irv_spec`
+agrees with the math `IRV_spec` on lifted inputs/outputs.
 
-The proof shape: induction on the IRV recursion structure, with simp
-lemmas relating each helper (`position_of`, `first_active_index`,
-`count_at_index`, `tally_round`, `first_majority_index`, `irv_spec_loop0`)
-to its math counterpart. This is multi-week proof work even with good
-tools; the statement is in place so downstream proof effort can target
-a concrete obligation. -/
+Stated as a `Result`-monad refinement: if the extracted `irv_spec`
+returns `.ok r` (i.e., doesn't panic), then the lifted result equals the
+math `IRV_spec` applied to the lifted inputs.
+
+The proof requires:
+  1. Showing the extracted IRV core never panics for our inputs (Aeneas
+     `progress` tactic + monotonicity on the bounded recursion).
+  2. Induction matching the extracted loop structure (`irv_spec_loop0`,
+     `tally_round_loop`, `first_majority_index_loop`, etc.) to the math
+     `IRV_spec` definition — which is currently `opaque` in `RcvSpec.lean`.
+     To close this gap, the math `IRV_spec` needs to be made concrete
+     (define it explicitly as a Lean function mirroring intent §2.5's
+     algorithm) OR a refinement axiom is added asserting the relation.
+
+For the current commit, this is `sorry`. The discharge plan is in
+`.colosseum/roadmap.md` (Round 3e). -/
 theorem B10_lean_irv
     (valid_slice : Aeneas.Std.Slice (String × verified_rcv_enclave_core.Ballot))
     (candidates : Aeneas.Std.alloc.vec.Vec String) :
-    -- The extracted irv_spec produces (on the Result branch where it doesn't
-    -- panic) the same IRV outcome as the math `IRV_spec` on lifted inputs.
-    -- Stated as a Result-monad refinement: if extracted returns `ok r`, then
-    -- `lift_irv_result r = IRV_spec (lift_valid_slice valid_slice)
-    --                              (lift_candidate_vec candidates)`.
     ∀ r,
       verified_rcv_enclave_core.irv_spec valid_slice candidates = .ok r →
       lift_irv_result r =
@@ -96,20 +103,21 @@ theorem B10_lean_irv
     := by
   sorry
 
-/-! ## B10_lean: full chain (composition of irv + decrypt halves) -/
+/-! ## B10_lean_decrypt: Stage 1 placeholder
 
-/-- The Stage-1 decrypt half. Currently `fail panic` in the extracted
-enclave-core (the real `decrypt_and_validate` body lives in the runtime
-crate `verified-rcv-enclave` which has ECIES + dstack access; Aeneas
-extraction of that crate is queued for a future round). For this round
-the lemma is stated opaquely and assumed; the discharge path is in the
-ledger as a (b)-bucket obligation. -/
+The extracted Stage 1 `decrypt_and_validate` returns `fail panic`
+because the Rust crate's body is `unimplemented!()` (Stage 1 lives in
+the runtime crate `verified-rcv-enclave` which has ECIES + dstack access;
+Aeneas extraction of that crate is queued for a future round).
+
+For this round the lemma is an axiom placeholder; the discharge path is
+recorded in the ledger as a future obligation. -/
 axiom B10_lean_decrypt
     (raw : Aeneas.Std.alloc.vec.Vec verified_rcv_enclave_core.RawEntry)
     (candidates : Aeneas.Std.alloc.vec.Vec String)
     (privkey : Aeneas.Std.alloc.vec.Vec Aeneas.Std.U8) :
     ∀ d,
       verified_rcv_enclave_core.decrypt_and_validate raw candidates privkey = .ok d →
-      True  -- placeholder: real predicate ties extracted decrypt to math decrypt_and_validate
+      True
 
 end VerifiedRcv
