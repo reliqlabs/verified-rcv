@@ -11,4 +11,7 @@ pub mod error;
 pub mod msg;
 pub mod state;
 
+#[cfg(feature = "verification")]
+pub mod verification;
+
 pub use crate::error::ContractError;

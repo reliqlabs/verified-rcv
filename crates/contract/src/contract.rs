@@ -170,7 +170,7 @@ fn exec_create_election(
 ///   - `candidate_set.contains(sender)` — VoterNotCandidate
 ///   - `!ballots.has(sender)`     — AlreadyVoted (B6 ∀-per-key)
 ///   - ciphertext non-empty       — implicit in Quint via `ct != ""`
-fn exec_submit_ballot(
+pub(crate) fn exec_submit_ballot(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -231,7 +231,7 @@ fn exec_close_and_tally(deps: DepsMut, env: Env) -> Result<Response, ContractErr
 ///
 /// Per intent §2.5 Block 6, **any chain address may submit**; the enclave
 /// identity is verified via the carried `attestation`, not via msg.sender.
-fn exec_publish_result(
+pub(crate) fn exec_publish_result(
     deps: DepsMut,
     env: Env,
     tally: TallyResult,
