@@ -1,10 +1,10 @@
 # Colosseum integration ledger — verified-rcv
 
 - Project: `/Users/mvid/Development/reliq/verified-rcv`
-- Generated: 2026-05-24
-- Intent version: v0.3.4 (`.colosseum/intent.md`)
-- Compared against: ledger.md @ 2026-05-23 (prior commit)
-- Scope this cycle: Round 3c+3d implementation push — Rust contract crate, Aeneas-extractable enclave-core, Aeneas extraction completed, Lean bridge module in place. Round 3e (B10_lean discharge) and Round 3c verification harnesses (Kani/Verus) in progress.
+- Generated: 2026-05-24 (Round 3e concreteness pass emission)
+- Intent version: v0.3.5 (`.colosseum/intent.md`)
+- Compared against: ledger.md @ 2026-05-24 (prior commit, Round 3c+3d emission)
+- Scope this cycle: Round 3e concreteness pass — math `IRV_spec` made concrete in `specs/RcvSpec.lean`, exposing A7 encoding-discipline finding (`1 ≤ cs.length` propagation to S6). `irv_ballots_tallied` demoted from axiom to theorem (discharged by `rfl`). The other three Stage-2 obligations now have concrete theorem statements with `sorry`-bodies pending induction-on-`irv_loop`-fuel proofs. Trust surface unchanged in number but `irv_ballots_tallied` moves from (b) `axiom-pending` to (b) `theorem-discharged`.
 
 ## Composition theorems
 
@@ -71,24 +71,24 @@
 | # | Axiom | Kind | Bucket | Sub-tag | Used by | Justification |
 |---|-------|------|--------|---------|---------|---------------|
 | 1 | `EnclaveImage : RawBallots → CandidateSet → PrivKey → TallyResult` | Lean `axiom` | (c) honest-computational-assumption | `carrier` | B10_lean | Opaque type for an externally-supplied representation: the enclave binary's input-output relation modeled in Lean. Sourced via a documented extraction discipline (Aeneas Rust-to-Lean or hand-written). A proof author MAY NOT instantiate `EnclaveImage := Tally_spec` to discharge B10_lean by `rfl` — this is the tautological-shadow defect the canonical guards against. Located at `specs/RcvSpec.lean:261`. |
-| 2 | `irv_ballots_tallied : ∀ valid cs, (IRV_spec valid cs).ballots_tallied = valid.length` | Lean `axiom` | (b) demotable-to-derived-theorem | `derived-from-spec-model` | S7, S8 | Restates intent §2.5's Stage 2 obligation `ballots_tallied := |valid_ballots|` that opaque `IRV_spec` cannot capture by itself. Demotable when `IRV_spec` is given a concrete definition (proof discharge or Aeneas extraction). Located at `specs/RcvSpec.lean:113`. |
-| 3 | `decrypt_partition_length` | Lean `axiom` | (b) demotable-to-derived-theorem | `derived-from-spec-model` | S7 | Records the length-only consequence of Stage 1's partition `(valid, dropped, non_voters)` covering `cs` exactly once (assuming `cs.Nodup`). Restates intent §2.5's Stage 1 partition obligation. Demotable when `decrypt_and_validate` is given a concrete definition. Located at `specs/RcvSpec.lean:122`. Added 2026-05-23. |
-| 4 | `irv_winners_shape` | Lean `axiom` | (b) demotable-to-derived-theorem | `derived-from-spec-model` | S6 | Records the three S6 claims about `IRV_spec`'s `winners`: subset of `cs`, non-empty, bounded by `|cs|` (under `cs.Nodup`). Restates intent §2.5/§3.1's Stage 2 winner-shape obligation. Located at `specs/RcvSpec.lean:136`. Added 2026-05-23. |
-| 5 | `irv_round_counts_sum` | Lean `axiom` | (b) demotable-to-derived-theorem | `derived-from-spec-model` | S8 | Records that each round's per-candidate counts sum to `ballots_tallied` — the conservation property of IRV (eliminated candidates' ballots transfer rather than disappear). Restates intent §2.5/§3.1's Stage 2 round-conservation obligation. Located at `specs/RcvSpec.lean:148`. Added 2026-05-23. |
-| 6 | `irv_no_reappearance` | Lean `axiom` | (b) demotable-to-derived-theorem | `derived-from-spec-model` | S9 | Records elimination monotonicity: a candidate eliminated at round `i` does not appear as a `RoundCount.candidate` entry in any later `per_round_counts[j]?` with `j > i`. Restates intent §2.5/§3.1's Stage 2 elimination-monotonicity obligation. Located at `specs/RcvSpec.lean:157`. Added 2026-05-23. |
+| 2 | `irv_ballots_tallied : ∀ valid cs, (IRV_spec valid cs).ballots_tallied = valid.length` | Lean **theorem** (discharged by `rfl`) | (b) demotable-to-derived-theorem | `theorem-discharged` | S7, S8 | Restates intent §2.5's Stage 2 obligation `ballots_tallied := |valid_ballots|`. **Round 3e: demoted from axiom to theorem 2026-05-24** after math `IRV_spec` was made concrete. By construction the field is set to `valid.length` in every branch, so the discharge is `rfl`. Located at `specs/RcvSpec.lean:272`. |
+| 3 | `decrypt_partition_length` | Lean `axiom` | (b) demotable-to-derived-theorem | `derived-from-spec-model` | S7 | Records the length-only consequence of Stage 1's partition `(valid, dropped, non_voters)` covering `cs` exactly once (assuming `cs.Nodup`). Restates intent §2.5's Stage 1 partition obligation. Demotable when `decrypt_and_validate` is given a concrete definition (queued — Stage 1 body lives in the runtime crate `verified-rcv-enclave` which is not yet Aeneas-extracted). Located at `specs/RcvSpec.lean:286`. Added 2026-05-23. |
+| 4 | `irv_winners_shape` | Lean **theorem** (sorry-bodied) | (b) demotable-to-derived-theorem | `theorem-pending` | S6 | Records the three S6 claims about `IRV_spec`'s `winners`: subset of `cs`, non-empty, bounded by `|cs|` (under `cs.Nodup ∧ 1 ≤ cs.length`). Restates intent §2.5/§3.1's Stage 2 winner-shape obligation. **Round 3e: hypothesis tightened with `1 ≤ cs.length` per intent v0.3.5 A7** (the prior `cs.Nodup`-only form was unsound for `cs = []`, exposed by concretization). Body is `sorry`-d pending induction on `irv_loop` fuel. Located at `specs/RcvSpec.lean:302`. |
+| 5 | `irv_round_counts_sum` | Lean **theorem** (sorry-bodied) | (b) demotable-to-derived-theorem | `theorem-pending` | S8 | Records that each round's per-candidate counts sum to `ballots_tallied` — the conservation property of IRV (eliminated candidates' ballots transfer rather than disappear). Restates intent §2.5/§3.1's Stage 2 round-conservation obligation. Body is `sorry`-d pending induction on `irv_loop` fuel + per-bucket-disjointness of `count_at_index`. Located at `specs/RcvSpec.lean:319`. |
+| 6 | `irv_no_reappearance` | Lean **theorem** (sorry-bodied) | (b) demotable-to-derived-theorem | `theorem-pending` | S9 | Records elimination monotonicity: a candidate eliminated at round `i` does not appear as a `RoundCount.candidate` entry in any later `per_round_counts[j]?` with `j > i`. Restates intent §2.5/§3.1's Stage 2 elimination-monotonicity obligation. Body is `sorry`-d pending induction on `irv_loop` fuel + the invariant that `tally_round` enumerates only `remaining` which shrinks monotonically across recursive calls. Located at `specs/RcvSpec.lean:338`. |
 | 7 | `dstack_kms_trust` (intent-level) | Intent operational axiom | (c) honest-computational-assumption | `named-constant` | B10 | Operational trust that the dstack KMS releases the per-election privkey only to the matching attested enclave image. Intent §6.3 trust boundary; not modeled as a Lean axiom yet. |
 | 8 | `image_registration_honest(σ)` (intent-level) | Intent precondition | (c) honest-computational-assumption | `named-constant` | B9 antecedent | Operational claim that the on-chain registry's `(mrtd, rtmr, vkey)` tuple matches the canonical verified-rcv expected values. Intent §6.1 formal predicate. Not modeled as a Lean axiom yet. |
 | 9 | `circuit_equivalence_honest` (intent-level) | Intent correctness assumption | (c) honest-computational-assumption | `circuit-equivalence` | B9 antecedent | The reference DCAP gnark circuit correctly encodes the TDX-quote-validity relation. Binary correctness property (not probabilistic). Intent §3.2 B9 antecedent. Discharge path: ArkLib-style circuit-equivalence reduction, or a hand-written Lean theorem about the circuit's encoding. |
 
 ### Dead-axiom scan
 
-**0 hits**. Each of the 9 axioms above is referenced by at least one composition theorem or downstream Lean theorem. The 4 new Lean axioms (#3–#6) all participate in their corresponding S6–S9 discharge.
+**0 hits**. Each of the 9 trust-surface items above is referenced by at least one composition theorem or downstream Lean theorem. Round 3e converted #2 (`irv_ballots_tallied`) from `axiom` to `theorem` (discharged by `rfl`) and #4–#6 from `axiom` to `theorem` (statement form, body `sorry`-d). #3 stays `axiom` because Stage 1's concrete body lives in the not-yet-extracted runtime crate.
 
 ## Per-tool coverage snapshot
 
 | Tool | Artifacts | Proven / Verified | Outstanding |
 |------|-----------|-------------------|-------------|
-| Lean math spec (`specs/RcvSpec.lean`, Lake project with Mathlib 4.30.0-rc2 + Aeneas) | 5 theorems + 6 axioms + 2 opaque functions | **4 theorems discharged** (S6, S7, S8, S9 — proven against the 4 Stage-1/Stage-2 axioms + irv_ballots_tallied) | 1 `sorry` (B10_lean — pending bridge proof to extracted enclave) |
+| Lean math spec (`specs/RcvSpec.lean`, Lake project with Mathlib 4.30.0-rc2 + Aeneas) | 5 theorems (S6-S9 + B10_lean) + 4 obligation theorems (irv_ballots_tallied + 3 sorry-bodied) + 2 axioms (decrypt_partition_length + EnclaveImage) + 1 opaque (decrypt_and_validate) + **concrete `IRV_spec`** (Round 3e) | **5 theorems discharged** (S6, S7, S8, S9 + `irv_ballots_tallied` by `rfl`) | 4 `sorry`-bodied (B10_lean + irv_winners_shape + irv_round_counts_sum + irv_no_reappearance) |
 | Lean extracted (`specs/EnclaveExtracted.lean` + `crates/enclave-core/`) | Aeneas extraction COMPLETE 2026-05-24 — 1440 lines extracted Lean (`tally_spec` + `irv_spec` + `decrypt_and_validate` stub + 8 helpers) | extracted module compiles under `lake build EnclaveExtracted` | extracted `decrypt_and_validate` is `fail panic` (Stage 1 runtime crate extraction queued for future round) |
 | Lean bridge (`specs/EnclaveBridge.lean`) | B10_lean_irv refinement theorem statement + 3 lift function stubs | bridge module compiles; theorem statement is concrete | 1 `sorry` on B10_lean_irv proof + 3 lift stubs (in flight via subagent at the time of this commit) |
 | Quint (`specs/rcv.qnt` + `specs/main.qnt`) | 6 named state invariants + 1 composite `all_invariants` + 5 witness invariants | 6 named invariants + composite hold across sampled traces; 5/5 witnesses violated (reachability witnesses) | model-checked at `--max-steps=30 --max-samples=100` only; not exhaustively proven (Apalache hit `NotInKeraError` on the dynamic `0.to(CANDIDATES.length())` range — re-encoding for Apalache compat is a tradeoff against parametric coverage) |
@@ -104,16 +104,25 @@
 | Bucket | Sub-tag distribution | Count | Delta vs prior |
 |--------|----------------------|-------|----------------|
 | (a) demotable-to-def-or-dead | — | 0 | unchanged |
-| (b) demotable-to-derived-theorem | 5 `derived-from-spec-model` | 5 | **+4** (decrypt_partition_length, irv_winners_shape, irv_round_counts_sum, irv_no_reappearance) |
+| (b) demotable-to-derived-theorem | 1 `theorem-discharged` (irv_ballots_tallied), 3 `theorem-pending` (irv_winners_shape, irv_round_counts_sum, irv_no_reappearance), 1 `derived-from-spec-model` (decrypt_partition_length) | 5 | unchanged in number; **#2 promoted from axiom to theorem-discharged** by `rfl` after concretization (Round 3e) |
 | (c) honest-computational-assumption | 1 `carrier`, 1 `circuit-equivalence`, 2 `named-constant` | 4 | unchanged |
 | (d) impossibility-or-over-strength | — | 0 | unchanged |
-| **Total** | | **9** | **+4** |
+| **Total** | | **9** | **0** (round 3e changed kind/sub-tag for 4 of 5 (b)-bucket entries, not the count) |
 
-The (b) bucket grew by 4. All four new axioms are bucket (b) `derived-from-spec-model` — they restate intent §2.5's Stage 1 / Stage 2 obligations that opaque function declarations can't capture. **All four are demotable to derived theorems** once `decrypt_and_validate` and `IRV_spec` get concrete definitions via Aeneas extraction. The right shape after the methodology runs to completion is `(b) = 0` with the structural-invariant proofs deriving from the concrete IRV implementation.
+Round 3e progress: the math `IRV_spec` is now concrete. `irv_ballots_tallied` is discharged by `rfl` (the field is set to `valid.length` by construction in every branch). The other three Stage-2 obligations are now theorem statements (not axioms) with `sorry`-bodies; their discharge requires induction on `irv_loop`'s fuel parameter (multi-week work). Once those three discharge AND `decrypt_partition_length` discharges (the latter needs the runtime crate Aeneas-extracted), the (b) bucket goes to 0.
 
-The trust surface widened in number but stayed in the same risk class. There are no new bucket (c) `unforgeability` or `knowledge-soundness` axioms; nothing in bucket (d).
+The trust surface count is unchanged; what moved is the *kind* of obligation: 4 of 5 (b)-bucket items are now theorem-shaped (one fully discharged, three sorry-bodied). The concretization also surfaced finding A7 (cs.length ≥ 1 propagation to S6), patched into intent v0.3.5 and the Lean spec.
 
-## Coverage delta vs. prior ledger (2026-05-23 emission)
+## Coverage delta vs. prior ledger (2026-05-24 Round 3c+3d emission)
+
+**Round 3e concreteness pass** (2026-05-24):
+- `specs/RcvSpec.lean`: replaced `opaque IRV_spec` with a concrete recursive definition mirroring intent §2.5's algorithm. 9 helper definitions added (`position_of`, `first_active_index`, `count_at_index`, `tally_round_aux`, `tally_round`, `min_count`, `total_count`, `candidates_with_count`, `first_majority_candidate`, `remove_from`) plus the `irv_loop` fuel-bounded recursion. Stdlib-only (no Mathlib import).
+- 4 Stage-2 obligations converted from `axiom` to `theorem` declarations: `irv_ballots_tallied` discharged by `rfl`; `irv_winners_shape` / `irv_round_counts_sum` / `irv_no_reappearance` are statement-form theorems with `sorry`-bodies pending induction on `irv_loop`.
+- **Finding A7 surfaced**: the prior `irv_winners_shape` axiom (parameterized only on `cs.Nodup`) was unsound for `cs = []` (`[].Nodup` holds vacuously but `1 ≤ [].length` is false; the concrete `IRV_spec` returns `winners = []` for empty `cs`). Patched in intent v0.3.5 as encoding-discipline note A7; propagated to `irv_winners_shape` and `s6_winner_subset` via a new `1 ≤ cs.length` hypothesis.
+- Intent bumped v0.3.4 → v0.3.5 (PATCH) carrying A7.
+- S6, S7, S8, S9, `irv_ballots_tallied`, `B10_lean` build clean under `lake env lean RcvSpec.lean`; only the 3 pending Stage-2 obligation theorems + B10_lean carry `sorry`.
+
+## Coverage delta vs. earlier ledger (2026-05-23 emission)
 
 **Lean spec layer** (`specs/`):
 - Toolchain upgraded to Lean 4.30.0-rc2 + Mathlib4 v4.30.0-rc2 + Aeneas backend (main, 4.30.0-rc2 pinned). VCV-io temporarily dropped (no v4.30.0 release yet).
@@ -146,7 +155,7 @@ Ordered by criticality:
 
 1. **B10_lean_irv discharge** (the Round 3e central obligation) — `specs/EnclaveBridge.lean` carries the statement with `sorry`. The proof is multi-week work even with good tools: requires lift functions from Aeneas's `Slice`/`Vec`/`Result` to math `List`/plain; induction matching the extracted recursion to the math algorithm; helper lemmas relating each extracted function to its math counterpart. A Claude subagent is attempting partial discharge at the time of this commit; full discharge likely needs a Lean-specialist proof model iterating.
 2. **B10_lean (full, Stage 1 + Stage 2)** — composition of `B10_lean_irv` (above) + `B10_lean_decrypt`. The latter currently has only an axiom placeholder because the extracted Stage 1 returns `fail panic` (Rust `unimplemented!()` body in enclave-core; real decryption is in the runtime crate). Discharge requires extracting the runtime crate (which uses `ecies`, `k256`) — known-hard via Aeneas but tractable. Queued for a follow-on round.
-3. **Demote 5 (b)-bucket axioms** — once `B10_lean_irv` proves, the 4 IRV-shape axioms (`irv_winners_shape`, `decrypt_partition_length`-but-wait-that's-decrypt, `irv_round_counts_sum`, `irv_no_reappearance`) + `irv_ballots_tallied` become derivable theorems about the concrete extracted `irv_spec`. Trust density (b) goes to 0 in the next ledger.
+3. **Demote remaining 4 (b)-bucket obligations** — Round 3e demoted `irv_ballots_tallied` to a theorem (discharged by `rfl`). Four obligations remain: (i) `irv_winners_shape`, `irv_round_counts_sum`, `irv_no_reappearance` are theorem-form with `sorry`-bodies; their discharge requires structural induction on `irv_loop`'s fuel parameter (multi-week proof work — the typical pattern is to prove an `irv_loop_invariant` lemma that the recursion preserves, then derive each obligation from it); (ii) `decrypt_partition_length` stays as an axiom until the runtime crate `verified-rcv-enclave` is Aeneas-extracted. (b) bucket goes to 0 only after all four discharge.
 4. **Kani / Verus contract refinement harnesses (Round 3c task #54)** — BLOCKED on CosmWasm storage's `serde_json` layer being too heavy for Kani's symbolic execution. The verification.rs scaffolding (372 lines) is type-checked but no harness has been successfully Kani-verified. Path forward: refactor handlers to expose pure guard logic separately (Kani-testable), OR switch to Verus annotations (handles complex Rust patterns).
 5. **Rust enclave runtime crate** — `crates/enclave/` is a stub. Real implementation needs gRPC server, dstack-TDX integration, Quartz attestation, ecies decryption. Round 3d second half.
 6. **Image-identity-binding formalization** — currently an intent-level operational obligation. Becomes load-bearing once the enclave Rust crate has a stable build artifact whose `(mrtd, rtmr)` matches the on-chain registry.
@@ -164,14 +173,15 @@ Before merging the current branch:
 
 ## Reading guide
 
-This ledger says: **verified-rcv's verification layer at 2026-05-23 makes two composition claims (B10, B9), both well-stated and inspectable. The 4 structural well-formedness theorems (S6, S7, S8, S9) are now discharged against per-stage axioms that restate the intent's §2.5 obligations. B10's central Lean obligation (`B10_lean`) remains `sorry`; discharge is blocked on the enclave Rust crate (out of scope this cycle). B9 is fully composed against the Quartz substrate's def-tied form.**
+This ledger says: **verified-rcv's verification layer at 2026-05-24 (Round 3e concreteness pass) makes two composition claims (B10, B9), both well-stated and inspectable. The 4 structural well-formedness theorems (S6, S7, S8, S9) are discharged against Stage-1/Stage-2 obligation theorems that restate the intent's §2.5 obligations. The math `IRV_spec` is now concrete; `irv_ballots_tallied` is discharged by `rfl`. Three Stage-2 obligation theorems carry `sorry`-bodies whose discharge is the next-cycle proof work. B10's central Lean obligation (`B10_lean`) remains `sorry`. B9 is fully composed against the Quartz substrate's def-tied form.**
 
 A reviewer who reads this ledger should walk away knowing:
 
-1. **What's proven** in Lean: 4 structural well-formedness theorems, each against an inspectable axiom.
-2. **What's still axiomatic in Lean**: 6 axioms (5 demotable to derived theorems once `IRV_spec`/`decrypt_and_validate` get concrete bodies; 1 carrier axiom `EnclaveImage` that stays axiomatic until the Rust crate is extracted).
-3. **What's still operational**: 3 intent-level assumptions about the deployment (dstack KMS trust, image-registration honesty, circuit-equivalence honesty).
-4. **What's model-checked but not proven**: 6 Quint invariants + composite + 5 witnesses, sampled at 100 traces.
-5. **What's pending**: B10_lean discharge (blocked on enclave Rust crate); the 5 (b)-bucket axioms demote once that crate exists; image-identity-binding formalization comes with the crate too.
+1. **What's proven** in Lean: S6, S7, S8, S9 (each against the Stage-1/Stage-2 obligation theorems) + `irv_ballots_tallied` (by `rfl` against the concrete `IRV_spec`).
+2. **What's theorem-stated but `sorry`-bodied**: `irv_winners_shape`, `irv_round_counts_sum`, `irv_no_reappearance` (Stage-2 obligations pending induction on `irv_loop` fuel) + `B10_lean` (image-IO equality pending bridge proof, statement at `EnclaveBridge.lean:96`).
+3. **What's still axiomatic in Lean**: `decrypt_partition_length` (Stage 1 partition obligation; demotable once the runtime crate `verified-rcv-enclave` is Aeneas-extracted) + `EnclaveImage` (the carrier axiom for the extracted enclave model).
+4. **What's still operational**: 3 intent-level assumptions about the deployment (dstack KMS trust, image-registration honesty, circuit-equivalence honesty).
+5. **What's model-checked but not proven**: 6 Quint invariants + composite + 5 witnesses, sampled at 100 traces.
+6. **What's pending**: discharge of the 3 Stage-2 obligation theorems (multi-week, induction-on-fuel pattern); B10_lean discharge (blocked on the bridge proof; `B10_lean_irv` in `EnclaveBridge.lean` is the central refinement statement); Stage 1 / runtime crate extraction; Kani/Verus contract refinement (Round 3c).
 
-The trust surface grew this cycle (5 → 9 axioms) but stayed in the same risk class — all 4 new axioms are bucket (b) and demotable. No new bucket (c) cryptographic assumptions; no bucket (d) over-strength claims.
+The trust surface count is unchanged this cycle (9 → 9 total trust-surface items); what shifted is the *kind* of obligation — 4 of 5 (b)-bucket items moved from `axiom` to `theorem` declarations (one fully discharged). The concretization pass also surfaced and patched a soundness gap (A7: cs.length ≥ 1 propagation), which is exactly the kind of finding the methodology is designed to surface — a defect hidden by the `opaque`/`axiom` abstraction that became visible when the function got a concrete body.

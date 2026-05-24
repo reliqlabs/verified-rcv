@@ -7,15 +7,11 @@ fan-out experiment (analogous to specs/rcv.qnt for the Quint protocol layer).
 
 Scope:
   - Types (§2.5)
-  - Stage 1 `decrypt_and_validate` (opaque — modeled, not implemented)
-  - Stage 2 `IRV_spec`         (opaque — modeled, not implemented)
+  - Stage 1 `decrypt_and_validate` (opaque — Stage 1 body lives in runtime crate)
+  - Stage 2 `IRV_spec`         (CONCRETE — implements intent §2.5 algorithm)
   - Composition `Tally_spec`    (defined — composes Stage 1 + Stage 2)
   - Structural well-formedness theorems S6, S7, S8, S9 (§3.1)
   - B10_lean: the image-IO obligation (§3.2)
-
-Proof bodies are all `sorry`. The methodology question this layer answers is
-"does the theorem statement encode the intent's claim?", not "is the proof
-discharged?". Discharge is a downstream task for a Lean-specialist model.
 
 Stdlib only — no Mathlib import. Voices may use Mathlib if they prefer; the
 dispatch script accepts either.
@@ -32,6 +28,14 @@ Revisions:
     for downstream Lean specs). Added `irv_ballots_tallied` axiom per
     encoding-discipline note A5 (Stage 2 obligation that opaque IRV_spec
     cannot capture). See `.colosseum/specs/lean-critique-revised-canonical-2026-05-20/meta-analysis.md`.
+  - 2026-05-24: Round 3e concreteness pass. Replaced `opaque IRV_spec` with a
+    concrete recursive definition mirroring intent §2.5's algorithm. The
+    four interface axioms (irv_ballots_tallied, irv_winners_shape,
+    irv_round_counts_sum, irv_no_reappearance) are now theorem statements
+    against the concrete definition. `irv_ballots_tallied` is discharged
+    by definitional equality (the trivial case); the other three are
+    `sorry`-bodied theorems whose discharge requires induction on the
+    `irv_loop` fuel parameter (multi-week proof work).
 -/
 
 namespace VerifiedRcv
@@ -92,33 +96,167 @@ structure DecryptedSet where
   deriving Repr, Inhabited
 
 /-- Stage 1 (§2.5). Opaque: decrypts ciphertexts under `privkey`, classifies
-each into the (valid, dropped, non_voters) partition. Validity criteria
-(well-formed ranking, no duplicates, all candidates in `candidates`) are
-part of the extracted model and not re-stated here. -/
+each into the (valid, dropped, non_voters) partition. Body lives in the
+runtime crate (`verified-rcv-enclave`) which has ECIES + dstack access;
+that crate's Aeneas extraction is queued for a future round. -/
 opaque decrypt_and_validate
   (raw : RawBallots) (candidates : CandidateSet) (privkey : PrivKey) : DecryptedSet
 
-/-- Stage 2 (§2.5). Opaque: the combinatorial IRV core. Repeatedly counts
-first-preference votes, eliminates the lowest, until a winner reaches a
-majority or all remaining are tied. Returns IRV-specific fields only;
-voter bookkeeping is Stage 1's job. -/
-opaque IRV_spec
-  (valid : List (Addr × Ballot)) (candidates : CandidateSet) : IRVResult
+/-! ## Concrete IRV core (§2.5 algorithm)
 
-/-- Stage 2 obligation (§2.5, encoding-discipline note A5 in intent v0.3.3).
-The opaque declaration of `IRV_spec` cannot capture the `ballots_tallied :=
-|valid_ballots|` relation by itself. This axiom restores the constraint so
-S7 and S8 reason about a `ballots_tallied` value that is tied to the actual
-count of valid ballots fed into the recursion. -/
-axiom irv_ballots_tallied :
-  ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
-    (IRV_spec valid cs).ballots_tallied = valid.length
+Helper functions mirror the Rust `crates/enclave-core/` implementation
+shape but use plain `List` rather than `Vec` / `Slice`. The recursion is
+bounded by `candidates.length + 1` (each non-terminal round strictly
+shrinks `remaining`, so fuel is a safe upper bound). -/
 
-/-- Stage 1 partition obligation (§2.5). The opaque `decrypt_and_validate`
-returns three voter lists that together partition `cs` (assuming `cs.Nodup`).
-This axiom records the length-only consequence of that partition, which is
-what `s7_voter_partition` needs. A stronger structural form (`List.Perm`-based)
-is possible but not needed for the structural well-formedness theorems. -/
+/-- Linear search: position of `a` in `xs`, mirroring Rust's `position_of`. -/
+def position_of (a : Addr) : List Addr → Option Nat :=
+  let rec aux (i : Nat) : List Addr → Option Nat
+    | []      => none
+    | x :: xs => if x = a then some i else aux (i + 1) xs
+  aux 0
+
+/-- First index in `remaining` that the ballot's `ranking` prefers, mirroring
+Rust's `first_active_index`. Structural recursion on `ranking`. -/
+def first_active_index : List Addr → List Addr → Option Nat
+  | [],       _         => none
+  | r :: rs,  remaining =>
+    match position_of r remaining with
+    | some idx => some idx
+    | none     => first_active_index rs remaining
+
+/-- Count ballots whose first-active choice maps to `remaining[target_idx]`.
+Structural recursion on `valid` (the ballot list). -/
+def count_at_index (remaining : List Addr) (target_idx : Nat) :
+    List (Addr × Ballot) → Nat
+  | []           => 0
+  | (_, b) :: vs =>
+    let suffix := count_at_index remaining target_idx vs
+    match first_active_index b.ranking remaining with
+    | some idx => if idx = target_idx then suffix + 1 else suffix
+    | none     => suffix
+
+/-- Tally first-preference counts per surviving candidate. Helper takes the
+absolute index so `count_at_index` matches the candidate's position. -/
+def tally_round_aux (valid : List (Addr × Ballot)) (remaining_full : List Addr) :
+    Nat → List Addr → RoundCounts
+  | _, []      => []
+  | i, c :: cs =>
+    { candidate := c
+      count     := count_at_index remaining_full i valid }
+      :: tally_round_aux valid remaining_full (i + 1) cs
+
+def tally_round (valid : List (Addr × Ballot)) (remaining : List Addr) : RoundCounts :=
+  tally_round_aux valid remaining 0 remaining
+
+/-- Minimum count across a non-empty `RoundCounts`. Defensive zero for empty. -/
+def min_count : RoundCounts → Nat
+  | []      => 0
+  | r :: rs => rs.foldl (fun m e => Nat.min m e.count) r.count
+
+/-- Sum of counts in `rc`. -/
+def total_count : RoundCounts → Nat
+  | []      => 0
+  | r :: rs => r.count + total_count rs
+
+/-- All candidates whose count equals `m`, in `rc` order. -/
+def candidates_with_count (m : Nat) : RoundCounts → List Addr
+  | []      => []
+  | r :: rs =>
+    if r.count = m then r.candidate :: candidates_with_count m rs
+    else candidates_with_count m rs
+
+/-- First index in `rc` whose count strictly exceeds `threshold` (majority). -/
+def first_majority_candidate (threshold : Nat) : RoundCounts → Option Addr
+  | []      => none
+  | r :: rs =>
+    if r.count > threshold then some r.candidate
+    else first_majority_candidate threshold rs
+
+/-- `xs` with elements of `to_remove` filtered out, preserving order. -/
+def remove_from (to_remove : List Addr) : List Addr → List Addr
+  | []      => []
+  | x :: xs =>
+    if to_remove.contains x then remove_from to_remove xs
+    else x :: remove_from to_remove xs
+
+/-- IRV recursion core. Returns `(winners, per_round_counts, eliminated_by_round)`.
+Fuel parameter bounds the recursion; intent §2.5 guarantees `|candidates|`
+rounds suffice (each non-terminal round strictly shrinks `remaining`). -/
+def irv_loop
+    (valid : List (Addr × Ballot)) (candidates : CandidateSet) :
+    Nat → List Addr → (List Addr × List RoundCounts × List (List Addr))
+  | 0,        _         => (candidates, [], [])    -- defensive fuel exhaustion
+  | fuel + 1, remaining =>
+    let rc := tally_round valid remaining
+    if remaining.length = 0 then
+      (candidates, [rc], [])
+    else if remaining.length = 1 then
+      (remaining, [rc], [])
+    else
+      let total := total_count rc
+      if total = 0 then
+        -- All-abstain: pin the recorded round to zero counts over the
+        -- ORIGINAL candidate set per intent §2.5.
+        let zero_round : RoundCounts :=
+          candidates.map (fun c => { candidate := c, count := 0 })
+        (candidates, [zero_round], [])
+      else
+        let threshold := total / 2
+        match first_majority_candidate threshold rc with
+        | some w => ([w], [rc], [])
+        | none   =>
+          let m      := min_count rc
+          let losers := candidates_with_count m rc
+          if losers.length = remaining.length then
+            -- Terminal tie: all remaining co-win, no further elimination.
+            (remaining, [rc], [])
+          else
+            let (w, rcs, elims) :=
+              irv_loop valid candidates fuel (remove_from losers remaining)
+            (w, rc :: rcs, losers :: elims)
+
+/-- Stage 2 (§2.5). The combinatorial IRV core. Repeatedly counts
+first-preference votes, batch-eliminates the lowest-tied set, terminates
+on majority or all-remaining-tied. The Australian Federal IRV variant.
+
+Concrete definition (Round 3e). Earlier revisions declared this `opaque`;
+the four interface axioms below are now theorem statements against this
+concrete definition. -/
+def IRV_spec (valid : List (Addr × Ballot)) (candidates : CandidateSet) : IRVResult :=
+  let triple :=
+    if candidates.length = 0 then
+      ([], [], [])
+    else
+      irv_loop valid candidates (candidates.length + 1) candidates
+  { winners             := triple.1
+    per_round_counts    := triple.2.1
+    eliminated_by_round := triple.2.2
+    ballots_tallied     := valid.length }
+
+/-! ## Stage 2 obligation theorems (formerly axioms; intent v0.3.3 A5)
+
+These were declared as axioms when `IRV_spec` was `opaque`. Now that
+`IRV_spec` is concrete, each becomes a theorem against the concrete
+definition. `irv_ballots_tallied` is discharged by definitional equality
+(the field is built as `valid.length` regardless of which branch the body
+takes). The other three are `sorry`-bodied; their discharge requires
+induction on `irv_loop`'s fuel parameter and is the multi-week Round 3e
+work documented in `.colosseum/roadmap.md`. -/
+
+/-- Stage 2 obligation: `ballots_tallied` equals `|valid|`. By construction,
+`IRV_spec` sets `ballots_tallied := valid.length` in every branch, so this
+is `rfl`. Stated as a theorem (formerly an axiom) per the Round 3e
+concreteness pass. -/
+theorem irv_ballots_tallied :
+    ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
+      (IRV_spec valid cs).ballots_tallied = valid.length := by
+  intro valid cs
+  rfl
+
+/-- Stage 1 obligation (§2.5). The opaque `decrypt_and_validate` returns
+three voter lists that partition `cs` (assuming `cs.Nodup`). Length-only
+form; structural `List.Perm` form is possible but not needed for S7. -/
 axiom decrypt_partition_length :
   ∀ (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey),
     cs.Nodup →
@@ -126,46 +264,70 @@ axiom decrypt_partition_length :
       (decrypt_and_validate raw cs pk).dropped.length +
       (decrypt_and_validate raw cs pk).non_voters.length = cs.length
 
-/-- Stage 2 winner-shape obligation (§2.5, §3.1 S6). The opaque `IRV_spec`
-cannot expose its `winners` list structure by itself. This axiom records
-the three facts S6 asserts: every winner is a registered candidate, the
-recursion always terminates with at least one winner (ties produce
-multiple winners, never zero), and `|winners| ≤ |cs|` when `cs` is
-duplicate-free (winners are a Nodup subset of cs). Length bound is stated
-directly to match the length-only style of `decrypt_partition_length`. -/
-axiom irv_winners_shape :
-  ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
-    cs.Nodup →
-      (∀ w ∈ (IRV_spec valid cs).winners, w ∈ cs) ∧
-      1 ≤ (IRV_spec valid cs).winners.length ∧
-      (IRV_spec valid cs).winners.length ≤ cs.length
+/-- Stage 2 winner-shape obligation (§2.5, §3.1 S6). Every winner is a
+registered candidate; the recursion always terminates with at least one
+winner (ties produce multiple winners, never zero); `|winners| ≤ |cs|`
+when `cs.Nodup`.
+
+Per intent v0.3.5 encoding-discipline note A7, the `1 ≤ cs.length`
+hypothesis is required: for `cs = []`, the IRV core returns
+`winners = []` (defensive zero-candidates path), violating
+`1 ≤ winners.length`. Block 1 enforces `len(candidates) ≥ 1` so S6 only
+applies post-instantiation; the hypothesis propagates that dependency.
+
+Discharge plan: induction on `irv_loop` fuel. Each branch either records
+winners directly (terminal cases — `[w]`, `remaining`, `candidates`) or
+recurses on a strictly smaller problem. The winners set is always either
+a subset of `remaining` (which is `⊆ candidates`) or `candidates` itself. -/
+theorem irv_winners_shape :
+    ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
+      cs.Nodup →
+      1 ≤ cs.length →
+        (∀ w ∈ (IRV_spec valid cs).winners, w ∈ cs) ∧
+        1 ≤ (IRV_spec valid cs).winners.length ∧
+        (IRV_spec valid cs).winners.length ≤ cs.length := by
+  sorry
 
 /-- Stage 2 round-conservation obligation (§2.5, §3.1 S8). Each round's
-per-candidate counts sum to `ballots_tallied`: the count of valid ballots
-fed into the recursion is conserved across rounds (an eliminated
-candidate's ballots transfer to the next-ranked surviving candidate
-rather than disappearing). -/
-axiom irv_round_counts_sum :
-  ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
-    ∀ rc ∈ (IRV_spec valid cs).per_round_counts,
-      (rc.foldl (fun acc r => acc + r.count) 0) = (IRV_spec valid cs).ballots_tallied
+per-candidate counts sum to `ballots_tallied`. Eliminated candidates'
+ballots transfer to the next-ranked surviving candidate rather than
+disappearing, so total ballots is conserved across rounds.
 
-/-- Stage 2 elimination-monotonicity obligation (§2.5, §3.1 S9). Once
-`IRV_spec` eliminates a candidate at round `i`, that candidate does not
-reappear as a `RoundCount.candidate` entry in any later
-`per_round_counts[j]?` with `j > i`. -/
-axiom irv_no_reappearance :
-  ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet)
-    (i j : Nat) (eliminated : List Addr) (rc : RoundCounts) (c : Addr),
-    (IRV_spec valid cs).eliminated_by_round[i]? = some eliminated →
-    (IRV_spec valid cs).per_round_counts[j]? = some rc →
-    i < j →
-    c ∈ eliminated →
-    ∀ entry ∈ rc, entry.candidate ≠ c
+Discharge plan: induction on `irv_loop` fuel. The base step is the
+all-abstain zero-round case where every count is 0 (sum 0 = ballots_tallied
+0 by S7's all-abstain corollary). The inductive step relies on
+`tally_round` placing each valid ballot into exactly one bucket (its
+first-active-among-remaining), and `count_at_index` summing across
+buckets recovering `|valid|`. -/
+theorem irv_round_counts_sum :
+    ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
+      ∀ rc ∈ (IRV_spec valid cs).per_round_counts,
+        (rc.foldl (fun acc r => acc + r.count) 0) =
+          (IRV_spec valid cs).ballots_tallied := by
+  sorry
+
+/-- Stage 2 elimination-monotonicity obligation (§2.5, §3.1 S9). A
+candidate eliminated at round `i` does not reappear as a `RoundCount`
+entry in any later `per_round_counts[j]?` with `j > i`.
+
+Discharge plan: induction on `irv_loop` fuel + the invariant that
+`tally_round` is called with `remaining` shrinking monotonically across
+recursive calls. `losers` is removed from `remaining` before the
+recursive call, and `tally_round` enumerates `remaining` only — so any
+candidate in `eliminated_by_round[i]` cannot appear as `rc.candidate` in
+any subsequent `tally_round` output. -/
+theorem irv_no_reappearance :
+    ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet)
+      (i j : Nat) (eliminated : List Addr) (rc : RoundCounts) (c : Addr),
+      (IRV_spec valid cs).eliminated_by_round[i]? = some eliminated →
+      (IRV_spec valid cs).per_round_counts[j]? = some rc →
+      i < j →
+      c ∈ eliminated →
+      ∀ entry ∈ rc, entry.candidate ≠ c := by
+  sorry
 
 /-- Composition (§2.5). Threads Stage 1's voter bookkeeping (dropped,
-non_voters) into Stage 2's IRV output. This is the transparent assembly
-layer described in §2.5. -/
+non_voters) into Stage 2's IRV output. -/
 def Tally_spec
     (raw : RawBallots) (candidates : CandidateSet) (privkey : PrivKey) : TallyResult :=
   let d := decrypt_and_validate raw candidates privkey
@@ -181,23 +343,21 @@ def Tally_spec
 /-- S6 — winner well-formedness (§3.1). Winners are a non-empty subset of
 candidates, bounded above by `|candidates|`.
 
-A4 hypothesis (intent v0.3.3): `cs.Nodup` is required because `cs.length`
-overcounts for duplicate-containing lists, making the upper bound
-unprovable without distinctness. -/
+Hypotheses (intent v0.3.3 A4 + v0.3.5 A7):
+- `cs.Nodup`: `cs.length` overcounts for duplicate lists, making the upper
+  bound unprovable without distinctness.
+- `1 ≤ cs.length`: for `cs = []`, IRV returns `winners = []` (defensive
+  zero-candidates path); Block 1 enforces this at instantiate-time. -/
 theorem s6_winner_subset
-    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (h_nodup : cs.Nodup) :
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey)
+    (h_nodup : cs.Nodup) (h_nonempty : 1 ≤ cs.length) :
     let t := Tally_spec raw cs pk
     (∀ w ∈ t.winners, w ∈ cs) ∧ 1 ≤ t.winners.length ∧ t.winners.length ≤ cs.length := by
   simp only [Tally_spec]
-  exact irv_winners_shape (decrypt_and_validate raw cs pk).valid cs h_nodup
+  exact irv_winners_shape (decrypt_and_validate raw cs pk).valid cs h_nodup h_nonempty
 
 /-- S7 — voter partition (§3.1). The candidate set decomposes as
-tallied ⊔ dropped ⊔ non_voters. Stated here as the conservation equation;
-disjointness is a corollary at extraction time.
-
-A4 hypothesis (intent v0.3.3): `cs.Nodup` makes `cs.length` equal the
-cardinality of the candidate set, which is what the conservation equation
-relates to. Without it, duplicate-containing `cs` inflates the RHS. -/
+tallied ⊔ dropped ⊔ non_voters. -/
 theorem s7_voter_partition
     (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (h_nodup : cs.Nodup) :
     let t := Tally_spec raw cs pk
@@ -206,12 +366,7 @@ theorem s7_voter_partition
   exact decrypt_partition_length raw cs pk h_nodup
 
 /-- S8 — round counts sum (§3.1). For each round, the per-candidate counts
-sum to `ballots_tallied`.
-
-A4 hypothesis (intent v0.3.3): `cs.Nodup` is included for consistency with
-the rest of the structural-invariant block; S8 itself does not depend on
-`cs.length` but is stated under the same hypothesis to keep the theorem
-family closed under composition. -/
+sum to `ballots_tallied`. -/
 theorem s8_round_counts_sum
     (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (_h_nodup : cs.Nodup) :
     let t := Tally_spec raw cs pk
@@ -221,16 +376,7 @@ theorem s8_round_counts_sum
   exact irv_round_counts_sum (decrypt_and_validate raw cs pk).valid cs
 
 /-- S9 — no reappearance (§3.1). A candidate eliminated at round i does
-not appear as a key in `per_round_counts[j]` for any j > i.
-
-Encoding fix (2026-05-20 cross-critique): uses `[i]?`-Option-pattern from
-gpt-5-5's voice rather than `[i]!`-with-bounds-check. Convergent finding:
-the Option encoding avoids reliance on the partial `!` indexing's default
-value semantics. Three reviewers agreed.
-
-A4 hypothesis (intent v0.3.3): included for consistency with the rest of
-the structural-invariant block; S9's content is index-relational and does
-not directly depend on `cs.length`. -/
+not appear as a key in `per_round_counts[j]` for any j > i. -/
 theorem s9_no_reappearance
     (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (_h_nodup : cs.Nodup) :
     let t := Tally_spec raw cs pk
