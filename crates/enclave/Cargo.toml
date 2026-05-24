@@ -1,0 +1,22 @@
+[package]
+name = "verified-rcv-enclave"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Runtime wrapper for verified-rcv enclave — wires Tally_spec core to dstack TDX + Quartz attestation"
+
+[[bin]]
+name = "verified-rcv-enclave"
+path = "src/main.rs"
+
+[dependencies]
+verified-rcv-enclave-core = { path = "../enclave-core", features = ["serialize"] }
+
+serde.workspace = true
+serde_json.workspace = true
+hex.workspace = true
+thiserror.workspace = true
+
+# Crypto primitives (ECIES decrypt via the same crate the Quartz example uses).
+ecies = { version = "0.2", default-features = false, features = ["pure"] }
+k256 = { version = "0.13", default-features = false, features = ["ecdsa", "alloc"] }

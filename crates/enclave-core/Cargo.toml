@@ -1,0 +1,23 @@
+[package]
+name = "verified-rcv-enclave-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Aeneas-extractable IRV tally core for verified-rcv enclave"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+schemars = { version = "0.8", optional = true }
+cw-schema = { version = "3", optional = true }
+
+[features]
+default = []
+# `serialize` enables serde + cosmwasm-schema derives on the public types so
+# the contract crate can embed them in message schemas. Aeneas extraction
+# runs with default features off — keep the core types free of derive-macro
+# noise for charon.
+serialize = ["dep:serde", "dep:serde_json", "dep:schemars", "dep:cw-schema"]
