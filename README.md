@@ -2,16 +2,16 @@
 
 Methodology-disciplined implementation of instant-runoff voting (IRV) ranked-choice tabulation, targeting full formal verification end-to-end: intent → spec → code → proofs.
 
-This repo started as the **Round 3a dogfood** of the [Colosseum methodology](https://github.com/reliqlabs/colosseum) (spec layer only). It is now in Round 3c+3d (implementation + Aeneas extraction) with Round 3e (B10_lean discharge) in flight.
+This repo started as the **Round 3a dogfood** of the [Colosseum methodology](https://github.com/reliqlabs/colosseum) (spec layer only). It is now through Round 3c+3d (implementation + Aeneas extraction) and into Round 3e (concreteness pass complete: math `IRV_spec` is now a concrete Lean function; `irv_ballots_tallied` is discharged by `rfl`; the bridge proof `B10_lean_irv` and the three remaining Stage-2 obligation theorems are the next-cycle work).
 
 ## State at HEAD
 
 ### Specification layer (Round 3a — done)
 
-- **Intent v0.3.4** at `.colosseum/intent.md`. 8 revision cycles. 5 encoding-discipline notes (A2/A3/A4/A5/A6) propagated from cross-critique findings back into the intent doc.
+- **Intent v0.3.5** at `.colosseum/intent.md`. 9 revision cycles. 6 encoding-discipline notes (A2/A3/A4/A5/A6/A7) propagated from cross-critique + concretization findings back into the intent doc. A7 added 2026-05-24 from the Round 3e concreteness pass: math IRV_spec concretization exposed that `irv_winners_shape` needed `1 ≤ cs.length` (not just `cs.Nodup`), since `[].Nodup` holds vacuously.
 - **Quint protocol spec** at `specs/rcv.qnt` (537 lines). 6 named state invariants + composite + 5 reachability witnesses. `quint run` 0 violations across sampled traces. Apalache exhaustive verification hits a known limitation on the dynamic `0.to(CANDIDATES.length())` range.
-- **Lean math spec** at `specs/RcvSpec.lean`. Tally_spec composition, 5 theorem statements + 6 axioms + 2 opaque functions. **4 of 5 theorems PROVEN** (S6, S7, S8, S9 against the 4 Stage-1/Stage-2 axioms + irv_ballots_tallied). B10_lean (image-IO equality) still `sorry`.
-- **Integration ledger** at `.colosseum/ledger.md`. 2 composition theorems (B10 cross-layer 5-link, B9 negligibility 3-summand), 9 axioms inventoried with 4-bucket trust-density taxonomy, dead-axiom scan 0 hits.
+- **Lean math spec** at `specs/RcvSpec.lean`. Tally_spec composition, **concrete `IRV_spec`** (Round 3e), 5 theorem statements + 4 Stage-1/Stage-2 obligation theorems + 1 axiom + 1 opaque function. **5 of 8 dischargeable theorems PROVEN** (S6, S7, S8, S9 + `irv_ballots_tallied`). 3 Stage-2 obligation theorems carry `sorry` (`irv_winners_shape`, `irv_round_counts_sum`, `irv_no_reappearance`) pending induction on `irv_loop` fuel. B10_lean (image-IO equality) still `sorry`.
+- **Integration ledger** at `.colosseum/ledger.md`. 2 composition theorems (B10 cross-layer 5-link, B9 negligibility 3-summand), 9 trust-surface items inventoried with 4-bucket trust-density taxonomy. Round 3e moved 4 of 5 (b)-bucket items from `axiom` to `theorem` declaration; one of those four is fully discharged.
 - **Adversarial trail** at `.colosseum/specs/*`. Multi-voice fan-out + cross-critique + defense + re-cross-critique cycles on both Quint and Lean layers.
 
 ### Implementation layer (Round 3c+3d — in progress)
@@ -27,13 +27,14 @@ This repo started as the **Round 3a dogfood** of the [Colosseum methodology](htt
 
 ## Outstanding work (in dependency order)
 
-1. **B10_lean_irv discharge** (Round 3e). The central refinement obligation: `extracted irv_spec refines math IRV_spec`. Statement concrete in `specs/EnclaveBridge.lean`. Proof multi-week even with good tools; two subagent attempts in this session stalled on long iteration cycles. Two paths: (a) make math `IRV_spec` concrete and prove definitional equality, (b) refinement axioms + extracted satisfies same shape.
-2. **B10_lean_decrypt** (Round 3d follow-on). Needs extraction of the runtime crate (which has ECIES decryption logic) via Aeneas. Currently a `True` placeholder axiom.
-3. **Demote 5 (b)-bucket axioms** (Round 3e cleanup). `irv_ballots_tallied`, `irv_winners_shape`, `decrypt_partition_length`, `irv_round_counts_sum`, `irv_no_reappearance` all become derivable theorems once `B10_lean_irv` proves (or once the math `IRV_spec` is made concrete).
-4. **Contract refinement harnesses** (Round 3c task #54). Blocked on Kani+CosmWasm storage issue. Path forward: Verus annotations (Verus handles complex Rust patterns better than Kani).
-5. **Enclave runtime crate** (Round 3d second half). Real gRPC server, dstack TDX integration, ECIES decryption, Quartz attestation envelope construction.
-6. **Image-identity-binding artifact** (Round 3f). Build-pipeline ledger binding `(mrtd, rtmr)` to the enclave crate's reproducible build hash.
-7. **Composition assembly** (Round 3f). Stitch B10 = B10_lean ∧ image-identity-binding ∧ B8 ∧ dstack_kms_trust ∧ enclave_input_fidelity in the integration ledger.
+1. **Discharge the 3 Stage-2 obligation theorems** (Round 3e remaining). `irv_winners_shape`, `irv_round_counts_sum`, `irv_no_reappearance` are concrete theorem statements about the concrete math `IRV_spec`. Each requires structural induction on `irv_loop`'s fuel parameter + an invariant about the recursion (e.g., `tally_round` enumerates only `remaining`; `remaining ⊆ candidates`; `losers` is removed from `remaining` before recursion). Tractable but multi-step. `irv_ballots_tallied` is already discharged by `rfl`.
+2. **B10_lean_irv discharge** (Round 3e bridge). The central refinement obligation: `extracted irv_spec refines math IRV_spec`. Statement concrete in `specs/EnclaveBridge.lean`. Now that math `IRV_spec` is concrete, the goal is a definitional equality between extracted Lean (in `Result` monad with `Slice`/`Vec`/`U32` types) and math Lean (`List`/`Nat`). Proof multi-week; two subagent attempts in earlier sessions stalled on long Aeneas-build iteration cycles.
+3. **B10_lean_decrypt** (Round 3d follow-on). Needs extraction of the runtime crate (which has ECIES decryption logic) via Aeneas. Currently a `True` placeholder axiom.
+4. **Demote `decrypt_partition_length`** (Round 3e cleanup). The last (b)-bucket axiom; demotes to derivable theorem once the runtime crate is Aeneas-extracted.
+5. **Contract refinement harnesses** (Round 3c task #54). Blocked on Kani+CosmWasm storage issue. Path forward: Verus annotations (Verus handles complex Rust patterns better than Kani), or refactor handlers to expose pure guard logic separately for Kani.
+6. **Enclave runtime crate** (Round 3d second half). Real gRPC server, dstack TDX integration, ECIES decryption, Quartz attestation envelope construction.
+7. **Image-identity-binding artifact** (Round 3f). Build-pipeline ledger binding `(mrtd, rtmr)` to the enclave crate's reproducible build hash.
+8. **Composition assembly** (Round 3f). Stitch B10 = B10_lean ∧ image-identity-binding ∧ B8 ∧ dstack_kms_trust ∧ enclave_input_fidelity in the integration ledger.
 
 ## What "fully verified" means here
 
@@ -53,7 +54,7 @@ End-state trust density (target):
 - (c) honest-computational-assumption: 4 (Adv_commitTally_CR + 3 intent-level operational)
 - (d) impossibility-or-over-strength: 0
 
-Current trust density: 0 / 5 / 4 / 0 — the 5 (b)-bucket axioms are pending demotion when B10_lean_irv proves.
+Current trust density: 0 / 5 / 4 / 0 — but the (b) bucket has shifted in *kind* after Round 3e: `irv_ballots_tallied` is now a theorem-discharged (proven by `rfl`), 3 are theorem-sorry-bodied (statement-concrete, induction pending), 1 stays as an axiom pending runtime crate extraction.
 
 ## Layout
 
@@ -91,12 +92,13 @@ verified-rcv/
 
 | Layer | Tool | Status |
 |---|---|---|
-| Intent | Colosseum methodology | ✓ at v0.3.4 |
+| Intent | Colosseum methodology | ✓ at v0.3.5 |
 | Protocol spec | Quint (sampling) | ✓ — 6 invariants + composite + 5 witnesses |
 | Protocol spec (exhaustive) | Quint via Apalache | ✗ blocked on dynamic-range encoding |
-| Math spec | Lean 4.30.0-rc2 + Mathlib | ✓ — 4 theorems proven |
+| Math spec | Lean 4.30.0-rc2 + Mathlib | ✓ — 5 theorems proven (S6-S9 + `irv_ballots_tallied`); 3 Stage-2 obligation theorems sorry-bodied |
+| Math spec (Stage 2 obligations) | Lean concrete IRV_spec | ✓ definition concrete; ✗ 3 sorrys pending induction on irv_loop |
 | Rust extraction | charon + aeneas | ✓ — extraction succeeds |
-| Refinement bridge | Lean | ✓ statement + lifts; ✗ proof |
+| Refinement bridge | Lean | ✓ statement + lifts; ✗ B10_lean_irv proof |
 | Rust contract | CosmWasm | ✓ compiles to wasm |
 | Rust enclave core | Aeneas-extractable | ✓ 11/11 tests |
 | Rust enclave runtime | dstack TDX + ECIES + gRPC | ✗ stub |
