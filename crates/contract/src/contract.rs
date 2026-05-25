@@ -278,7 +278,11 @@ pub(crate) fn exec_publish_result(
 // ============================================================
 
 /// Pure derivation; mirrors Quint `derived_phase(block_time, tally_result)`.
-fn derive_phase(now: Timestamp, election: &Election, has_tally: bool) -> Phase {
+///
+/// Exposed `pub(crate)` so the verification harnesses can target it
+/// directly without going through CosmWasm storage (which is opaque to
+/// Kani's symbolic execution).
+pub(crate) fn derive_phase(now: Timestamp, election: &Election, has_tally: bool) -> Phase {
     if has_tally {
         Phase::Resolved
     } else if now < election.start_at {
@@ -303,7 +307,21 @@ fn compute_phase(
 // Tally well-formedness checks (chain-side syntactic subset of S6–S9)
 // ============================================================
 
-fn check_tally_well_formed(election: &Election, tally: &TallyResult) -> Result<(), ContractError> {
+/// Chain-syntactic well-formedness check for a published tally. Mirrors the
+/// inspectable subset of intent §3.1 S6-S9 (semantic correctness is B10,
+/// off-chain). Exposed `pub(crate)` so verification harnesses can target it
+/// directly without going through CosmWasm storage.
+///
+/// Implementation note: uses Vec-based linear searches (not HashSet) so the
+/// function is reachable from Kani symbolic execution. HashSet/HashMap on
+/// macOS use `CCRandomGenerateBytes` for random-seeding DoS protection, a
+/// path Kani 0.67 does not model. Linear search over a small (≤ N_CANDIDATES)
+/// set is O(N²) worst-case here, which is acceptable for chain-side checks
+/// where N is bounded by gas limits.
+pub(crate) fn check_tally_well_formed(
+    election: &Election,
+    tally: &TallyResult,
+) -> Result<(), ContractError> {
     let n_cands = election.candidates.len();
 
     // S6: winners are a non-empty subset of candidates.
@@ -312,9 +330,8 @@ fn check_tally_well_formed(election: &Election, tally: &TallyResult) -> Result<(
             "winners cardinality out of bounds".into(),
         ));
     }
-    let cand_strs: HashSet<&str> = election.candidates.iter().map(|a| a.as_str()).collect();
     for w in &tally.winners {
-        if !cand_strs.contains(w.as_str()) {
+        if !election.candidates.iter().any(|c| c.as_str() == w.as_str()) {
             return Err(ContractError::AttestationFailure(
                 "winner not in candidate set".into(),
             ));
@@ -341,12 +358,14 @@ fn check_tally_well_formed(election: &Election, tally: &TallyResult) -> Result<(
     }
 
     // S7: dropped_voters and non_voters disjoint.
-    let dropped: HashSet<&str> = tally.dropped_voters.iter().map(|a| a.as_str()).collect();
-    let non_voters: HashSet<&str> = tally.non_voters.iter().map(|a| a.as_str()).collect();
-    if dropped.intersection(&non_voters).next().is_some() {
-        return Err(ContractError::AttestationFailure(
-            "dropped_voters intersects non_voters".into(),
-        ));
+    for d in &tally.dropped_voters {
+        for nv in &tally.non_voters {
+            if d.as_str() == nv.as_str() {
+                return Err(ContractError::AttestationFailure(
+                    "dropped_voters intersects non_voters".into(),
+                ));
+            }
+        }
     }
 
     // S6 structural: at most |candidates| rounds.
@@ -365,7 +384,10 @@ fn check_tally_well_formed(election: &Election, tally: &TallyResult) -> Result<(
     // this syntactically; the semantic claim (counts come from IRV
     // tabulation over decrypted ballots) is B10 / off-chain.
     for round in &tally.per_round_counts {
-        let sum: u128 = round.iter().map(|rc| rc.count as u128).sum();
+        let mut sum: u128 = 0;
+        for rc in round {
+            sum += rc.count as u128;
+        }
         if sum != tally.ballots_tallied as u128 {
             return Err(ContractError::AttestationFailure(
                 "per_round_counts row does not sum to ballots_tallied".into(),
@@ -374,18 +396,22 @@ fn check_tally_well_formed(election: &Election, tally: &TallyResult) -> Result<(
     }
 
     // S9: candidates eliminated at round i do not reappear at round j > i.
-    let mut eliminated_so_far: HashSet<String> = HashSet::new();
-    for (i, round) in tally.per_round_counts.iter().enumerate() {
-        for rc in round {
-            if eliminated_so_far.contains(rc.candidate.as_str()) {
-                return Err(ContractError::AttestationFailure(
-                    "eliminated candidate reappears in later round".into(),
-                ));
-            }
-        }
-        if let Some(elims) = tally.eliminated_by_round.get(i) {
-            for c in elims {
-                eliminated_so_far.insert(c.as_str().to_string());
+    // Linear scan over the eliminated-by-round prefix; for the small N
+    // (chain gas-bounded) this is O(rounds²) which is fine.
+    for j in 0..tally.per_round_counts.len() {
+        let round_j = &tally.per_round_counts[j];
+        for rc in round_j {
+            // Was rc.candidate eliminated in any earlier round i < j?
+            for i in 0..j {
+                if let Some(elims_i) = tally.eliminated_by_round.get(i) {
+                    for c in elims_i {
+                        if c.as_str() == rc.candidate.as_str() {
+                            return Err(ContractError::AttestationFailure(
+                                "eliminated candidate reappears in later round".into(),
+                            ));
+                        }
+                    }
+                }
             }
         }
     }
