@@ -23,7 +23,7 @@ This repo started as the **Round 3a dogfood** of the [Colosseum methodology](htt
 - **Aeneas extraction** at `lean-extraction/Enclave-core.lean` and `specs/EnclaveExtracted.lean` (1440 lines). Full IRV core extracted to Lean as concrete `verified_rcv_enclave_core.irv_spec` (in `Aeneas.Std.Result` monad). Stage 1 `decrypt_and_validate` extracts to `fail panic` because the Rust body is `unimplemented!()` in this crate (real decryption lives in the runtime crate, queued for future extraction).
 - **Lean bridge** at `specs/EnclaveBridge.lean`. Real lift functions implemented (`Slice.v` + `Vec.v` + `UScalar.val` conversions). Theorem statement for `B10_lean_irv` is concrete and `lake env lean`-inspectable; proof body is `sorry` (Round 3e obligation).
 - **Lean toolchain** upgraded to Lean 4.30.0-rc2 + Mathlib4 v4.30.0-rc2 + Aeneas backend (main, 4.30.0-rc2 pinned).
-- **Kani harnesses** scaffolding at `crates/contract/src/verification.rs` (372 lines, behind `--features verification`). Type-checks but **blocked**: `cargo kani` stalls on CosmWasm storage's `serde_json` layer (too heavy for Kani symbolic execution). Workarounds queued: pure-guard-logic refactor, Verus annotations, proptest.
+- **Kani harnesses** at `crates/contract/src/verification.rs` (~700 lines, behind `--features verification`). **5 pure-logic harnesses verified successful**: `derive_phase` totality + partition; S6/S7/S8/S9 implication semantics on `check_tally_well_formed` (Ok ⇒ each clause; clause violation ⇒ Err). Three workarounds applied: expose pure helpers `pub(crate)` to bypass CosmWasm storage; refactor `check_tally_well_formed` off HashSet (macOS Security.framework path Kani 0.67 doesn't model); narrow per-invariant harness shape (concrete tally + one symbolic perturbation each, not a unified symbolic-input builder). 5 storage-going harnesses (B1, S4, S10, AlreadyVoted, AlreadyResolved) remain blocked — those need the Verus alternative or a separate refactor.
 
 ## Outstanding work (in dependency order)
 
@@ -31,7 +31,7 @@ This repo started as the **Round 3a dogfood** of the [Colosseum methodology](htt
 2. **B10_lean_irv discharge** (Round 3e bridge). The central refinement obligation: `extracted irv_spec refines math IRV_spec`. Statement concrete in `specs/EnclaveBridge.lean`. Now that math `IRV_spec` is concrete, the goal is a definitional equality between extracted Lean (in `Result` monad with `Slice`/`Vec`/`U32` types) and math Lean (`List`/`Nat`). Proof multi-week; two subagent attempts in earlier sessions stalled on long Aeneas-build iteration cycles.
 3. **B10_lean_decrypt** (Round 3d follow-on). Needs extraction of the runtime crate (which has ECIES decryption logic) via Aeneas. Currently a `True` placeholder axiom.
 4. **Demote `decrypt_partition_length`** (Round 3e cleanup). The last (b)-bucket axiom; demotes to derivable theorem once the runtime crate is Aeneas-extracted.
-5. **Contract refinement harnesses** (Round 3c task #54). Blocked on Kani+CosmWasm storage issue. Path forward: Verus annotations (Verus handles complex Rust patterns better than Kani), or refactor handlers to expose pure guard logic separately for Kani.
+5. **Storage-going contract harnesses** (Round 3c task #54 follow-on). Pure-helper subset is DONE (5 harnesses verified). Storage-going subset (B1 write-once, S4 ballot-key subset, S10 resolution-after-end-at, AlreadyVoted, AlreadyResolved) remains blocked on CosmWasm + serde_json + macOS Security.framework path. Path forward: Verus annotations (handles complex Rust patterns better), or build a storage-abstracted shim layer the handlers can run against.
 6. **Enclave runtime crate** (Round 3d second half). Real gRPC server, dstack TDX integration, ECIES decryption, Quartz attestation envelope construction.
 7. **Image-identity-binding artifact** (Round 3f). Build-pipeline ledger binding `(mrtd, rtmr)` to the enclave crate's reproducible build hash.
 8. **Composition assembly** (Round 3f). Stitch B10 = B10_lean ∧ image-identity-binding ∧ B8 ∧ dstack_kms_trust ∧ enclave_input_fidelity in the integration ledger.
@@ -102,8 +102,9 @@ verified-rcv/
 | Rust contract | CosmWasm | ✓ compiles to wasm |
 | Rust enclave core | Aeneas-extractable | ✓ 11/11 tests |
 | Rust enclave runtime | dstack TDX + ECIES + gRPC | ✗ stub |
-| Contract refinement | Kani | ✗ blocked on CosmWasm + serde_json |
-| Contract refinement (alt) | Verus | not yet attempted |
+| Contract refinement (pure helpers) | Kani | ✓ 5 harnesses verified (derive_phase + S6/S7/S8/S9 implication) |
+| Contract refinement (storage handlers) | Kani | ✗ blocked on CosmWasm + serde_json |
+| Contract refinement (storage handlers, alt) | Verus | not yet attempted |
 | Cryptography | VCV-io | not yet wired (no v4.30 release) |
 | SNARK / IOR | ArkLib | not yet relevant |
 
