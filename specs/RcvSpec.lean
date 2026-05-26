@@ -618,6 +618,41 @@ lemma tally_round_total_count_eq_valid_length
     rw [ih_app]
     simp
 
+/-- The all-abstain "zero round" (each candidate mapped to count 0) has
+total_count 0. Used in the all-abstain branch of irv_loop's per-round
+discharge — that branch is reachable only when `valid = []`, in which
+case `valid.length = 0` and the zero round's `0` matches. -/
+lemma total_count_zero_round (cs : List Addr) :
+    total_count (cs.map (fun c => ({ candidate := c, count := 0 } : RoundCount))) = 0 := by
+  induction cs with
+  | nil => simp [total_count]
+  | cons c rest ih =>
+    simp [total_count, ih]
+
+/-- Generalised foldl-accumulator form: `rc.foldl (fun acc r => acc +
+r.count) acc = acc + total_count rc`. Establishes the equivalence
+between the foldl form used in `irv_round_counts_sum`'s statement
+(matching intent §3.1 S8 wording) and the `total_count` form used in
+the proof chain. -/
+lemma foldl_count_add_eq (rc : RoundCounts) :
+    ∀ acc : Nat,
+      rc.foldl (fun acc r => acc + r.count) acc = acc + total_count rc := by
+  induction rc with
+  | nil =>
+    intro acc
+    simp [total_count]
+  | cons r rs ih =>
+    intro acc
+    simp [List.foldl_cons, total_count]
+    rw [ih (acc + r.count)]
+    omega
+
+/-- Specialised: `rc.foldl ... 0 = total_count rc`. -/
+lemma foldl_count_eq_total_count (rc : RoundCounts) :
+    rc.foldl (fun acc r => acc + r.count) 0 = total_count rc := by
+  have := foldl_count_add_eq rc 0
+  simpa using this
+
 /-- If `first_majority_candidate threshold rc = some w`, then `w` is one of
 the candidates listed in `rc`. -/
 lemma first_majority_candidate_in_rc
@@ -716,6 +751,109 @@ lemma candidates_with_count_nodup
       exact ⟨entry, h_em, h_eq⟩
     · rw [if_neg hr]
       exact ih h_tail
+
+/-- Loop invariant for S8: every `per_round_counts` entry produced by
+`irv_loop` sums to `valid.length`, under the A8 cover hypothesis.
+
+Proof: structural induction on `fuel` + case-split on each `irv_loop`
+branch. Each non-recursive terminal branch's `per_round_counts` is a
+singleton list whose entry is either `tally_round valid remaining` (use
+`tally_round_total_count_eq_valid_length`) or `zero_round_over_cs`
+(use `total_count_zero_round`, deriving `valid = []` from the
+`total = 0` branch condition). Recursive branch: head is `tally_round`,
+tail is IH on the strictly-smaller fuel with the new remaining set. -/
+lemma irv_loop_per_round_total
+    (valid : List (Addr × Ballot)) (cs : CandidateSet)
+    (h_cover_cs : ∀ p ∈ valid, ∀ c ∈ cs, c ∈ p.snd.ranking) :
+    ∀ (fuel : Nat) (remaining : List Addr),
+      (∀ x ∈ remaining, x ∈ cs) →
+      remaining.Nodup →
+      1 ≤ remaining.length →
+      ∀ rc ∈ (irv_loop valid cs fuel remaining).2.1,
+        total_count rc = valid.length := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro remaining _ _ _ rc h_mem
+    simp [irv_loop] at h_mem
+  | succ fuel' ih =>
+    intro remaining h_sub h_nodup_rem h_pos_rem rc h_mem
+    have h_cover_rem : ∀ p ∈ valid, ∀ c ∈ remaining, c ∈ p.snd.ranking := by
+      intro p hp c hc
+      exact h_cover_cs p hp c (h_sub c hc)
+    have h_tally_round_total :
+        total_count (tally_round valid remaining) = valid.length :=
+      tally_round_total_count_eq_valid_length valid remaining h_pos_rem h_cover_rem
+    simp only [irv_loop] at h_mem
+    by_cases h_len0 : remaining.length = 0
+    · exact absurd h_len0 (Nat.one_le_iff_ne_zero.mp h_pos_rem)
+    rw [if_neg h_len0] at h_mem
+    by_cases h_len1 : remaining.length = 1
+    · rw [if_pos h_len1] at h_mem
+      simp at h_mem
+      rw [h_mem]
+      exact h_tally_round_total
+    rw [if_neg h_len1] at h_mem
+    by_cases h_total0 : total_count (tally_round valid remaining) = 0
+    · rw [if_pos h_total0] at h_mem
+      simp at h_mem
+      rw [h_mem]
+      have h_vl : valid.length = 0 := by
+        rw [← h_tally_round_total, h_total0]
+      rw [h_vl]
+      exact total_count_zero_round cs
+    rw [if_neg h_total0] at h_mem
+    cases h_maj : first_majority_candidate
+        (total_count (tally_round valid remaining) / 2)
+        (tally_round valid remaining) with
+    | some w =>
+      rw [h_maj] at h_mem
+      simp at h_mem
+      rw [h_mem]
+      exact h_tally_round_total
+    | none =>
+      rw [h_maj] at h_mem
+      by_cases h_tie : (candidates_with_count
+          (min_count (tally_round valid remaining))
+          (tally_round valid remaining)).length = remaining.length
+      · rw [if_pos h_tie] at h_mem
+        simp at h_mem
+        rw [h_mem]
+        exact h_tally_round_total
+      rw [if_neg h_tie] at h_mem
+      simp at h_mem
+      rcases h_mem with h_head | h_tail
+      · rw [h_head]
+        exact h_tally_round_total
+      · set losers := candidates_with_count
+            (min_count (tally_round valid remaining))
+            (tally_round valid remaining) with h_losers_def
+        set rem' := remove_from losers remaining with h_rem'_def
+        have h_sub' : ∀ x ∈ rem', x ∈ cs :=
+          fun x h => h_sub x (remove_from_subset losers remaining x h)
+        have h_nodup_rem' : rem'.Nodup := remove_from_nodup losers h_nodup_rem
+        have h_losers_sub : ∀ x ∈ losers, x ∈ remaining := by
+          intro x hx
+          obtain ⟨entry, h_em, h_eq⟩ := candidates_with_count_mem _ _ x hx
+          rw [← h_eq]
+          exact tally_round_candidates_in_remaining valid remaining entry h_em
+        have h_losers_nodup : losers.Nodup :=
+          candidates_with_count_nodup _ _
+            (tally_round_candidates_nodup valid remaining h_nodup_rem)
+        have h_losers_len_le : losers.length ≤ remaining.length :=
+          (List.Nodup.subperm h_losers_nodup h_losers_sub).length_le
+        have h_pos_rem' : 1 ≤ rem'.length := by
+          have h_exists_not : ∃ x ∈ remaining, x ∉ losers := by
+            by_contra h_all
+            have h_all' : ∀ x ∈ remaining, x ∈ losers := by
+              intro x hx
+              by_contra hxn
+              exact h_all ⟨x, hx, hxn⟩
+            have h_ge : remaining.length ≤ losers.length :=
+              (List.Nodup.subperm h_nodup_rem h_all').length_le
+            exact h_tie (Nat.le_antisymm h_losers_len_le h_ge)
+          exact remove_from_length_pos h_exists_not
+        exact ih rem' h_sub' h_nodup_rem' h_pos_rem' rc h_tail
 
 /-! ## Stage 2 obligation theorems (formerly axioms; intent v0.3.3 A5)
 
@@ -928,11 +1066,25 @@ total > 0 at every recursion step (each ballot has a first-active in
 each ballot into exactly one bucket, summing to `valid.length`. -/
 theorem irv_round_counts_sum :
     ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
+      cs.Nodup →
       (∀ p ∈ valid, ∀ c ∈ cs, c ∈ p.snd.ranking) →
       ∀ rc ∈ (IRV_spec valid cs).per_round_counts,
         (rc.foldl (fun acc r => acc + r.count) 0) =
           (IRV_spec valid cs).ballots_tallied := by
-  sorry
+  intro valid cs h_nodup_cs h_cover rc h_mem
+  -- ballots_tallied = valid.length by IRV_spec's construction.
+  show rc.foldl (fun acc r => acc + r.count) 0 = (IRV_spec valid cs).ballots_tallied
+  -- Reduce the foldl form to total_count.
+  rw [foldl_count_eq_total_count]
+  -- Cases on cs empty.
+  unfold IRV_spec at h_mem ⊢
+  by_cases h_cs0 : cs.length = 0
+  · simp [h_cs0] at h_mem
+  · rw [if_neg h_cs0] at h_mem ⊢
+    have h_pos_cs : 1 ≤ cs.length := Nat.one_le_iff_ne_zero.mpr h_cs0
+    -- Apply the loop invariant.
+    exact irv_loop_per_round_total valid cs h_cover
+      (cs.length + 1) cs (fun _ h => h) h_nodup_cs h_pos_cs rc h_mem
 
 /-- Stage 2 elimination-monotonicity obligation (§2.5, §3.1 S9). A
 candidate eliminated at round `i` does not reappear as a `RoundCount`
@@ -1043,13 +1195,13 @@ sum to `ballots_tallied`.
 Hypothesis (intent v0.3.6 A8): every Stage-1-valid ballot covers `cs`
 (Stage 1 validates as permutation; this is the weakest sufficient form). -/
 theorem s8_round_counts_sum
-    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (_h_nodup : cs.Nodup)
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (h_nodup : cs.Nodup)
     (h_cover : ∀ p ∈ (decrypt_and_validate raw cs pk).valid, ∀ c ∈ cs, c ∈ p.snd.ranking) :
     let t := Tally_spec raw cs pk
     ∀ rc ∈ t.per_round_counts,
       (rc.foldl (fun acc r => acc + r.count) 0) = t.ballots_tallied := by
   simp only [Tally_spec]
-  exact irv_round_counts_sum (decrypt_and_validate raw cs pk).valid cs h_cover
+  exact irv_round_counts_sum (decrypt_and_validate raw cs pk).valid cs h_nodup h_cover
 
 /-- S9 — no reappearance (§3.1). A candidate eliminated at round i does
 not appear as a key in `per_round_counts[j]` for any j > i.
