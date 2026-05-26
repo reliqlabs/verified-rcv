@@ -353,6 +353,60 @@ lemma position_of_aux_some_iff (a : Addr) :
         · exact absurd h_eq.symm hx
         · exact (ih (i + 1)).mpr h_rest
 
+/-- `position_of_aux` returns an index strictly less than the walked range.
+Specifically: if `position_of_aux a i xs = some k`, then `i ≤ k` and
+`k < i + xs.length`. Used to derive the `idx < remaining.length` bound
+needed in the S8 cons-additivity proof. -/
+lemma position_of_aux_range (a : Addr) :
+    ∀ (i : Nat) (xs : List Addr) (k : Nat),
+      position_of_aux a i xs = some k → i ≤ k ∧ k < i + xs.length := by
+  intro i xs
+  induction xs generalizing i with
+  | nil => intro k h; simp [position_of_aux] at h
+  | cons x rest ih =>
+    intro k h
+    unfold position_of_aux at h
+    by_cases hx : x = a
+    · simp [hx] at h
+      refine ⟨h ▸ Nat.le_refl _, ?_⟩
+      rw [← h]
+      simp
+    · simp [hx] at h
+      have ⟨h1, h2⟩ := ih (i + 1) k h
+      refine ⟨by omega, ?_⟩
+      simp at *
+      omega
+
+/-- `position_of a xs = some k` ⇒ `k < xs.length`. -/
+lemma position_of_lt_length (a : Addr) (xs : List Addr) (k : Nat) :
+    position_of a xs = some k → k < xs.length := by
+  intro h
+  unfold position_of at h
+  have ⟨_, h2⟩ := position_of_aux_range a 0 xs k h
+  simpa using h2
+
+/-- `first_active_index ranking remaining = some idx` ⇒ `idx < remaining.length`.
+This is the bound that makes the S8 cons-additivity lemma stateable
+without an explicit index-range bracket at the top-level call site. -/
+lemma first_active_index_lt_remaining_length
+    (ranking remaining : List Addr) (idx : Nat) :
+    first_active_index ranking remaining = some idx → idx < remaining.length := by
+  induction ranking with
+  | nil => intro h; simp [first_active_index] at h
+  | cons r rs ih =>
+    intro h
+    unfold first_active_index at h
+    cases h_p : position_of r remaining with
+    | some k =>
+      rw [h_p] at h
+      simp at h
+      rw [← h]
+      exact position_of_lt_length r remaining k h_p
+    | none =>
+      rw [h_p] at h
+      simp at h
+      exact ih h
+
 /-- `first_active_index` returns `some` whenever `ranking` and `remaining`
 share any element. Used inside `first_active_index_defined`. -/
 lemma first_active_index_some_of_intersects
@@ -416,6 +470,89 @@ lemma count_at_index_cons (remaining : List Addr) (k : Nat)
     by_cases h_eq : idx = k
     · simp [h_eq]
     · simp [h_eq]
+
+/-- Indexed cons-additivity of `tally_round_aux`'s total count. Prepending
+a ballot to `valid` changes the total by +1 iff the ballot's first-active
+index in `remaining_full` falls within the walked range `[i, i + cs.length)`.
+
+The walked-range bracket is load-bearing: at deeper recursion `i > 0` and
+`cs ⊊ remaining_full`, the head ballot's first-active may fall outside
+the current walk and not contribute to this slice's total. -/
+lemma tally_round_aux_total_count_cons
+    (p : Addr × Ballot) (rest : List (Addr × Ballot))
+    (remaining_full : List Addr) :
+    ∀ (i : Nat) (cs : List Addr),
+      total_count (tally_round_aux (p :: rest) remaining_full i cs) =
+        total_count (tally_round_aux rest remaining_full i cs) +
+        (match first_active_index p.snd.ranking remaining_full with
+         | some idx => if i ≤ idx ∧ idx < i + cs.length then 1 else 0
+         | none     => 0) := by
+  intro i cs
+  induction cs generalizing i with
+  | nil =>
+    -- tally_round_aux ... i [] = []; total_count [] = 0
+    simp only [tally_round_aux, total_count]
+    cases h_fa : first_active_index p.snd.ranking remaining_full with
+    | none => simp
+    | some idx =>
+      -- bracket: i ≤ idx ∧ idx < i + 0 = i, which means i ≤ idx < i — impossible
+      have : ¬(i ≤ idx ∧ idx < i + ([] : List Addr).length) := by
+        rintro ⟨h1, h2⟩
+        simp at h2
+        omega
+      simp [this]
+  | cons c rest_cs ih =>
+    -- Unfold one level of tally_round_aux: walks head c at index i, then
+    -- recurses on rest_cs at i + 1.
+    unfold tally_round_aux
+    simp only [total_count]
+    -- Head's count distributes via count_at_index_cons.
+    rw [count_at_index_cons]
+    have ih_app := ih (i + 1)
+    -- Case-split on the head ballot's routing.
+    cases h_fa : first_active_index p.snd.ranking remaining_full with
+    | none =>
+      simp only [h_fa] at ih_app ⊢
+      simp at ih_app ⊢
+      omega
+    | some idx =>
+      simp only [h_fa] at ih_app ⊢
+      -- Two-axis case split: (idx = i)? AND (idx in recursive range)?
+      by_cases h_head : idx = i
+      · -- Head fires. Rewrite idx → i so if-conditions become concrete.
+        rw [h_head] at ih_app ⊢
+        rw [if_pos (rfl : i = i)]
+        have h_no_rec : ¬(i + 1 ≤ i ∧ i < i + 1 + rest_cs.length) := by
+          rintro ⟨h1, _⟩; omega
+        have h_cur : i ≤ i ∧ i < i + (c :: rest_cs).length := by
+          refine ⟨Nat.le_refl _, ?_⟩
+          simp
+        rw [if_neg h_no_rec] at ih_app
+        rw [if_pos h_cur]
+        omega
+      · -- Head does not fire (count_at_index head delta = 0).
+        rw [if_neg h_head]
+        by_cases h_in_cur : i ≤ idx ∧ idx < i + (c :: rest_cs).length
+        · -- In current range. Since idx ≠ i, must have i + 1 ≤ idx.
+          have h_ge : i + 1 ≤ idx := by
+            obtain ⟨h1, _⟩ := h_in_cur
+            omega
+          have h_lt : idx < i + 1 + rest_cs.length := by
+            obtain ⟨_, h2⟩ := h_in_cur
+            simp at h2; omega
+          have h_rec : i + 1 ≤ idx ∧ idx < i + 1 + rest_cs.length := ⟨h_ge, h_lt⟩
+          rw [if_pos h_rec] at ih_app
+          rw [if_pos h_in_cur]
+          omega
+        · -- Out of current range. Recursive also out.
+          have h_no_rec : ¬(i + 1 ≤ idx ∧ idx < i + 1 + rest_cs.length) := by
+            rintro ⟨h1, h2⟩
+            apply h_in_cur
+            refine ⟨by omega, ?_⟩
+            simp; omega
+          rw [if_neg h_no_rec] at ih_app
+          rw [if_neg h_in_cur]
+          omega
 
 /-- If `first_majority_candidate threshold rc = some w`, then `w` is one of
 the candidates listed in `rc`. -/
