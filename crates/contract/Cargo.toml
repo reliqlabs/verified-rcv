@@ -28,17 +28,20 @@ library = []
 verification = ["mock-attestation"]
 
 [dependencies]
-cosmwasm-std = { workspace = true, features = ["std", "exports"] }
+cosmwasm-std = { workspace = true, features = ["std", "exports", "stargate", "cosmwasm_2_0"] }
 cosmwasm-schema.workspace = true
 cw-storage-plus.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 hex.workspace = true
-# SHA-256 for the attestation commit-hash check (intent §3.2 B8(c)).
+# SHA-256 for the attestation commit-hash check (intent §3.2 B8(c) / B8(e)).
 # canonical_serialization is hand-rolled to match intent §2.5 v0.3.1 T7
 # byte-for-byte; see `contract::canonical_serialization`.
 sha2 = "0.10"
+# N1 (v0.3.9): protobuf encoding for the QueryVerifyGnarkRequest sent to
+# Xion's xion.zk.v1.Query/ProofVerifyGnark via QueryRequest::Grpc.
+prost = { version = "0.13", default-features = false, features = ["std", "derive"] }
 
 # Shared core types with the enclave (TallyResult schema, Ballot, etc.).
 verified-rcv-enclave-core = { path = "../enclave-core", features = ["serialize"] }

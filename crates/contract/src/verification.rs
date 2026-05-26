@@ -44,10 +44,10 @@ use cosmwasm_std::{Addr, Empty, HexBinary, MessageInfo, OwnedDeps, Timestamp};
 use verified_rcv_enclave_core::{RoundCount, RoundCounts, TallyResult};
 
 use crate::contract::{
-    check_tally_well_formed, derive_phase, exec_publish_result, exec_submit_ballot,
+    build_publish_report_data, build_synthetic_public_inputs, check_tally_well_formed,
+    compute_commit_hash, derive_phase, exec_publish_result, exec_submit_ballot,
 };
 use crate::error::ContractError;
-use crate::msg::AttestationEnvelope;
 use crate::state::{
     Config, Election, EnclaveImageRegistry, Phase, BALLOTS, CONFIG, ELECTION, ELECTION_COUNTER,
     REGISTRY, TALLY_RESULT,
@@ -121,10 +121,36 @@ fn fresh_config() -> Config {
 
 fn fresh_registry() -> EnclaveImageRegistry {
     EnclaveImageRegistry {
-        mrtd: vec![0u8; 48], // TDX SHA-384 length (audit M3)
-        rtmr: vec![0u8; 48],
-        vkey: "verified_rcv_vkey".to_string(),
+        vkey_name: "verified_rcv_vkey".to_string(),
+        mrtd: vec![0u8; 48], // TDX SHA-384 length (audit M3 / N1 schema)
+        rtmr1: vec![0u8; 48],
+        rtmr2: vec![0u8; 48],
+        rtmr0: None,
+        rtmr3: None,
+        accepted_tcb_statuses: vec![0, 1, 2, 3],
     }
+}
+
+/// Synthesize a chain-acceptable publish-quote `(proof, public_inputs)`
+/// pair for `tally` under the fresh registry. The `mock-attestation`
+/// feature (transitively enabled by `verification`) makes
+/// `verify_gnark_proof_via_xion` a no-op, so the proof bytes themselves
+/// are irrelevant — only the layout + commit_hash + DST equality is checked.
+fn fresh_publish_artifacts(
+    contract_addr: &str,
+    election_id: u64,
+    tally: &TallyResult,
+) -> (HexBinary, HexBinary) {
+    let reg = fresh_registry();
+    let commit = compute_commit_hash(contract_addr, election_id, tally);
+    let rd = build_publish_report_data(&commit);
+    let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
+    let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
+    let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
+    let pi = build_synthetic_public_inputs(
+        &mrtd, &[0; 48], &r1, &r2, &[0; 48], &rd, 0, 1_700_000_000,
+    );
+    (HexBinary::from(vec![0xABu8; 192]), HexBinary::from(pi))
 }
 
 /// Owned mock deps with the verified-rcv storage pre-populated to a state
@@ -191,11 +217,15 @@ pub fn b1_tally_result_present_after_publish() {
     assert!(TALLY_RESULT.may_load(&deps.storage).unwrap().is_none());
 
     let tally = minimal_valid_tally();
+    let contract_addr = env.contract.address.to_string();
+    let election_id = ELECTION.load(&deps.storage).unwrap().id;
+    let (proof, pi) = fresh_publish_artifacts(&contract_addr, election_id, &tally);
     let res = exec_publish_result(
         deps.as_mut(),
         env.clone(),
         tally.clone(),
-        AttestationEnvelope::Mock,
+        proof,
+        pi,
     );
 
     if res.is_ok() {
@@ -284,11 +314,16 @@ pub fn s10_resolution_after_end_at() {
     kani::assume(bt < 4_000_000_000_000);
     env.block.time = Timestamp::from_nanos(bt);
 
+    let tally = minimal_valid_tally();
+    let contract_addr = env.contract.address.to_string();
+    let election_id = ELECTION.load(&deps.storage).unwrap().id;
+    let (proof, pi) = fresh_publish_artifacts(&contract_addr, election_id, &tally);
     let res = exec_publish_result(
         deps.as_mut(),
         env.clone(),
-        minimal_valid_tally(),
-        AttestationEnvelope::Mock,
+        tally,
+        proof,
+        pi,
     );
 
     if res.is_ok() {
@@ -364,11 +399,16 @@ pub fn already_resolved_enforced() {
     let initial = minimal_valid_tally();
     TALLY_RESULT.save(&mut deps.storage, &initial).unwrap();
 
+    let tally = minimal_valid_tally();
+    let contract_addr = env.contract.address.to_string();
+    let election_id = ELECTION.load(&deps.storage).unwrap().id;
+    let (proof, pi) = fresh_publish_artifacts(&contract_addr, election_id, &tally);
     let res = exec_publish_result(
         deps.as_mut(),
         env,
-        minimal_valid_tally(),
-        AttestationEnvelope::Mock,
+        tally,
+        proof,
+        pi,
     );
 
     // Post-condition: error is AlreadyResolved.

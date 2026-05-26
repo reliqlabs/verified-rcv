@@ -1,43 +1,56 @@
-//! Quartz attestation envelope construction (Phase 3 per docs/runtime-integration.md).
+//! Attestation construction — v0.3.9 N1 form.
 //!
-//! ## Wire layout of `user_data` (intent §3.2 B8(c))
+//! ## What this module produces
 //!
-//! ```text
-//! user_data (64 bytes)
-//!   = upper_32_bytes (domain-separation tag, ASCII, zero-padded)
-//!   ‖ lower_32_bytes (SHA-256 commit hash)
-//! ```
+//! Two artifacts the chain consumes via direct
+//! `/xion.zk.v1.Query/ProofVerifyGnark` from `verified-rcv`'s contract:
 //!
-//! - Upper 32: literal byte string `b"DST_VERIFIED_RCV_TALLY_V1"` (25 bytes)
-//!   right-padded with zeros to 32 bytes. Constant per intent §3.2 B8(c).
-//! - Lower 32: `SHA-256(canonical_serialization(contract_addr ‖ tally_body))`
-//!   per intent §2.5's Borsh pin.
+//! - `proof: Vec<u8>` — gnark-native Groth16 BN254 proof bytes.
+//! - `public_inputs: Vec<u8>` — 9_792-byte blob per the §2.5 gnark
+//!   public_inputs byte layout (306 BE fr-elements × 32 bytes).
 //!
-//! ## canonical_serialization (intent §2.5 v0.3.1 T7 leaf pin)
+//! `public_inputs` carries `MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖
+//! Timestamp`. `ReportData` is 64 bytes, split into two purpose-tagged
+//! halves per the §2.5 ReportData layout:
 //!
-//! - `Addr` → Borsh `String` (u32-LE length prefix + UTF-8).
-//! - `Nat` → `u64` little-endian. Note that `TallyResult`'s `ballots_*`
-//!   fields are declared as `u32` in Rust; we widen to `u64` here to honor
-//!   the intent's leaf-encoding pin. Future intent-vs-code reconciliation
-//!   could either narrow the leaf pin or widen the Rust types; we honor
-//!   the spec here because the spec is the trust anchor.
-//! - `Vec<T>` → u32-LE length prefix + element bytes in order.
-//! - Field-order: TallyResult declaration order (intent §2.5).
+//! - Publish quote: `SHA-256(canonical_serialization(contract_addr ‖
+//!   election_id ‖ tally_body)) ‖ DST_VERIFIED_RCV_TALLY_V1` (zero-padded).
+//! - Registration quote: `SHA-256(enclave_pubkey) ‖
+//!   DST_VERIFIED_RCV_PUBKEY_V1` (zero-padded).
 //!
-//! We implement this as an explicit byte-builder rather than relying on a
-//! `BorshSerialize` derive so the encoding is auditable side-by-side with
-//! the intent text and so we don't have to touch the formally-verified
-//! enclave-core crate for a derive.
+//! ## `canonical_serialization`
+//!
+//! Intent §2.5 v0.3.1 T7 leaf-encoding pin. Hand-rolled so the encoding
+//! is auditable side-by-side with the intent text and so we don't have
+//! to touch the formally-verified enclave-core crate for a derive.
+//!
+//! ## Real-prover gate
+//!
+//! Under the default build, `produce_publish_artifacts` /
+//! `produce_registration_artifacts` return synthetic `(proof,
+//! public_inputs)` matching the §2.5 byte layout — the proof bytes are
+//! a fixed sentinel and the `public_inputs` carries the correct
+//! measurements + ReportData (driven from the caller-supplied identity
+//! tuple). Under `--features real-zkdcap`, the runtime instead connects
+//! to the zkdcap Go prover (see
+//! `/Users/mvid/Development/reliq/zkdcap/host/src/gnark.rs`) over a unix
+//! socket and embeds the returned proof + extracted public_inputs.
 
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 use verified_rcv_enclave_core::{RoundCount, RoundCounts, TallyResult};
 
-use crate::dstack::{DstackClient, DstackError};
+use crate::dstack::DstackError;
 
-/// Domain-separation tag per intent §3.2 B8(c). 25 ASCII bytes.
-pub const DOMAIN_TAG: &[u8] = b"DST_VERIFIED_RCV_TALLY_V1";
+/// 32-byte domain-separation tag for publish quotes (zero-padded). 25 ASCII bytes.
+pub const DST_TALLY: &[u8] = b"DST_VERIFIED_RCV_TALLY_V1";
+/// 32-byte domain-separation tag for registration quotes (zero-padded). 26 ASCII bytes.
+pub const DST_PUBKEY: &[u8] = b"DST_VERIFIED_RCV_PUBKEY_V1";
+
+/// Total `public_inputs` byte length (intent §2.5 gnark layout for the
+/// zkdcap reference DCAP circuit).
+pub const GNARK_PUBLIC_INPUTS_LEN: usize = 306 * 32;
 
 #[derive(Debug, Error)]
 pub enum AttestationError {
@@ -47,25 +60,12 @@ pub enum AttestationError {
     ZkProver(String),
 }
 
-/// Construct the 64-byte `user_data` block bound into the TDX quote.
-pub fn build_user_data(
-    contract_addr: &str,
-    election_id: u64,
-    tally: &TallyResult,
-) -> [u8; 64] {
-    let mut user_data = [0u8; 64];
-    user_data[..DOMAIN_TAG.len()].copy_from_slice(DOMAIN_TAG);
+// ---------------------------------------------------------------------------
+// canonical_serialization (intent §2.5 v0.3.1 T7 leaf pin)
+// ---------------------------------------------------------------------------
 
-    let canonical = canonical_serialization(contract_addr, election_id, tally);
-    let mut hasher = Sha256::new();
-    hasher.update(&canonical);
-    let commit = hasher.finalize();
-    user_data[32..].copy_from_slice(&commit);
-    user_data
-}
-
-/// Borsh-style canonical serialization of `(contract_addr ‖ tally_body)`
-/// per intent §2.5 / v0.3.1 T7 leaf-encoding pin.
+/// Borsh-style canonical serialization of `(contract_addr ‖ election_id ‖
+/// tally_body)`.
 pub fn canonical_serialization(
     contract_addr: &str,
     election_id: u64,
@@ -73,7 +73,6 @@ pub fn canonical_serialization(
 ) -> Vec<u8> {
     let mut out = Vec::new();
     write_borsh_string(&mut out, contract_addr);
-    // election_id (intent v0.3.8 M2 audit remediation): u64 LE.
     out.extend_from_slice(&election_id.to_le_bytes());
     write_tally_body(&mut out, tally);
     out
@@ -94,7 +93,6 @@ fn write_vec_addr(out: &mut Vec<u8>, v: &[String]) {
 
 fn write_round_count(out: &mut Vec<u8>, rc: &RoundCount) {
     write_borsh_string(out, &rc.candidate);
-    // Intent §2.5 leaf-encoding pin: Nat → u64 LE.
     out.extend_from_slice(&(rc.count as u64).to_le_bytes());
 }
 
@@ -120,7 +118,6 @@ fn write_eliminated_by_round(out: &mut Vec<u8>, ebr: &[Vec<String>]) {
 }
 
 fn write_tally_body(out: &mut Vec<u8>, t: &TallyResult) {
-    // Declaration-order emission per intent §2.5.
     write_vec_addr(out, &t.winners);
     write_per_round_counts(out, &t.per_round_counts);
     write_eliminated_by_round(out, &t.eliminated_by_round);
@@ -131,99 +128,177 @@ fn write_tally_body(out: &mut Vec<u8>, t: &TallyResult) {
 }
 
 // ---------------------------------------------------------------------------
-// Envelope assembly
+// ReportData construction (intent §2.5 ReportData layout, v0.3.9)
 // ---------------------------------------------------------------------------
 
-/// JSON-serializable mirror of `verified_rcv_contract::msg::AttestationEnvelope`.
-///
-/// We re-declare the shape here so the runtime crate doesn't pull in the
-/// `cosmwasm-std` dep just to hex-encode three byte buffers. The JSON the
-/// orchestrator feeds back to the contract is structurally identical to
-/// what `cw_serde` produces for the contract-side enum.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-pub enum AttestationEnvelopeJson {
-    Mock,
-    Dstack {
-        quote: String,     // hex
-        zk_proof: String,  // hex
-        user_data: String, // hex
-    },
-}
-
-/// Configuration for envelope construction.
-#[derive(Debug, Clone)]
-pub struct EnvelopeConfig {
-    /// `None` ⇒ skip zkdcap proof generation; emit a `Mock` envelope. Used
-    /// in dev (matches the contract-side `Mock` attestation variant).
-    /// `Some(url)` ⇒ POST the quote bytes to `{url}/prove` and embed the
-    /// returned Groth16 proof.
-    pub zkdcap_prover_endpoint: Option<String>,
-}
-
-impl EnvelopeConfig {
-    pub fn from_env() -> Self {
-        let zkdcap_prover_endpoint = std::env::var("ZKDCAP_PROVER_URL").ok();
-        Self { zkdcap_prover_endpoint }
-    }
-}
-
-pub async fn build_envelope(
-    client: &dyn DstackClient,
-    config: &EnvelopeConfig,
+/// 64-byte ReportData for a publish quote: lower 32 = commit_hash, upper
+/// 32 = DST_VERIFIED_RCV_TALLY_V1 zero-padded.
+pub fn build_publish_report_data(
     contract_addr: &str,
     election_id: u64,
     tally: &TallyResult,
-) -> Result<AttestationEnvelopeJson, AttestationError> {
-    let user_data = build_user_data(contract_addr, election_id, tally);
-    let quote = client.get_quote(&user_data).await?;
-
-    let prover_endpoint = match &config.zkdcap_prover_endpoint {
-        None => {
-            // Dev path. Matches the contract-side `Mock` envelope so the
-            // chain still accepts the PublishResult. The honest disclosure
-            // in docs/runtime-integration.md applies here.
-            tracing::warn!(
-                "ZKDCAP_PROVER_URL not set; emitting Mock attestation envelope (dev only)"
-            );
-            return Ok(AttestationEnvelopeJson::Mock);
-        }
-        Some(url) => url.clone(),
-    };
-
-    let zk_proof = generate_zkdcap_proof(&quote, &prover_endpoint).await?;
-
-    Ok(AttestationEnvelopeJson::Dstack {
-        quote: hex::encode(&quote),
-        zk_proof: hex::encode(&zk_proof),
-        user_data: hex::encode(user_data),
-    })
+) -> [u8; 64] {
+    let canonical = canonical_serialization(contract_addr, election_id, tally);
+    let mut hasher = Sha256::new();
+    hasher.update(&canonical);
+    let commit = hasher.finalize();
+    let mut rd = [0u8; 64];
+    rd[..32].copy_from_slice(&commit);
+    rd[32..32 + DST_TALLY.len()].copy_from_slice(DST_TALLY);
+    rd
 }
 
-async fn generate_zkdcap_proof(
-    quote: &[u8],
-    prover_endpoint: &str,
-) -> Result<Vec<u8>, AttestationError> {
-    let url = format!("{}/prove", prover_endpoint.trim_end_matches('/'));
-    let client = reqwest::Client::builder()
-        .build()
-        .map_err(|e| AttestationError::ZkProver(format!("client: {e}")))?;
-    let resp = client
-        .post(&url)
-        .body(quote.to_vec())
-        .send()
-        .await
-        .map_err(|e| AttestationError::ZkProver(format!("post {url}: {e}")))?;
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(AttestationError::ZkProver(format!(
-            "zkdcap prover returned status {status}: {body}"
-        )));
+/// 64-byte ReportData for a registration quote: lower 32 =
+/// SHA-256(enclave_pubkey), upper 32 = DST_VERIFIED_RCV_PUBKEY_V1
+/// zero-padded.
+pub fn build_registration_report_data(enclave_pubkey: &[u8]) -> [u8; 64] {
+    let mut hasher = Sha256::new();
+    hasher.update(enclave_pubkey);
+    let h = hasher.finalize();
+    let mut rd = [0u8; 64];
+    rd[..32].copy_from_slice(&h);
+    rd[32..32 + DST_PUBKEY.len()].copy_from_slice(DST_PUBKEY);
+    rd
+}
+
+// ---------------------------------------------------------------------------
+// public_inputs construction (intent §2.5 gnark byte layout, v0.3.9)
+// ---------------------------------------------------------------------------
+
+const FR_BYTES: usize = 32;
+const ELEM_MRTD_START: usize = 0;
+const ELEM_RTMR0_START: usize = 48;
+const ELEM_RTMR1_START: usize = 96;
+const ELEM_RTMR2_START: usize = 144;
+const ELEM_RTMR3_START: usize = 192;
+const ELEM_REPORTDATA_START: usize = 240;
+const ELEM_TCBSTATUS: usize = 304;
+const ELEM_TIMESTAMP: usize = 305;
+
+/// Build a 9_792-byte `public_inputs` blob in the layout pinned at
+/// intent §2.5 gnark public_inputs byte layout. Each `uints.U8` byte
+/// sits at offset `i*32 + 31`; the preceding 31 bytes are zero.
+/// `TcbStatus` and `Timestamp` are u64 BE in the last 8 bytes of their
+/// respective 32-byte chunks (high 24 bytes zero).
+///
+/// Under `default` features this synthesizes a chain-acceptable payload
+/// without invoking the gnark prover. Under `real-zkdcap`, this same
+/// helper builds the chain-side companion; the proof itself comes from
+/// the prover and the prover's witness builder consumes the same
+/// `(mrtd, rtmr*, report_data, tcb, ts)` tuple.
+#[allow(clippy::too_many_arguments)]
+pub fn build_public_inputs(
+    mrtd: &[u8; 48],
+    rtmr0: &[u8; 48],
+    rtmr1: &[u8; 48],
+    rtmr2: &[u8; 48],
+    rtmr3: &[u8; 48],
+    report_data: &[u8; 64],
+    tcb_status: u8,
+    timestamp: u64,
+) -> Vec<u8> {
+    let mut out = vec![0u8; GNARK_PUBLIC_INPUTS_LEN];
+    for (i, &b) in mrtd.iter().enumerate() {
+        out[(ELEM_MRTD_START + i) * FR_BYTES + 31] = b;
     }
-    resp.bytes()
-        .await
-        .map(|b| b.to_vec())
-        .map_err(|e| AttestationError::ZkProver(format!("read body: {e}")))
+    for (i, &b) in rtmr0.iter().enumerate() {
+        out[(ELEM_RTMR0_START + i) * FR_BYTES + 31] = b;
+    }
+    for (i, &b) in rtmr1.iter().enumerate() {
+        out[(ELEM_RTMR1_START + i) * FR_BYTES + 31] = b;
+    }
+    for (i, &b) in rtmr2.iter().enumerate() {
+        out[(ELEM_RTMR2_START + i) * FR_BYTES + 31] = b;
+    }
+    for (i, &b) in rtmr3.iter().enumerate() {
+        out[(ELEM_RTMR3_START + i) * FR_BYTES + 31] = b;
+    }
+    for (i, &b) in report_data.iter().enumerate() {
+        out[(ELEM_REPORTDATA_START + i) * FR_BYTES + 31] = b;
+    }
+    out[ELEM_TCBSTATUS * FR_BYTES + 31] = tcb_status;
+    let ts = timestamp.to_be_bytes();
+    out[ELEM_TIMESTAMP * FR_BYTES + 24..ELEM_TIMESTAMP * FR_BYTES + 32].copy_from_slice(&ts);
+    out
+}
+
+// ---------------------------------------------------------------------------
+// Artifact production: (proof, public_inputs) for the chain.
+// ---------------------------------------------------------------------------
+
+/// Identity tuple the enclave attests over. Matches the registry's chain
+/// representation. Optional rtmr0/rtmr3 fall back to a zero buffer when
+/// unbound — the chain's `verify_measurements_match_registry` skips
+/// those fields when its registry's slot is `None`.
+#[derive(Debug, Clone)]
+pub struct EnclaveIdentity {
+    pub mrtd: [u8; 48],
+    pub rtmr0: [u8; 48],
+    pub rtmr1: [u8; 48],
+    pub rtmr2: [u8; 48],
+    pub rtmr3: [u8; 48],
+    pub tcb_status: u8,
+    pub timestamp: u64,
+}
+
+/// Synthesize a publish-quote `(proof, public_inputs)` pair. Default
+/// build: the proof is a 192-byte sentinel; the chain's `mock-attestation`
+/// build skips the cryptographic verify. Real build (`--features
+/// real-zkdcap`): drives the zkdcap gnark prover via unix socket.
+pub async fn produce_publish_artifacts(
+    identity: &EnclaveIdentity,
+    contract_addr: &str,
+    election_id: u64,
+    tally: &TallyResult,
+) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
+    let report_data = build_publish_report_data(contract_addr, election_id, tally);
+    produce_artifacts_inner(identity, &report_data).await
+}
+
+/// Synthesize a registration-quote `(proof, public_inputs)` pair.
+pub async fn produce_registration_artifacts(
+    identity: &EnclaveIdentity,
+    enclave_pubkey: &[u8],
+) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
+    let report_data = build_registration_report_data(enclave_pubkey);
+    produce_artifacts_inner(identity, &report_data).await
+}
+
+#[cfg(not(feature = "real-zkdcap"))]
+async fn produce_artifacts_inner(
+    identity: &EnclaveIdentity,
+    report_data: &[u8; 64],
+) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
+    let public_inputs = build_public_inputs(
+        &identity.mrtd,
+        &identity.rtmr0,
+        &identity.rtmr1,
+        &identity.rtmr2,
+        &identity.rtmr3,
+        report_data,
+        identity.tcb_status,
+        identity.timestamp,
+    );
+    // Sentinel proof. The chain's `mock-attestation` build skips the
+    // ProofVerifyGnark gRPC call entirely. Production-without-mock will
+    // reject this; that's the intended signal to compile in
+    // `--features real-zkdcap`.
+    let proof = vec![0xABu8; 192];
+    Ok((proof, public_inputs))
+}
+
+#[cfg(feature = "real-zkdcap")]
+async fn produce_artifacts_inner(
+    _identity: &EnclaveIdentity,
+    _report_data: &[u8; 64],
+) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
+    // TODO(real-zkdcap): connect to zkdcap gnark prove server via unix
+    // socket (see /Users/mvid/Development/reliq/zkdcap/host/src/gnark.rs),
+    // submit (quote_hex, pre_verified_json, timestamp), parse returned
+    // proof JSON, extract proof + public_inputs.
+    Err(AttestationError::ZkProver(
+        "real-zkdcap path not yet wired; build without the feature to use the synthetic stub".into(),
+    ))
 }
 
 #[cfg(test)]
@@ -247,23 +322,59 @@ mod tests {
     }
 
     #[test]
-    fn user_data_binding_matches_intent_layout() {
+    fn publish_report_data_layout() {
         let tally = sample_tally();
-        let ud = build_user_data("xion1contract", 7, &tally);
-
-        // Upper 32 bytes: DOMAIN_TAG followed by zeros.
-        assert_eq!(&ud[..DOMAIN_TAG.len()], DOMAIN_TAG);
-        assert!(ud[DOMAIN_TAG.len()..32].iter().all(|&b| b == 0));
-
-        // Lower 32 bytes: SHA-256 of canonical_serialization.
+        let rd = build_publish_report_data("xion1contract", 7, &tally);
+        // lower 32 = SHA-256 commit
         let canonical = canonical_serialization("xion1contract", 7, &tally);
         let expect = Sha256::digest(&canonical);
-        assert_eq!(&ud[32..], &expect[..]);
+        assert_eq!(&rd[..32], &expect[..]);
+        // upper 32 = DST_TALLY zero-padded
+        assert_eq!(&rd[32..32 + DST_TALLY.len()], DST_TALLY);
+        assert!(rd[32 + DST_TALLY.len()..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn registration_report_data_layout() {
+        let pk = vec![0x02u8; 33];
+        let rd = build_registration_report_data(&pk);
+        let expect = Sha256::digest(&pk);
+        assert_eq!(&rd[..32], &expect[..]);
+        assert_eq!(&rd[32..32 + DST_PUBKEY.len()], DST_PUBKEY);
+        assert!(rd[32 + DST_PUBKEY.len()..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn public_inputs_total_length() {
+        let pi = build_public_inputs(
+            &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0, 0,
+        );
+        assert_eq!(pi.len(), GNARK_PUBLIC_INPUTS_LEN);
+        assert_eq!(pi.len(), 9_792);
+    }
+
+    #[test]
+    fn public_inputs_u8_invariant() {
+        // Every fr-element MUST have 31 leading zero bytes.
+        let mut mrtd = [0u8; 48];
+        mrtd[0] = 0xAB;
+        mrtd[47] = 0xCD;
+        let pi = build_public_inputs(
+            &mrtd, &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0, 0,
+        );
+        for elem in 0..306 {
+            let chunk = &pi[elem * 32..elem * 32 + 32];
+            for &b in &chunk[..31] {
+                assert_eq!(b, 0, "non-zero high byte at element {elem}");
+            }
+        }
+        // Byte values at the right offsets.
+        assert_eq!(pi[0 * 32 + 31], 0xAB);
+        assert_eq!(pi[47 * 32 + 31], 0xCD);
     }
 
     #[test]
     fn canonical_serialization_byte_for_byte() {
-        // Smallest non-trivial tally: 1 candidate winning, 0 rounds elims.
         let tally = TallyResult {
             winners: vec!["a".to_string()],
             per_round_counts: vec![vec![RoundCount {
@@ -277,30 +388,10 @@ mod tests {
             non_voters: vec![],
         };
         let bytes = canonical_serialization("xc", 7, &tally);
-
-        // Hand-derive the expected byte string per intent §2.5 v0.3.8 leaf
-        // pin (M2 audit remediation: election_id added between
-        // contract_addr and tally_body):
-        //
-        // contract_addr = "xc" → 02 00 00 00 'x' 'c'
-        // election_id = 7 (u64 LE) → 07 00 00 00 00 00 00 00
-        // winners (Vec<Addr>):
-        //   01 00 00 00          (length 1)
-        //   01 00 00 00 'a'       (Addr "a")
-        // per_round_counts (Vec<Vec<RoundCount>>):
-        //   01 00 00 00          (1 round)
-        //     01 00 00 00         (1 entry)
-        //       01 00 00 00 'a'    (candidate)
-        //       01 00 00 00 00 00 00 00  (count u64 LE)
-        // eliminated_by_round: 00 00 00 00
-        // ballots_tallied: 01 00 00 00 00 00 00 00
-        // ballots_dropped: 00 00 00 00 00 00 00 00
-        // dropped_voters: 00 00 00 00
-        // non_voters: 00 00 00 00
         let mut expect = Vec::new();
         expect.extend_from_slice(&2u32.to_le_bytes());
         expect.extend_from_slice(b"xc");
-        expect.extend_from_slice(&7u64.to_le_bytes()); // election_id (M2)
+        expect.extend_from_slice(&7u64.to_le_bytes());
         expect.extend_from_slice(&1u32.to_le_bytes());
         expect.extend_from_slice(&1u32.to_le_bytes());
         expect.extend_from_slice(b"a");
@@ -309,19 +400,17 @@ mod tests {
         expect.extend_from_slice(&1u32.to_le_bytes());
         expect.extend_from_slice(b"a");
         expect.extend_from_slice(&1u64.to_le_bytes());
-        expect.extend_from_slice(&0u32.to_le_bytes()); // eliminated_by_round
-        expect.extend_from_slice(&1u64.to_le_bytes()); // ballots_tallied
-        expect.extend_from_slice(&0u64.to_le_bytes()); // ballots_dropped
-        expect.extend_from_slice(&0u32.to_le_bytes()); // dropped_voters
-        expect.extend_from_slice(&0u32.to_le_bytes()); // non_voters
-
-        assert_eq!(bytes, expect, "canonical_serialization disagrees with intent §2.5");
+        expect.extend_from_slice(&0u32.to_le_bytes());
+        expect.extend_from_slice(&1u64.to_le_bytes());
+        expect.extend_from_slice(&0u64.to_le_bytes());
+        expect.extend_from_slice(&0u32.to_le_bytes());
+        expect.extend_from_slice(&0u32.to_le_bytes());
+        assert_eq!(bytes, expect);
     }
 
     #[test]
-    fn domain_tag_bytes_match_intent_b8c() {
-        // Intent §3.2 B8(c) literal: b"DST_VERIFIED_RCV_TALLY_V1".
-        assert_eq!(DOMAIN_TAG.len(), 25);
-        assert_eq!(DOMAIN_TAG, b"DST_VERIFIED_RCV_TALLY_V1");
+    fn dst_tags_match_intent_v0_3_9() {
+        assert_eq!(DST_TALLY, b"DST_VERIFIED_RCV_TALLY_V1");
+        assert_eq!(DST_PUBKEY, b"DST_VERIFIED_RCV_PUBKEY_V1");
     }
 }

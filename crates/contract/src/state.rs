@@ -1,4 +1,6 @@
-//! Contract storage schema (verified-rcv intent §2.5).
+//! Contract storage schema (verified-rcv intent §2.5; v0.3.9 N1 update for
+//! gnark `ProofVerifyGnark` integration — `EnclaveImageRegistry` adopts the
+//! split RTMR + optional-slot + accepted-TCB shape).
 //!
 //! The derived `Phase` enum is **not stored** — it is computed at query time
 //! from `(block.time, start_at, end_at, tally_result.is_some())` per the
@@ -11,7 +13,8 @@ use cw_storage_plus::{Item, Map};
 
 use verified_rcv_enclave_core::TallyResult;
 
-/// Contract-wide configuration. Set at instantiate, never mutated.
+/// Contract-wide configuration. Set at instantiate; admin may rotate registry
+/// later via `UpdateRegistry` (M3) but Config itself is immutable.
 #[cw_serde]
 pub struct Config {
     pub admin: Addr,
@@ -36,14 +39,11 @@ pub enum Phase {
     Resolved,
 }
 
-/// Election storage. Single-election contract; `CreateElection` overwrites
-/// (admin-only) — intent v0.3.4 §2.5 Block 1 (alternate path).
-///
-/// `enclave_pubkey` is the dstack-KMS-derived public key for this election
-/// (intent §2.5 state variables; §6.3 trust boundary). Stored at
-/// `CreateElection` time; the corresponding privkey is released by dstack
-/// only after the enclave attests at tally time. Voters fetch this field
-/// at `SubmitBallot` time and ECIES-encrypt their preference list under it.
+/// Election storage. The contract holds at most one active election at a
+/// time; `CreateElection` is admin-only (M1) and refuses to clobber an
+/// election in Voting or Tallying phase. `enclave_pubkey` is bound to a
+/// registration TDX quote at `CreateElection` time per B8(e) (v0.3.9) —
+/// the admin no longer picks the pubkey freely.
 #[cw_serde]
 pub struct Election {
     pub id: u64,
@@ -56,31 +56,60 @@ pub struct Election {
     pub start_at: Timestamp,
     pub end_at: Timestamp,
     pub ballot_count: u32,
-    /// dstack-KMS-derived ECIES public key for this election. Set at
-    /// `CreateElection` (admin obtains via dstack key-derivation against
-    /// contract_addr + election_id, before the enclave is invoked).
+    /// dstack-derived ECIES public key for this election. v0.3.9 N1: bound
+    /// to a TDX quote via the registration `(proof, public_inputs)` carried
+    /// by `CreateElection`. The chain verifies that the quote's
+    /// `ReportData[0..32] = SHA-256(enclave_pubkey)` and that the quote
+    /// originates from an enclave whose measurements match the registry.
     pub enclave_pubkey: HexBinary,
 }
 
-/// Image-identity-binding registry per intent §6.1. Set at instantiate
-/// (verified-rcv chooses the simpler "register-at-instantiate" trust model
-/// rather than the Quartz dynamic-handshake model); never mutated.
+/// Image-identity-binding registry per intent §6.1 (v0.3.9 N1 schema).
 ///
-/// `image_registration_honest(σ)` in the Quint spec is the predicate that
-/// these three fields equal the canonical values for the audited enclave
-/// image. The contract does NOT enforce this on its own — the operator
-/// is expected to register the canonical values at instantiate; if they
-/// register adversarial values the chain has no recourse (per §4.3a/b).
+/// The chain-side verification surface for B8 clauses (a) — (d):
+/// - `vkey_name` resolves an entry in Xion's on-chain `xion.zk` VKey store.
+///   verified-rcv's contract calls `/xion.zk.v1.Query/ProofVerifyGnark`
+///   referencing this name; the actual vkey bytes live in the zk module.
+/// - `mrtd`, `rtmr1`, `rtmr2` are 48-byte TDX SHA-384 measurements that
+///   the chain bytewise compares to the corresponding fields extracted
+///   from the gnark proof's `public_inputs`.
+/// - `rtmr0`, `rtmr3` are optional. `None` means "do not enforce" — the
+///   gnark circuit still binds them in the proof, but the chain skips the
+///   equality check. Mirrors zkdcap-verifier's `check_rtmr0` convention.
+/// - `accepted_tcb_statuses` lists the TCB severity values (0..=6) the
+///   chain accepts. Default in `validate_registry` is `{0,1,2,3}` — the
+///   "configuration / SW hardening" classes. Severity 6 (Revoked) is
+///   additionally hard-rejected by the gnark circuit itself.
+///
+/// `image_registration_honest(σ)` in the intent is the predicate that
+/// (i) verified-rcv's registry has the canonical values AND (ii) the
+/// xion.zk store binds the canonical vkey bytes under `vkey_name`. Both
+/// surfaces are admin/governance-controlled; the contract enforces shape
+/// only.
 #[cw_serde]
 pub struct EnclaveImageRegistry {
-    /// TDX measurement: the enclave-image identity component.
+    /// Name of the gnark vkey registered in Xion's on-chain `xion.zk`
+    /// VKey store. Used as `vkey_name` in `QueryVerifyGnarkRequest`.
+    pub vkey_name: String,
+    /// TDX MRTD (SHA-384, 48 bytes): the enclave image identity component.
     pub mrtd: Vec<u8>,
-    /// TDX runtime-measurement register: per-deployment image binding.
-    pub rtmr: Vec<u8>,
-    /// Verification key name as registered in Xion's ZK module (used by
-    /// the gnark Groth16 verifier through the chain-side ProofVerifyGnark
-    /// query).
-    pub vkey: String,
+    /// TDX RTMR1 (SHA-384, 48 bytes): mandatory runtime measurement.
+    pub rtmr1: Vec<u8>,
+    /// TDX RTMR2 (SHA-384, 48 bytes): mandatory runtime measurement.
+    pub rtmr2: Vec<u8>,
+    /// TDX RTMR0 (SHA-384, 48 bytes): optional. `None` = chain does not
+    /// enforce equality (firmware measurement; operator-controlled,
+    /// frequently left unbound).
+    pub rtmr0: Option<Vec<u8>>,
+    /// TDX RTMR3 (SHA-384, 48 bytes): optional. `None` = chain does not
+    /// enforce equality (workload-extended; sometimes unbound for stable
+    /// deployments).
+    pub rtmr3: Option<Vec<u8>>,
+    /// TCB severity values the chain accepts (0=UpToDate .. 6=Revoked).
+    /// Empty `Vec` is rejected at validation (operator must opt in to at
+    /// least one severity); 6 is rejected at validation (Revoked is
+    /// circuit-hard-rejected anyway).
+    pub accepted_tcb_statuses: Vec<u8>,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

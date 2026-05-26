@@ -5,6 +5,14 @@ edition.workspace = true
 authors.workspace = true
 description = "Runtime wrapper for verified-rcv enclave — wires Tally_spec core to dstack TDX + Quartz attestation"
 
+[features]
+# Default: no real zkdcap gnark prover. The runtime produces synthetic
+# `(proof, public_inputs)` matching the v0.3.9 §2.5 byte layout — used by
+# tests + dev. When `real-zkdcap` is on, the runtime connects to the
+# zkdcap Go prover via unix socket (see /Users/mvid/Development/reliq/zkdcap/host/src/gnark.rs).
+default = []
+real-zkdcap = []
+
 [lib]
 name = "verified_rcv_enclave"
 path = "src/lib.rs"

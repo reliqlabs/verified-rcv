@@ -4,15 +4,20 @@
 //! transported (it is derived per intent v0.3.2 A2); `CreateElection` is the
 //! Block 1 alternate path; `CloseAndTally` is intent §2.5 Block 5.
 //!
-//! Audit-finding remediations (2026-05-26):
-//! - C1: `AttestationEnvelope::Mock` is now compile-time-excluded from the
-//!   production build. The variant only exists when the `mock-attestation`
-//!   feature is enabled (tests / dev / Kani-harness builds opt in). The
-//!   default build's wasm has no Mock arm; the contract's match is
-//!   exhaustive over Dstack alone.
-//! - M3: `UpdateRegistry` execute message added so the operator can rotate
-//!   `(mrtd, rtmr, vkey)` between elections (gated by `exec_update_registry`
-//!   to phases where no election is active).
+//! Audit-finding remediations (2026-05-26 v0.3.8):
+//! - C1: `AttestationEnvelope::Mock` was compile-time-excluded from the
+//!   production build. **Superseded by N1 below** — the entire envelope
+//!   wrapper is gone in v0.3.9; the `mock-attestation` cargo feature now
+//!   gates the contract's `xion.zk` gRPC call instead.
+//! - M3: `UpdateRegistry` execute message remains.
+//!
+//! N1 audit re-review remediation (2026-05-26 v0.3.9):
+//! - `DstackEnvelope` / `AttestationEnvelope` removed.
+//! - `PublishResult` and `CreateElection` now carry `proof: HexBinary` and
+//!   `public_inputs: HexBinary` (the gnark Groth16 proof bytes and the
+//!   9_792-byte `public_inputs` blob per intent §2.5 byte layout).
+//! - Verification routes through `/xion.zk.v1.Query/ProofVerifyGnark`
+//!   directly from the contract (see `contract::verify_gnark_proof`).
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, HexBinary, Timestamp};
@@ -28,9 +33,11 @@ use crate::state::EnclaveImageRegistry;
 pub struct InstantiateMsg {
     /// Admin address; defaults to `msg.sender` when `None`.
     pub admin: Option<Addr>,
-    /// Image-identity-binding registry per intent §6.1. Set at instantiate;
-    /// can be rotated later via `UpdateRegistry` when no election is active
-    /// (M3 audit remediation). Shape-validated at instantiate time.
+    /// Image-identity-binding registry per intent §6.1 (v0.3.9 schema:
+    /// `vkey_name` + 48-byte mrtd/rtmr1/rtmr2 + optional rtmr0/rtmr3 +
+    /// accepted_tcb_statuses). Set at instantiate; can be rotated later
+    /// via `UpdateRegistry` when no election is active (M3 audit
+    /// remediation). Shape-validated at instantiate time.
     pub registry: EnclaveImageRegistry,
     /// Block 1 parameter — voting window duration recorded on Config.
     /// Per-election `start_at` and `end_at` are supplied via
@@ -47,18 +54,25 @@ pub enum ExecuteMsg {
     /// (i.e., the phase is initial-Created OR Resolved). Voting/Tallying
     /// phases reject this call to avoid B1 violations across re-creations.
     ///
-    /// `enclave_pubkey` is the dstack-KMS-derived ECIES public key for this
-    /// election. Admin obtains it from dstack before calling this handler;
-    /// the contract length-validates (audit C3) but does not cryptographically
-    /// verify provenance — the admin trust boundary covers this (intent §6.3
-    /// `dstack_kms_trust`). Future cycles: require a dstack-KMS-signed
-    /// provenance proof at this handler.
+    /// N1 v0.3.9 amendment: `enclave_pubkey` is now cryptographically
+    /// bound to a TDX quote via B8(e) — the `proof` + `public_inputs`
+    /// carry a registration quote whose `ReportData[0..32]` equals
+    /// `SHA-256(enclave_pubkey)` and whose measurements match the
+    /// `EnclaveImageRegistry`. Admin can no longer pick an arbitrary
+    /// pubkey; the pubkey must come from a TDX enclave whose code
+    /// measures to the registered MRTD/RTMR.
     CreateElection {
         title: String,
         candidates: Vec<Addr>,
         start_at: Timestamp,
         end_at: Timestamp,
         enclave_pubkey: HexBinary,
+        /// Gnark Groth16 BN254 proof bytes (registration quote).
+        proof: HexBinary,
+        /// 9_792-byte `public_inputs` blob per intent §2.5 gnark byte
+        /// layout. Carries MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖
+        /// Timestamp as 306 BE fr-elements.
+        public_inputs: HexBinary,
     },
 
     /// Block 3: voter submits a ballot ciphertext. `msg.sender` must be a
@@ -75,12 +89,24 @@ pub enum ExecuteMsg {
     ///
     /// Trigger semantics per intent §2.5 Block 6: **any chain address may
     /// submit**; the enclave identity is verified via the carried
-    /// `attestation`, not via `msg.sender`. A replay of the enclave's
-    /// `(tally, attestation)` from a different sender finalises the same
-    /// result, so it is a no-op.
+    /// `(proof, public_inputs)`, not via `msg.sender`. A replay of the
+    /// enclave's `(tally, proof, public_inputs)` from a different sender
+    /// finalises the same result, so it is a no-op (replay-protection by
+    /// B1 + `AlreadyResolved` rejection).
+    ///
+    /// N1 v0.3.9 amendment: the prior `attestation: DstackAttestation`
+    /// wrapper is removed; the gnark proof + public_inputs are carried
+    /// directly. Verification goes through
+    /// `/xion.zk.v1.Query/ProofVerifyGnark` + measurement extraction +
+    /// `ReportData[0..32] = commit_hash` equality + `ReportData[32..64] =
+    /// DST_VERIFIED_RCV_TALLY_V1_PADDED` equality.
     PublishResult {
         tally: TallyResult,
-        attestation: AttestationEnvelope,
+        /// Gnark Groth16 BN254 proof bytes (publish quote).
+        proof: HexBinary,
+        /// 9_792-byte `public_inputs` blob per intent §2.5 gnark byte
+        /// layout.
+        public_inputs: HexBinary,
     },
 
     /// M3 audit remediation: admin-only registry rotation. Gated on no
@@ -88,43 +114,6 @@ pub enum ExecuteMsg {
     /// upgrade the enclave image between elections without re-instantiating
     /// the contract.
     UpdateRegistry { registry: EnclaveImageRegistry },
-}
-
-/// Attestation envelope per intent §6.1. Concretely, this is the chain-side
-/// shape that B8 clauses (a)-(d) verify.
-///
-/// **Audit remediation C1 (2026-05-26)**: `Mock` is compile-time-gated
-/// behind the `mock-attestation` cargo feature. Production builds
-/// (`default-features = []` or empty feature set) do NOT include the
-/// `Mock` variant — the enum has only `Dstack` and any incoming
-/// `{"mock": ...}` payload deserializes to an error.
-///
-/// **Audit remediation C2 (2026-05-26)**: the `Dstack` variant now has
-/// real verification on-chain — domain-tag check + commit-hash equality
-/// against `SHA-256(canonical_serialization(contract_addr ‖ election_id ‖
-/// tally_body))` (intent §2.5 v0.3.8 form). Groth16 zkdcap verification
-/// + MRTD/RTMR-vs-registry binding are queued for a follow-on cycle that
-/// integrates Xion's `ProofVerifyGnark` module.
-#[cw_serde]
-pub enum AttestationEnvelope {
-    /// Mock attestation — accepts any tally. **Dev/test ONLY**, gated
-    /// behind the `mock-attestation` Cargo feature. NEVER in production.
-    #[cfg(feature = "mock-attestation")]
-    Mock,
-    /// Real dstack attestation. Currently verifies the user_data binding
-    /// (domain tag + commit hash); full TDX-quote + zkdcap-proof
-    /// verification follows.
-    Dstack {
-        /// TDX quote bytes.
-        quote: HexBinary,
-        /// zkdcap Groth16 proof bytes.
-        zk_proof: HexBinary,
-        /// 64 bytes: upper 32 = domain-separation tag
-        /// `DST_VERIFIED_RCV_TALLY_V1` (zero-padded); lower 32 =
-        /// SHA-256 over `canonical_serialization(contract_addr ‖
-        /// election_id ‖ tally_body)` per intent §2.5 v0.3.8.
-        user_data: HexBinary,
-    },
 }
 
 #[cw_serde]

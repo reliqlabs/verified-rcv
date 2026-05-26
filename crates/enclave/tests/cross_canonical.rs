@@ -5,8 +5,8 @@
 //! we duplicate the implementation rather than share it via a third crate.
 //! This test is the canary that catches divergence.
 //!
-//! Per the audit-finding remediation (2026-05-26 M2): canonical_serialization
-//! now includes `election_id` between `contract_addr` and `tally_body`.
+//! v0.3.9 N1 update: also cross-checks the v0.3.9 ReportData /
+//! public_inputs construction across the runtime and contract crates.
 
 use verified_rcv_contract::contract as contract_impl;
 use verified_rcv_enclave::attestation as runtime_impl;
@@ -55,9 +55,6 @@ fn canonical_serialization_election_id_affects_bytes() {
 
 #[test]
 fn canonical_serialization_empty_tally_election_id_only() {
-    // Minimal tally; election_id is the only difference. Verifies the
-    // u64 LE election_id is in the right structural position (between
-    // contract_addr and tally_body).
     let tally = TallyResult {
         winners: vec![],
         per_round_counts: vec![],
@@ -69,10 +66,6 @@ fn canonical_serialization_empty_tally_election_id_only() {
     };
     let bytes_e1 = runtime_impl::canonical_serialization("a", 1, &tally);
     let bytes_e2 = runtime_impl::canonical_serialization("a", 2, &tally);
-
-    // The election_id is 8 bytes after the contract_addr String (4-byte
-    // length + 1 byte "a" = 5 bytes). So position 5..13 of the output is
-    // election_id LE.
     assert_eq!(bytes_e1[0..5], bytes_e2[0..5]); // contract_addr identical
     assert_eq!(bytes_e1[5..13], 1u64.to_le_bytes());
     assert_eq!(bytes_e2[5..13], 2u64.to_le_bytes());
@@ -80,21 +73,70 @@ fn canonical_serialization_empty_tally_election_id_only() {
 }
 
 #[test]
-fn build_user_data_commit_hash_matches_contract_compute() {
-    // Cross-test: the runtime's build_user_data lower 32 bytes equal the
-    // contract's compute_commit_hash. This is the load-bearing fact for
-    // C2 envelope binding.
+fn commit_hash_matches_runtime_publish_report_data() {
+    // v0.3.9 N1: the contract's `compute_commit_hash` lower 32 must equal
+    // the runtime's `build_publish_report_data` lower 32 (the SHA-256 over
+    // canonical_serialization). This is the load-bearing equivalence for
+    // B8(c) under the gnark path.
     use sha2::{Digest, Sha256};
-
     let tally = sample_tally();
-    let ud = runtime_impl::build_user_data("xion1c", 7, &tally);
-    let commit_lower = &ud[32..];
-
     let contract_commit = contract_impl::compute_commit_hash("xion1c", 7, &tally);
-    assert_eq!(commit_lower, &contract_commit[..]);
+    let runtime_rd = runtime_impl::build_publish_report_data("xion1c", 7, &tally);
+    assert_eq!(&runtime_rd[..32], &contract_commit[..]);
 
-    // Also check independent SHA-256 path.
+    // Independent SHA-256 sanity.
     let canonical = runtime_impl::canonical_serialization("xion1c", 7, &tally);
     let expected = Sha256::digest(&canonical);
-    assert_eq!(commit_lower, &expected[..]);
+    assert_eq!(&runtime_rd[..32], &expected[..]);
+}
+
+#[test]
+fn publish_report_data_dst_matches_contract_layout() {
+    // ReportData[32..64] = DST_VERIFIED_RCV_TALLY_V1 zero-padded; same
+    // literal used contract-side. The contract's `build_publish_report_data`
+    // and runtime's `build_publish_report_data` should produce identical
+    // 64-byte buffers.
+    let tally = sample_tally();
+    let commit = contract_impl::compute_commit_hash("xion1c", 7, &tally);
+    let contract_rd = contract_impl::build_publish_report_data(&commit);
+    let runtime_rd = runtime_impl::build_publish_report_data("xion1c", 7, &tally);
+    assert_eq!(contract_rd, runtime_rd);
+}
+
+#[test]
+fn registration_report_data_dst_matches_contract_layout() {
+    let pk = vec![0x02u8; 33];
+    let contract_rd = contract_impl::build_registration_report_data(&pk);
+    let runtime_rd = runtime_impl::build_registration_report_data(&pk);
+    assert_eq!(contract_rd, runtime_rd);
+}
+
+#[test]
+fn synthetic_public_inputs_round_trip_contract_extraction() {
+    // The runtime's `build_public_inputs` plus the contract's
+    // `extract_measurement_48` / `extract_report_data` must round-trip
+    // identical bytes — this is what the contract relies on at every
+    // PublishResult.
+    let mut mrtd = [0u8; 48];
+    for i in 0..48 {
+        mrtd[i] = (i as u8).wrapping_add(0x10);
+    }
+    let mut rtmr1 = [0u8; 48];
+    for i in 0..48 {
+        rtmr1[i] = (i as u8).wrapping_add(0x20);
+    }
+    let mut rd = [0u8; 64];
+    for i in 0..64 {
+        rd[i] = (i as u8).wrapping_add(0xA0);
+    }
+    let pi = runtime_impl::build_public_inputs(
+        &mrtd, &[0; 48], &rtmr1, &[0; 48], &[0; 48], &rd, 3, 1_700_000_000,
+    );
+    // Element offsets — see contract.rs ELEM_* constants.
+    let extracted_mrtd = contract_impl::extract_measurement_48(&pi, 0).unwrap();
+    assert_eq!(extracted_mrtd, mrtd);
+    let extracted_rtmr1 = contract_impl::extract_measurement_48(&pi, 96).unwrap();
+    assert_eq!(extracted_rtmr1, rtmr1);
+    let extracted_rd = contract_impl::extract_report_data(&pi).unwrap();
+    assert_eq!(extracted_rd, rd);
 }

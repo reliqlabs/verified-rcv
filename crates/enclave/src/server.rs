@@ -1,17 +1,15 @@
 //! gRPC `TallyService` impl (Phase 1 per docs/runtime-integration.md).
 //!
-//! The handler plumbs chain-side election state through `tally_spec` and
-//! the dstack KMS + attestation envelope construction. It does NOT
-//! re-implement IRV (load-bearing trust-model rule: §"Trust model — what
-//! the runtime MUST NOT do") — `tally_spec` lives in `verified_rcv_enclave`
-//! and is the same function the off-TDX `verified-rcv-enclave` CLI calls.
+//! v0.3.9 N1: the response now carries `(proof, public_inputs)` instead
+//! of a `DstackAttestation` envelope JSON. The orchestrator forwards
+//! these directly to the contract's `PublishResult` execute message.
 
 use std::sync::Arc;
 
 use tonic::{Request, Response, Status};
 use verified_rcv_enclave_core::{Addr, RawBallots, RawEntry};
 
-use crate::attestation::{build_envelope, EnvelopeConfig};
+use crate::attestation::{produce_publish_artifacts, EnclaveIdentity};
 use crate::dstack::DstackClient;
 use crate::tally_spec;
 
@@ -24,12 +22,18 @@ use proto::{HealthRequest, HealthResponse, TallyRequest, TallyResponse};
 
 pub struct TallyServiceImpl {
     dstack: Arc<dyn DstackClient>,
-    envelope_config: EnvelopeConfig,
+    /// The enclave identity tuple to attest over. In dev / simulator
+    /// mode this is whatever the operator configures; in real-TDX mode
+    /// this comes from a TDX-quote parser at boot. The mock-attestation
+    /// path on the chain doesn't verify the gnark proof, so the
+    /// concrete values matter only for the chain's measurement equality
+    /// check against its registry.
+    identity: EnclaveIdentity,
 }
 
 impl TallyServiceImpl {
-    pub fn new(dstack: Arc<dyn DstackClient>, envelope_config: EnvelopeConfig) -> Self {
-        Self { dstack, envelope_config }
+    pub fn new(dstack: Arc<dyn DstackClient>, identity: EnclaveIdentity) -> Self {
+        Self { dstack, identity }
     }
 
     pub fn into_server(self) -> TallyServiceServer<Self> {
@@ -47,17 +51,14 @@ impl TallyService for TallyServiceImpl {
             req.into_inner();
 
         // 1. KMS handshake. Privkey MUST come from dstack KMS per
-        //    docs/runtime-integration.md trust-model section. Even in
-        //    simulator mode this routes through the DstackClient interface.
+        //    docs/runtime-integration.md trust-model section.
         let privkey = self
             .dstack
             .derive_privkey(&contract_addr, election_id)
             .await
             .map_err(|e| Status::internal(format!("dstack derive_privkey: {e}")))?;
 
-        // 2. Stage 1 + Stage 2 (intent §2.5). Caller is responsible for
-        //    reordering raw_ballots into candidate-declaration order; we
-        //    walk linearly per the iteration-discipline pin.
+        // 2. Stage 1 + Stage 2 (intent §2.5).
         let raw_ballots: RawBallots = raw_ballots
             .into_iter()
             .map(|b| RawEntry { voter: b.voter, ciphertext: b.ciphertext })
@@ -65,25 +66,23 @@ impl TallyService for TallyServiceImpl {
         let candidates: Vec<Addr> = candidates;
         let tally = tally_spec(&raw_ballots, &candidates, &privkey);
 
-        // 3. Attestation envelope. Calls dstack get_quote for the TDX
-        //    quote bound to user_data, then (if configured) the zkdcap
-        //    prover for the Groth16 wrapper.
-        let envelope = build_envelope(
-            self.dstack.as_ref(),
-            &self.envelope_config,
-            &contract_addr,
-            election_id,
-            &tally,
-        )
-        .await
-        .map_err(|e| Status::internal(format!("attestation envelope: {e}")))?;
+        // 3. v0.3.9 N1 attestation artifacts. Default build: synthetic
+        //    `(proof, public_inputs)` matching §2.5 byte layout; real
+        //    build (`--features real-zkdcap`): drive the zkdcap gnark
+        //    prover via unix socket.
+        let (proof, public_inputs) =
+            produce_publish_artifacts(&self.identity, &contract_addr, election_id, &tally)
+                .await
+                .map_err(|e| Status::internal(format!("attestation artifacts: {e}")))?;
 
         let tally_json = serde_json::to_string(&tally)
             .map_err(|e| Status::internal(format!("serialize tally: {e}")))?;
-        let attestation_json = serde_json::to_string(&envelope)
-            .map_err(|e| Status::internal(format!("serialize envelope: {e}")))?;
 
-        Ok(Response::new(TallyResponse { tally_json, attestation_json }))
+        Ok(Response::new(TallyResponse {
+            tally_json,
+            proof,
+            public_inputs,
+        }))
     }
 
     async fn health(
@@ -97,19 +96,12 @@ impl TallyService for TallyServiceImpl {
         // implementation returned `compose_hash` (a dstack image
         // identifier) in the `mrtd_hex` slot, which would lead an operator
         // following docs/deploy.md to populate the on-chain
-        // `EnclaveImageRegistry { mrtd, rtmr }` with the wrong value —
+        // `EnclaveImageRegistry { mrtd, rtmr* }` with the wrong value —
         // making every subsequent attestation fail verification (or, worse,
         // pass against the wrong baseline).
         //
         // We now return `ready = false` and an EMPTY `mrtd_hex` /
-        // `rtmr_hex` until a TDX-quote parser is wired. Operators must
-        // refuse to copy "" into the on-chain registry; the deploy guide
-        // says so.
-        //
-        // The dstack image identity is still surfaced via tracing logs for
-        // dev-time visibility (see server.rs::serve bootstrap), so this
-        // doesn't lose operator-facing information — it just refuses to
-        // present compose_hash AS IF it were the TDX MRTD.
+        // `rtmr_hex` until a TDX-quote parser is wired.
         let _identity = self
             .dstack
             .get_image_identity()
@@ -128,9 +120,7 @@ mod tests {
     use super::proto::tally_service_client::TallyServiceClient;
     use super::proto::tally_service_server::TallyServiceServer;
     use super::*;
-    use crate::dstack::{
-        parse_mock_quote_user_data, SimulatorDstackClient, SIMULATOR_QUOTE_MAGIC,
-    };
+    use crate::dstack::SimulatorDstackClient;
     use borsh::to_vec as borsh_to_vec;
     use ecies::utils::generate_keypair;
     use std::time::Duration;
@@ -143,10 +133,22 @@ mod tests {
         ecies::encrypt(pubkey_uncompressed, &plaintext).unwrap()
     }
 
+    fn dev_identity() -> EnclaveIdentity {
+        EnclaveIdentity {
+            mrtd: [0u8; 48],
+            rtmr0: [0u8; 48],
+            rtmr1: [0u8; 48],
+            rtmr2: [0u8; 48],
+            rtmr3: [0u8; 48],
+            tcb_status: 0,
+            timestamp: 1_700_000_000,
+        }
+    }
+
     /// Phase 1 / brief test 1: spin up the gRPC server with the simulator,
     /// send a Tally RPC with the 3-candidate roundtrip fixture, assert the
-    /// response carries a valid TallyResult and an envelope whose user_data
-    /// matches `build_user_data(contract_addr, tally)`.
+    /// response carries a valid TallyResult and a non-empty
+    /// `(proof, public_inputs)` pair whose layout the chain expects.
     #[tokio::test]
     async fn server_smoke() {
         let (sk, pk) = generate_keypair();
@@ -166,12 +168,11 @@ mod tests {
             },
         ];
 
-        // Bind to an ephemeral port and spin up the service.
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         let svc = TallyServiceImpl::new(
             Arc::new(SimulatorDstackClient::with_privkey(priv32)),
-            EnvelopeConfig { zkdcap_prover_endpoint: None },
+            dev_identity(),
         );
         let server_task = tokio::spawn(async move {
             Server::builder()
@@ -181,7 +182,6 @@ mod tests {
                 .unwrap();
         });
 
-        // Give the server a moment to start accepting.
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         let mut client = TallyServiceClient::connect(format!("http://{addr}"))
@@ -198,7 +198,6 @@ mod tests {
             .expect("tally rpc")
             .into_inner();
 
-        // Tally body sanity.
         let tally: verified_rcv_enclave_core::TallyResult =
             serde_json::from_str(&resp.tally_json).expect("parse tally JSON");
         assert_eq!(tally.winners, vec!["A".to_string()]);
@@ -206,48 +205,27 @@ mod tests {
         assert_eq!(tally.ballots_dropped, 0);
         assert_eq!(tally.non_voters, vec!["C".to_string()]);
 
-        // Envelope: with ZKDCAP_PROVER_URL unset (config.zkdcap_prover_endpoint =
-        // None), the envelope is Mock — the dev path. Assert that, but also
-        // that the user_data we WOULD have committed to is reconstructible
-        // by hand for downstream verification by the chain-side B8(c) check.
-        let envelope: crate::attestation::AttestationEnvelopeJson =
-            serde_json::from_str(&resp.attestation_json).expect("parse envelope JSON");
-        assert!(matches!(
-            envelope,
-            crate::attestation::AttestationEnvelopeJson::Mock
-        ));
-        let expected_ud = crate::attestation::build_user_data("xion1contract", 7, &tally);
-        assert_eq!(expected_ud.len(), 64);
-        assert_eq!(&expected_ud[..25], b"DST_VERIFIED_RCV_TALLY_V1");
+        // v0.3.9 N1: the response carries (proof, public_inputs) — assert
+        // shapes match the chain's expectations.
+        assert!(!resp.proof.is_empty(), "proof bytes present");
+        assert_eq!(
+            resp.public_inputs.len(),
+            crate::attestation::GNARK_PUBLIC_INPUTS_LEN,
+            "public_inputs length matches §2.5 layout"
+        );
+
+        // ReportData[0..32] in the public_inputs should equal the commit
+        // hash for this (contract_addr, election_id, tally). Extract the
+        // first 32 ReportData bytes (elements 240..272) and compare.
+        let pi = &resp.public_inputs;
+        let mut rd_low = [0u8; 32];
+        for i in 0..32 {
+            rd_low[i] = pi[(240 + i) * 32 + 31];
+        }
+        let expected_rd =
+            crate::attestation::build_publish_report_data("xion1contract", 42, &tally);
+        assert_eq!(rd_low, expected_rd[..32], "ReportData[0..32] = commit_hash");
 
         server_task.abort();
-    }
-
-    /// Variant of the smoke test with the Dstack envelope path exercised:
-    /// no zkdcap prover is set up (so this also yields a Mock), but we
-    /// directly check that `dstack.get_quote(user_data)` round-trips the
-    /// user_data via `parse_mock_quote_user_data` — the assertion path
-    /// the brief's test 4 calls for, without needing a real TDX parser.
-    #[tokio::test]
-    async fn simulator_quote_round_trip_under_envelope() {
-        let priv32 = [0xCDu8; 32];
-        let dstack = SimulatorDstackClient::with_privkey(priv32);
-        let tally = verified_rcv_enclave_core::TallyResult {
-            winners: vec!["alice".to_string()],
-            per_round_counts: vec![],
-            eliminated_by_round: vec![],
-            ballots_tallied: 0,
-            ballots_dropped: 0,
-            dropped_voters: vec![],
-            non_voters: vec![],
-        };
-        let user_data = crate::attestation::build_user_data("xion1abc", 7, &tally);
-        let quote = <SimulatorDstackClient as DstackClient>::get_quote(&dstack, &user_data)
-            .await
-            .unwrap();
-        // Simulator quote carries the user_data verbatim after the magic.
-        assert_eq!(&quote[..16], SIMULATOR_QUOTE_MAGIC);
-        let recovered = parse_mock_quote_user_data(&quote).unwrap();
-        assert_eq!(recovered, user_data);
     }
 }

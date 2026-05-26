@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package verified_rcv;
+
+// The off-chain orchestrator calls Tally with the chain-side election
+// state; the enclave responds with the published-result tuple
+// (tally, attestation). Wire format per docs/runtime-integration.md
+// Phase 1.
+service TallyService {
+  rpc Tally(TallyRequest) returns (TallyResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message TallyRequest {
+  // The CosmWasm contract address (bech32). Bound into the attestation
+  // user_data per intent §2.5 canonical_serialization pin.
+  string contract_addr = 1;
+
+  // Election ID. Used in the dstack KMS key-derivation path
+  // (verified-rcv-v1:{contract_addr}:{election_id}).
+  uint64 election_id = 2;
+
+  // Candidate addresses in declaration order. Order is load-bearing
+  // (intent §2.5 Stage 1 iteration discipline).
+  repeated string candidates = 3;
+
+  // (voter, ciphertext) pairs as they appear in the chain's Ballots
+  // query, REORDERED into candidate-declaration order by the caller
+  // before this RPC. The runtime walks them linearly without further
+  // reordering.
+  repeated RawBallot raw_ballots = 4;
+}
+
+message RawBallot {
+  string voter = 1;
+  bytes ciphertext = 2; // ECIES wire format per crates/enclave/README.md
+}
+
+message TallyResponse {
+  // The TallyResult per intent §2.5, serialized as JSON (same shape as
+  // the contract's PublishResult `tally` field). Borsh encoding of the
+  // tally for the PublishResult message is the orchestrator's job.
+  string tally_json = 1;
+
+  // The gnark Groth16 BN254 proof bytes (publish quote). v0.3.9 N1:
+  // replaces the prior `attestation_json` envelope. The orchestrator
+  // forwards this directly to the contract's PublishResult message.
+  bytes proof = 2;
+
+  // The 9_792-byte `public_inputs` blob per intent §2.5 gnark public_inputs
+  // byte layout. Carries MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖
+  // Timestamp as 306 BE fr-elements (one byte per `uints.U8`).
+  bytes public_inputs = 3;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  // Whether the dstack KMS is reachable and the TDX boot has produced a
+  // usable quote at startup.
+  bool ready = 1;
+  // The enclave's published MRTD (hex). Operators verify this matches
+  // the on-chain registry per intent §6.1. Empty string in simulator
+  // mode (no real TDX measurement available).
+  string mrtd_hex = 2;
+  // The enclave's published RTMR (hex). Same purpose. Empty string in
+  // simulator mode.
+  string rtmr_hex = 3;
+}

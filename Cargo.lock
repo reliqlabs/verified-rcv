@@ -3074,6 +3074,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
  "hex",
+ "prost",
  "serde",
  "serde_json",
  "sha2",

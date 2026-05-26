@@ -52,7 +52,8 @@ pub enum ContractError {
     InvalidEnclavePubkey { got: usize },
 
     /// M3: registry shape rejected at instantiate. mrtd/rtmr have
-    /// length constraints; vkey must be non-empty.
+    /// length constraints; vkey_name must be non-empty; accepted_tcb_statuses
+    /// must be non-empty and not contain 6 (Revoked).
     #[error("invalid registry: {0}")]
     InvalidRegistry(String),
 
@@ -68,13 +69,60 @@ pub enum ContractError {
     #[error("registry can only be updated when no election is active")]
     RegistryUpdateDuringActiveElection,
 
-    /// C2: attestation commit-hash mismatch. The envelope's user_data
-    /// bottom 32 bytes must equal SHA-256(canonical_serialization).
-    #[error("attestation commit hash mismatch: envelope binds to a different (contract_addr, election_id, tally_body)")]
+    /// C2: attestation commit-hash mismatch. The publish-quote's
+    /// `ReportData[0..32]` must equal
+    /// `SHA-256(canonical_serialization(contract_addr ‖ election_id ‖
+    /// tally_body))`.
+    #[error("attestation commit hash mismatch: ReportData[0..32] binds to a different (contract_addr, election_id, tally_body)")]
     AttestationCommitMismatch,
 
-    /// C2: attestation domain-separation-tag mismatch. The envelope's
-    /// user_data top 32 bytes must equal the verified-rcv domain tag.
+    /// C2: attestation domain-separation-tag mismatch. The quote's
+    /// `ReportData[32..64]` must equal the purpose-specific DST tag
+    /// (DST_VERIFIED_RCV_TALLY_V1 for publish; DST_VERIFIED_RCV_PUBKEY_V1
+    /// for registration).
     #[error("attestation domain tag mismatch")]
     AttestationDomainTagInvalid,
+
+    // N1 audit re-review remediations (v0.3.9 — gnark ProofVerifyGnark).
+
+    /// N1: `public_inputs` blob does not have the expected length per
+    /// the §2.5 gnark public_inputs byte layout (306 fr-elements ×
+    /// 32 BE bytes = 9_792 bytes for the verified-rcv DCAP circuit).
+    #[error("gnark public_inputs length: expected {expected}, got {got}")]
+    GnarkPublicInputsLength { got: usize, expected: usize },
+
+    /// N1: a `uints.U8` field in the gnark `public_inputs` has a non-zero
+    /// high byte (the U8 invariant requires the high 31 bytes of each
+    /// 32-byte BE field element to be zero; only the last byte carries
+    /// the U8 value).
+    #[error("gnark public_inputs element {elem_idx} is not a valid uints.U8 (non-zero high byte)")]
+    GnarkPublicInputNotU8 { elem_idx: usize },
+
+    /// N1: a `frontend.Variable` field in the gnark `public_inputs`
+    /// exceeds u64 range (high 24 bytes of the 32-byte BE field element
+    /// must be zero for the values we expect: TcbStatus, Timestamp).
+    #[error("gnark public_inputs element {elem_idx} exceeds u64 range")]
+    GnarkPublicInputOutOfRange { elem_idx: usize },
+
+    /// N1: `xion.zk.v1.Query/ProofVerifyGnark` returned `verified=false`.
+    /// The Groth16 proof does not verify under the registered vkey.
+    #[error("gnark proof verification failed via xion.zk module")]
+    ProofVerificationFailed,
+
+    /// N1: extracted measurement (MrTd / Rtmr0 / Rtmr1 / Rtmr2 / Rtmr3)
+    /// differs from the registry-bound value.
+    #[error("attestation measurement mismatch: field={field}")]
+    AttestationMeasurementMismatch { field: &'static str },
+
+    /// N1: `ReportData[0..32]` of a *registration* quote does not equal
+    /// `SHA-256(enclave_pubkey)` — the pubkey is not bound to a TDX quote
+    /// from the registered enclave image (B8(e) v0.3.9).
+    #[error("attestation pubkey binding mismatch: ReportData[0..32] ≠ SHA-256(enclave_pubkey)")]
+    AttestationPubkeyBindingMismatch,
+
+    /// N1: extracted TcbStatus is not in the registry's
+    /// `accepted_tcb_statuses` set. Severity 6 (Revoked) is also
+    /// circuit-hard-rejected by the gnark prover.
+    #[error("attestation TcbStatus={status} not in accepted set")]
+    AttestationTcbStatusUnaccepted { status: u8 },
 }
