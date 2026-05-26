@@ -48,7 +48,9 @@ use std::collections::HashSet;
 use borsh::from_slice as borsh_from_slice;
 use ecies::decrypt as ecies_decrypt;
 
-use verified_rcv_enclave_core::{Addr, Ballot, DecryptedSet, RawBallots};
+use verified_rcv_enclave_core::{
+    irv_spec, Addr, Ballot, CandidateSet, DecryptedSet, RawBallots, TallyResult,
+};
 
 /// Stage 1: decrypt each ciphertext, validate as a permutation of
 /// `candidates`, partition into (valid, dropped, non_voters).
@@ -137,6 +139,33 @@ fn decode_one(
     }
 
     Ok(Ballot { ranking })
+}
+
+/// Full Tally_spec composition per intent §2.5: Stage 1 decrypt_and_validate
+/// + Stage 2 IRV_spec, threading voter bookkeeping into the IRV output.
+///
+/// This is the runtime-side mirror of the
+/// `verified_rcv_enclave_core::tally_spec` function (which calls
+/// `unimplemented!()` for Stage 1). Use THIS when actually running a tally;
+/// the enclave-core version exists so charon can walk the IRV mathematics
+/// without needing to walk the system-crypto Stage 1 body.
+pub fn tally_spec(
+    raw_ballots: &RawBallots,
+    candidates: &CandidateSet,
+    privkey: &[u8],
+) -> TallyResult {
+    let d = decrypt_and_validate(raw_ballots, candidates, privkey);
+    let r = irv_spec(&d.valid, candidates);
+    let ballots_dropped: u32 = d.dropped.len() as u32;
+    TallyResult {
+        winners: r.winners,
+        per_round_counts: r.per_round_counts,
+        eliminated_by_round: r.eliminated_by_round,
+        ballots_tallied: r.ballots_tallied,
+        ballots_dropped,
+        dropped_voters: d.dropped,
+        non_voters: d.non_voters,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -274,6 +303,34 @@ mod tests {
         assert_eq!(result.valid.len(), 0);
         assert_eq!(result.dropped.len(), 0);
         assert_eq!(result.non_voters, cands);
+    }
+
+    #[test]
+    fn tally_spec_composes_stage_1_and_2() {
+        let (sk, pk) = generate_keypair();
+        let cands = vec![addr("A"), addr("B"), addr("C")];
+
+        // A and B vote; both pick A first. So A wins with majority.
+        let raw = vec![
+            RawEntry {
+                voter: addr("A"),
+                ciphertext: encrypt_for_test(&["A", "B", "C"], &pk.serialize()),
+            },
+            RawEntry {
+                voter: addr("B"),
+                ciphertext: encrypt_for_test(&["A", "C", "B"], &pk.serialize()),
+            },
+        ];
+
+        let result = tally_spec(&raw, &cands, &sk.serialize());
+
+        assert_eq!(result.winners, vec![addr("A")]);
+        assert_eq!(result.ballots_tallied, 2);
+        assert_eq!(result.ballots_dropped, 0);
+        assert_eq!(result.non_voters, vec![addr("C")]);
+        // Only 1 round needed: A got 2 of 2 first-place votes, majority.
+        assert_eq!(result.per_round_counts.len(), 1);
+        assert_eq!(result.eliminated_by_round.len(), 0);
     }
 
     #[test]
