@@ -398,6 +398,25 @@ lemma first_active_index_defined
   | cons c0 rest =>
     exact ⟨c0, h_cover c0 (List.mem_cons_self ..), List.mem_cons_self ..⟩
 
+/-- `count_at_index` distributes over `valid`-cons: count for index `k` on
+`(p :: rest)` equals count on `rest` plus 1 (if `p` routes to `k`) or 0
+otherwise. Direct unfold of the structural recursion. -/
+lemma count_at_index_cons (remaining : List Addr) (k : Nat)
+    (p : Addr × Ballot) (rest : List (Addr × Ballot)) :
+    count_at_index remaining k (p :: rest) =
+      count_at_index remaining k rest +
+      (match first_active_index p.snd.ranking remaining with
+       | some idx => if idx = k then 1 else 0
+       | none     => 0) := by
+  rcases p with ⟨a, b⟩
+  simp only [count_at_index]
+  cases h_fa : first_active_index b.ranking remaining with
+  | none => simp
+  | some idx =>
+    by_cases h_eq : idx = k
+    · simp [h_eq]
+    · simp [h_eq]
+
 /-- If `first_majority_candidate threshold rc = some w`, then `w` is one of
 the candidates listed in `rc`. -/
 lemma first_majority_candidate_in_rc
