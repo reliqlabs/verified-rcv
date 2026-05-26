@@ -267,6 +267,25 @@ lemma remove_from_subset (to_remove xs : List Addr) :
       | head _ => exact List.mem_cons_self ..
       | tail _ hmem => exact List.mem_cons_of_mem _ (ih y hmem)
 
+/-- Dual of `remove_from_subset`: every element of `remove_from to_remove xs`
+is NOT in `to_remove`. Used by the S9 discharge to show that candidates
+in the recursive sub-call's `remaining` are disjoint from the just-eliminated
+`losers` set. -/
+lemma remove_from_not_mem (to_remove xs : List Addr) :
+    ∀ y ∈ remove_from to_remove xs, y ∉ to_remove := by
+  induction xs with
+  | nil => intro y h; simp [remove_from] at h
+  | cons x rest ih =>
+    intro y hy
+    unfold remove_from at hy
+    by_cases hx : x ∈ to_remove
+    · rw [if_pos hx] at hy
+      exact ih y hy
+    · rw [if_neg hx] at hy
+      cases hy with
+      | head _ => exact hx
+      | tail _ hmem => exact ih y hmem
+
 /-- `remove_from` preserves `Nodup` (no duplicates introduced; only removal). -/
 lemma remove_from_nodup (to_remove : List Addr) {xs : List Addr} (h : xs.Nodup) :
     (remove_from to_remove xs).Nodup := by
@@ -865,6 +884,243 @@ takes). The other three are `sorry`-bodied; their discharge requires
 induction on `irv_loop`'s fuel parameter and is the multi-week Round 3e
 work documented in `.colosseum/roadmap.md`. -/
 
+/-- Auxiliary for S9: under A8 cover + non-empty `valid`, every
+`per_round_counts` entry produced by `irv_loop` has candidates ⊆
+input `remaining`. The `valid ≠ []` hypothesis excludes the all-abstain
+branch (which writes candidates from full `cs`, not `remaining`); under
+cover, `valid ≠ [] ⇒ total > 0 ⇒` all-abstain unreachable. -/
+lemma irv_loop_per_round_subset_remaining
+    (valid : List (Addr × Ballot)) (cs : CandidateSet)
+    (h_nodup_cs : cs.Nodup)
+    (h_cover_cs : ∀ p ∈ valid, ∀ c ∈ cs, c ∈ p.snd.ranking)
+    (h_valid_ne : valid ≠ []) :
+    ∀ (fuel : Nat) (remaining : List Addr),
+      (∀ x ∈ remaining, x ∈ cs) →
+      remaining.Nodup →
+      1 ≤ remaining.length →
+      ∀ rc ∈ (irv_loop valid cs fuel remaining).2.1,
+        ∀ entry ∈ rc, entry.candidate ∈ remaining := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro remaining _ _ _ rc h_mem
+    simp [irv_loop] at h_mem
+  | succ fuel' ih =>
+    intro remaining h_sub h_nodup_rem h_pos_rem rc h_mem entry h_entry
+    have h_cover_rem : ∀ p ∈ valid, ∀ c ∈ remaining, c ∈ p.snd.ranking :=
+      fun p hp c hc => h_cover_cs p hp c (h_sub c hc)
+    have h_tally_round_total :
+        total_count (tally_round valid remaining) = valid.length :=
+      tally_round_total_count_eq_valid_length valid remaining h_pos_rem h_cover_rem
+    have h_valid_len : 1 ≤ valid.length := by
+      cases h_v : valid with
+      | nil => exact absurd h_v h_valid_ne
+      | cons _ _ => simp
+    have h_total_pos : 0 < total_count (tally_round valid remaining) := by
+      rw [h_tally_round_total]; exact h_valid_len
+    -- Unfold irv_loop one step.
+    simp only [irv_loop] at h_mem
+    by_cases h_len0 : remaining.length = 0
+    · exact absurd h_len0 (Nat.one_le_iff_ne_zero.mp h_pos_rem)
+    rw [if_neg h_len0] at h_mem
+    by_cases h_len1 : remaining.length = 1
+    · rw [if_pos h_len1] at h_mem
+      simp at h_mem
+      rw [h_mem] at h_entry
+      exact tally_round_candidates_in_remaining valid remaining entry h_entry
+    rw [if_neg h_len1] at h_mem
+    -- total = 0 branch is unreachable (h_total_pos contradicts).
+    by_cases h_total0 : total_count (tally_round valid remaining) = 0
+    · exact absurd h_total_pos (by omega)
+    rw [if_neg h_total0] at h_mem
+    cases h_maj : first_majority_candidate
+        (total_count (tally_round valid remaining) / 2)
+        (tally_round valid remaining) with
+    | some w =>
+      rw [h_maj] at h_mem
+      simp at h_mem
+      rw [h_mem] at h_entry
+      exact tally_round_candidates_in_remaining valid remaining entry h_entry
+    | none =>
+      rw [h_maj] at h_mem
+      by_cases h_tie : (candidates_with_count
+          (min_count (tally_round valid remaining))
+          (tally_round valid remaining)).length = remaining.length
+      · rw [if_pos h_tie] at h_mem
+        simp at h_mem
+        rw [h_mem] at h_entry
+        exact tally_round_candidates_in_remaining valid remaining entry h_entry
+      rw [if_neg h_tie] at h_mem
+      simp at h_mem
+      rcases h_mem with h_head | h_tail
+      · rw [h_head] at h_entry
+        exact tally_round_candidates_in_remaining valid remaining entry h_entry
+      · -- Recursive case. Apply IH on rem' = remove_from losers remaining;
+        -- result is ⊆ rem' ⊆ remaining.
+        set losers := candidates_with_count
+            (min_count (tally_round valid remaining))
+            (tally_round valid remaining)
+        set rem' := remove_from losers remaining with h_rem'_def
+        have h_sub' : ∀ x ∈ rem', x ∈ cs :=
+          fun x h => h_sub x (remove_from_subset losers remaining x h)
+        have h_nodup_rem' : rem'.Nodup := remove_from_nodup losers h_nodup_rem
+        have h_losers_sub : ∀ x ∈ losers, x ∈ remaining := by
+          intro x hx
+          obtain ⟨ent, h_em, h_eq⟩ := candidates_with_count_mem _ _ x hx
+          rw [← h_eq]
+          exact tally_round_candidates_in_remaining valid remaining ent h_em
+        have h_losers_nodup : losers.Nodup :=
+          candidates_with_count_nodup _ _
+            (tally_round_candidates_nodup valid remaining h_nodup_rem)
+        have h_losers_len_le : losers.length ≤ remaining.length :=
+          (List.Nodup.subperm h_losers_nodup h_losers_sub).length_le
+        have h_pos_rem' : 1 ≤ rem'.length := by
+          have h_exists_not : ∃ x ∈ remaining, x ∉ losers := by
+            by_contra h_all
+            have h_all' : ∀ x ∈ remaining, x ∈ losers :=
+              fun x hx => Classical.byContradiction (fun hxn => h_all ⟨x, hx, hxn⟩)
+            have h_ge : remaining.length ≤ losers.length :=
+              (List.Nodup.subperm h_nodup_rem h_all').length_le
+            exact h_tie (Nat.le_antisymm h_losers_len_le h_ge)
+          exact remove_from_length_pos h_exists_not
+        have ih_app := ih rem' h_sub' h_nodup_rem' h_pos_rem' rc h_tail entry h_entry
+        -- ih_app : entry.candidate ∈ rem'. rem' ⊆ remaining.
+        exact remove_from_subset losers remaining _ ih_app
+
+/-- Loop invariant for S9: under A8 cover + `valid ≠ []`, the elimination
+monotonicity property holds for every `(i, j)` index pair into the
+result's `eliminated_by_round` and `per_round_counts` lists.
+
+Proof: induction on fuel. Terminal branches have empty
+`eliminated_by_round`; the index-lookup `[i]?` returns `none`,
+contradicting the `some eliminated` hypothesis. Recursive branch
+prepends `losers` and `rc`; split on `i = 0` (eliminated = losers,
+use `irv_loop_per_round_subset_remaining` on the recursive sub-call
+showing candidates ⊆ `remove_from losers remaining` ⇒ candidates ∉
+losers ⇒ entry.candidate ≠ c) vs `i ≥ 1` (apply IH on `(i-1, j-1)`). -/
+lemma irv_loop_no_reappearance
+    (valid : List (Addr × Ballot)) (cs : CandidateSet)
+    (h_nodup_cs : cs.Nodup)
+    (h_cover_cs : ∀ p ∈ valid, ∀ c ∈ cs, c ∈ p.snd.ranking)
+    (h_valid_ne : valid ≠ []) :
+    ∀ (fuel : Nat) (remaining : List Addr),
+      (∀ x ∈ remaining, x ∈ cs) →
+      remaining.Nodup →
+      1 ≤ remaining.length →
+      ∀ (i j : Nat) (eliminated : List Addr) (rc : RoundCounts) (c : Addr),
+        (irv_loop valid cs fuel remaining).2.2[i]? = some eliminated →
+        (irv_loop valid cs fuel remaining).2.1[j]? = some rc →
+        i < j →
+        c ∈ eliminated →
+        ∀ entry ∈ rc, entry.candidate ≠ c := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro remaining _ _ _ i j elim rc c h_elim _ _ _ _ _
+    simp [irv_loop] at h_elim
+  | succ fuel' ih =>
+    intro remaining h_sub h_nodup_rem h_pos_rem i j eliminated rc c h_elim h_rc h_lt h_c_mem entry h_entry
+    have h_cover_rem : ∀ p ∈ valid, ∀ c ∈ remaining, c ∈ p.snd.ranking :=
+      fun p hp c hc => h_cover_cs p hp c (h_sub c hc)
+    have h_tally_round_total :
+        total_count (tally_round valid remaining) = valid.length :=
+      tally_round_total_count_eq_valid_length valid remaining h_pos_rem h_cover_rem
+    have h_valid_len : 1 ≤ valid.length := by
+      cases h_v : valid with
+      | nil => exact absurd h_v h_valid_ne
+      | cons _ _ => simp
+    have h_total_pos : 0 < total_count (tally_round valid remaining) := by
+      rw [h_tally_round_total]; exact h_valid_len
+    simp only [irv_loop] at h_elim h_rc
+    by_cases h_len0 : remaining.length = 0
+    · exact absurd h_len0 (Nat.one_le_iff_ne_zero.mp h_pos_rem)
+    rw [if_neg h_len0] at h_elim h_rc
+    by_cases h_len1 : remaining.length = 1
+    · rw [if_pos h_len1] at h_elim
+      simp at h_elim
+    rw [if_neg h_len1] at h_elim h_rc
+    by_cases h_total0 : total_count (tally_round valid remaining) = 0
+    · exact absurd h_total_pos (by omega)
+    rw [if_neg h_total0] at h_elim h_rc
+    cases h_maj : first_majority_candidate
+        (total_count (tally_round valid remaining) / 2)
+        (tally_round valid remaining) with
+    | some w =>
+      rw [h_maj] at h_elim
+      simp at h_elim
+    | none =>
+      rw [h_maj] at h_elim h_rc
+      by_cases h_tie : (candidates_with_count
+          (min_count (tally_round valid remaining))
+          (tally_round valid remaining)).length = remaining.length
+      · rw [if_pos h_tie] at h_elim
+        simp at h_elim
+      rw [if_neg h_tie] at h_elim h_rc
+      -- Recursive case. Set up rem'.
+      set losers := candidates_with_count
+          (min_count (tally_round valid remaining))
+          (tally_round valid remaining) with h_losers_def
+      set rem' := remove_from losers remaining with h_rem'_def
+      have h_sub' : ∀ x ∈ rem', x ∈ cs :=
+        fun x h => h_sub x (remove_from_subset losers remaining x h)
+      have h_nodup_rem' : rem'.Nodup := remove_from_nodup losers h_nodup_rem
+      have h_losers_sub : ∀ x ∈ losers, x ∈ remaining := by
+        intro x hx
+        obtain ⟨ent, h_em, h_eq⟩ := candidates_with_count_mem _ _ x hx
+        rw [← h_eq]
+        exact tally_round_candidates_in_remaining valid remaining ent h_em
+      have h_losers_nodup : losers.Nodup :=
+        candidates_with_count_nodup _ _
+          (tally_round_candidates_nodup valid remaining h_nodup_rem)
+      have h_losers_len_le : losers.length ≤ remaining.length :=
+        (List.Nodup.subperm h_losers_nodup h_losers_sub).length_le
+      have h_pos_rem' : 1 ≤ rem'.length := by
+        have h_exists_not : ∃ x ∈ remaining, x ∉ losers := by
+          by_contra h_all
+          have h_all' : ∀ x ∈ remaining, x ∈ losers :=
+            fun x hx => Classical.byContradiction (fun hxn => h_all ⟨x, hx, hxn⟩)
+          have h_ge : remaining.length ≤ losers.length :=
+            (List.Nodup.subperm h_nodup_rem h_all').length_le
+          exact h_tie (Nat.le_antisymm h_losers_len_le h_ge)
+        exact remove_from_length_pos h_exists_not
+      -- The result is (w, tally_round valid remaining :: rcs', losers :: elims').
+      -- h_elim and h_rc are indexed into these. Split on i.
+      cases i with
+      | zero =>
+        -- eliminated = losers (h_elim).
+        simp at h_elim
+        -- h_elim is now `losers = eliminated` (or `eliminated = losers`).
+        -- j ≥ 1 (from h_lt: 0 < j), so j = j' + 1.
+        cases j with
+        | zero => omega
+        | succ j' =>
+          -- (rc_head :: rcs')[j'+1]? = rcs'[j']?
+          simp at h_rc
+          -- h_rc : rcs'[j']? = some rc
+          -- Apply subset lemma to rcs' (the recursive irv_loop result).
+          have h_rc_mem : rc ∈ (irv_loop valid cs fuel' rem').2.1 :=
+            List.mem_of_getElem? h_rc
+          have h_in_rem' : entry.candidate ∈ rem' :=
+            irv_loop_per_round_subset_remaining valid cs h_nodup_cs h_cover_cs h_valid_ne
+              fuel' rem' h_sub' h_nodup_rem' h_pos_rem' rc h_rc_mem entry h_entry
+          -- c ∈ eliminated = losers; entry.candidate ∈ rem'; rem' excludes losers.
+          intro h_eq
+          rw [h_eq] at h_in_rem'
+          have h_c_in_losers : c ∈ losers := h_elim ▸ h_c_mem
+          exact remove_from_not_mem losers remaining c h_in_rem' h_c_in_losers
+      | succ i' =>
+        -- eliminated_by_round[i'+1]? = elims'[i']?
+        simp at h_elim
+        -- h_elim : elims'[i']? = some eliminated
+        -- j > i'+1 ≥ 1, so j = j' + 1 with j' > i'
+        cases j with
+        | zero => omega
+        | succ j' =>
+          simp at h_rc
+          have h_lt' : i' < j' := by omega
+          exact ih rem' h_sub' h_nodup_rem' h_pos_rem'
+            i' j' eliminated rc c h_elim h_rc h_lt' h_c_mem entry h_entry
+
 /-- Stage 2 obligation: `ballots_tallied` equals `|valid|`. By construction,
 `IRV_spec` sets `ballots_tallied := valid.length` in every branch, so this
 is `rfl`. Stated as a theorem (formerly an axiom) per the Round 3e
@@ -1105,6 +1361,7 @@ candidate in `eliminated_by_round[i]` cannot appear as `rc.candidate` in
 any subsequent `tally_round` output. -/
 theorem irv_no_reappearance :
     ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
+      cs.Nodup →
       (∀ p ∈ valid, ∀ c ∈ cs, c ∈ p.snd.ranking) →
       ∀ (i j : Nat) (eliminated : List Addr) (rc : RoundCounts) (c : Addr),
       (IRV_spec valid cs).eliminated_by_round[i]? = some eliminated →
@@ -1112,43 +1369,33 @@ theorem irv_no_reappearance :
       i < j →
       c ∈ eliminated →
       ∀ entry ∈ rc, entry.candidate ≠ c := by
-  intro valid cs _h_cover i j eliminated rc c h_elim h_rc h_lt h_c_mem entry h_entry
-  -- The proof splits on whether `valid = []` (vacuous via empty
-  -- eliminated_by_round) vs `valid ≠ []` (the structural induction case).
-  --
-  -- Outline of the `valid ≠ []` case (the substantive work):
-  --
-  -- 1. Auxiliary lemma `irv_loop_step_total_pos`: under the cover
-  --    hypothesis, if `valid ≠ []` and `remaining ⊆ cs` and
-  --    `1 ≤ remaining.length`, then
-  --    `total_count (tally_round valid remaining) > 0`. Proof: at least
-  --    one ballot exists; pick its first-active index in `remaining`
-  --    (defined because every ballot covers `cs ⊇ remaining`), and that
-  --    bucket's count is ≥ 1.
-  --
-  -- 2. Corollary: under A8 + non-empty valid, the all-abstain branch
-  --    inside `irv_loop` is unreachable. The all-abstain branch is the
-  --    one that writes `per_round_counts[k] = cs.map(c => {c, 0})` —
-  --    the only place where S9 would otherwise break (eliminated
-  --    candidates can reappear there).
-  --
-  -- 3. Auxiliary lemma `irv_loop_per_round_in_remaining`: under A8 +
-  --    non-empty valid, every entry in `(irv_loop ... remaining).2.1[k]`
-  --    has its `.candidate` in `remaining_at_step_k`, where
-  --    `remaining_at_step_(k+1) = remove_from elims[k] remaining_at_step_k`.
-  --    Proof: induction on fuel, case-split irv_loop's branches; the
-  --    all-abstain branch is excluded by (2).
-  --
-  -- 4. Joint invariant: c ∈ eliminated_by_round[i] ⇒ c ∈ remaining_at_step_i
-  --    (since losers ⊆ rc.candidates ⊆ remaining); and c ∉
-  --    remaining_at_step_(i+1) (by `remove_from`). By monotonicity of
-  --    `remaining_at_step`, c ∉ remaining_at_step_j for all j ≥ i+1.
-  --    By (3), c ∉ per_round_counts[j].candidates. Hence entry.candidate ≠ c.
-  --
-  -- This is multi-step Lean work analogous to `irv_winners_shape`'s
-  -- discharge (~10 additional auxiliary lemmas + the joint invariant).
-  -- Tracked as a follow-on for the same Round 3e pass.
-  sorry
+  intro valid cs h_nodup_cs h_cover i j eliminated rc c h_elim h_rc h_lt h_c_mem entry h_entry
+  -- Case-split on cs.length = 0 (vacuous: per_round_counts and elims both []).
+  unfold IRV_spec at h_elim h_rc
+  by_cases h_cs0 : cs.length = 0
+  · simp [h_cs0] at h_elim
+  rw [if_neg h_cs0] at h_elim h_rc
+  have h_pos_cs : 1 ≤ cs.length := Nat.one_le_iff_ne_zero.mpr h_cs0
+  -- Case-split on valid = [] (vacuous: all-abstain triggers, elims = []).
+  by_cases h_valid_ne : valid = []
+  · subst h_valid_ne
+    simp only [irv_loop] at h_elim
+    by_cases h_len0 : cs.length = 0
+    · exact absurd h_len0 h_cs0
+    rw [if_neg h_len0] at h_elim
+    by_cases h_len1 : cs.length = 1
+    · rw [if_pos h_len1] at h_elim
+      simp at h_elim
+    rw [if_neg h_len1] at h_elim
+    -- tally_round [] cs has all-zero counts; total = 0; all-abstain fires.
+    have h_total0 : total_count (tally_round [] cs) = 0 :=
+      total_count_tally_round_nil cs
+    rw [if_pos h_total0] at h_elim
+    simp at h_elim
+  -- valid ≠ []: apply the loop invariant.
+  exact irv_loop_no_reappearance valid cs h_nodup_cs h_cover h_valid_ne
+    (cs.length + 1) cs (fun _ h => h) h_nodup_cs h_pos_cs
+    i j eliminated rc c h_elim h_rc h_lt h_c_mem entry h_entry
 
 /-- Composition (§2.5). Threads Stage 1's voter bookkeeping (dropped,
 non_voters) into Stage 2's IRV output. -/
@@ -1208,7 +1455,7 @@ not appear as a key in `per_round_counts[j]` for any j > i.
 
 Hypothesis (intent v0.3.6 A8): same ballot-cover condition as S8. -/
 theorem s9_no_reappearance
-    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (_h_nodup : cs.Nodup)
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (h_nodup : cs.Nodup)
     (h_cover : ∀ p ∈ (decrypt_and_validate raw cs pk).valid, ∀ c ∈ cs, c ∈ p.snd.ranking) :
     let t := Tally_spec raw cs pk
     ∀ (i j : Nat) (eliminated : List Addr) (rc : RoundCounts) (c : Addr),
@@ -1219,7 +1466,7 @@ theorem s9_no_reappearance
       ∀ entry ∈ rc, entry.candidate ≠ c := by
   simp only [Tally_spec]
   intro i j eliminated rc c h_elim h_rc h_lt h_mem
-  exact irv_no_reappearance (decrypt_and_validate raw cs pk).valid cs h_cover
+  exact irv_no_reappearance (decrypt_and_validate raw cs pk).valid cs h_nodup h_cover
     i j eliminated rc c h_elim h_rc h_lt h_mem
 
 /-
