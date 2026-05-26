@@ -554,6 +554,70 @@ lemma tally_round_aux_total_count_cons
           rw [if_neg h_in_cur]
           omega
 
+/-- Base case for the S8 chain: `total_count` of a `tally_round_aux` on
+empty `valid` is zero (every candidate slot has zero count by `count_at_index`'s
+empty-list base case). -/
+lemma total_count_tally_round_aux_nil
+    (remaining_full : List Addr) :
+    ∀ (i : Nat) (cs : List Addr),
+      total_count (tally_round_aux [] remaining_full i cs) = 0 := by
+  intro i cs
+  induction cs generalizing i with
+  | nil => simp [tally_round_aux, total_count]
+  | cons c rest_cs ih =>
+    simp only [tally_round_aux, total_count, count_at_index]
+    rw [Nat.zero_add]
+    exact ih (i + 1)
+
+/-- Specialised: `tally_round` on empty `valid` totals zero. -/
+lemma total_count_tally_round_nil (remaining : List Addr) :
+    total_count (tally_round [] remaining) = 0 := by
+  unfold tally_round
+  exact total_count_tally_round_aux_nil remaining 0 remaining
+
+/-- **S8 load-bearing lemma**: under A8 cover (every ballot's ranking covers
+`cs ⊇ remaining`), the sum of per-candidate counts in a `tally_round`
+equals the number of valid ballots. Equivalently: every ballot routes to
+exactly one bucket; the all-abstain branch is unreachable for non-empty
+valid; total conservation holds at every recursion step.
+
+Proof: structural induction on `valid`. Base case via
+`total_count_tally_round_nil`. Cons step uses
+`tally_round_aux_total_count_cons` at the top-level slice `(i = 0,
+cs = remaining)`, then `first_active_index_defined` to witness a route,
+then `first_active_index_lt_remaining_length` to discharge the
+walked-range bracket. -/
+lemma tally_round_total_count_eq_valid_length
+    (valid : List (Addr × Ballot)) (remaining : List Addr)
+    (h_pos : 1 ≤ remaining.length)
+    (h_cover : ∀ p ∈ valid, ∀ c ∈ remaining, c ∈ p.snd.ranking) :
+    total_count (tally_round valid remaining) = valid.length := by
+  induction valid with
+  | nil => simpa using total_count_tally_round_nil remaining
+  | cons p rest ih =>
+    have h_cover_rest : ∀ p' ∈ rest, ∀ c ∈ remaining, c ∈ p'.snd.ranking := by
+      intro p' hp'
+      exact h_cover p' (List.mem_cons_of_mem _ hp')
+    have ih_app := ih h_cover_rest
+    -- Apply cons-additivity at the top-level slice.
+    unfold tally_round
+    rw [tally_round_aux_total_count_cons]
+    -- Witness a route via cover.
+    have h_cover_p : ∀ c ∈ remaining, c ∈ p.snd.ranking :=
+      h_cover p (List.mem_cons_self ..)
+    have ⟨idx, h_fa⟩ := first_active_index_defined p.snd.ranking remaining h_pos h_cover_p
+    have h_idx_lt : idx < remaining.length :=
+      first_active_index_lt_remaining_length _ _ _ h_fa
+    rw [h_fa]
+    simp only []
+    have h_in_range : 0 ≤ idx ∧ idx < 0 + remaining.length := by
+      exact ⟨Nat.zero_le _, by simp; exact h_idx_lt⟩
+    rw [if_pos h_in_range]
+    -- ih_app expressed via tally_round; unfold to tally_round_aux.
+    unfold tally_round at ih_app
+    rw [ih_app]
+    simp
+
 /-- If `first_majority_candidate threshold rc = some w`, then `w` is one of
 the candidates listed in `rc`. -/
 lemma first_majority_candidate_in_rc
