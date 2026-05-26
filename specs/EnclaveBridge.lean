@@ -81,18 +81,85 @@ Stated as a `Result`-monad refinement: if the extracted `irv_spec`
 returns `.ok r` (i.e., doesn't panic), then the lifted result equals the
 math `IRV_spec` applied to the lifted inputs.
 
-The proof requires:
-  1. Showing the extracted IRV core never panics for our inputs (Aeneas
-     `progress` tactic + monotonicity on the bounded recursion).
-  2. Induction matching the extracted loop structure (`irv_spec_loop0`,
-     `tally_round_loop`, `first_majority_index_loop`, etc.) to the math
-     `IRV_spec` definition — which is currently `opaque` in `RcvSpec.lean`.
-     To close this gap, the math `IRV_spec` needs to be made concrete
-     (define it explicitly as a Lean function mirroring intent §2.5's
-     algorithm) OR a refinement axiom is added asserting the relation.
+## Discharge plan (Round 3e-bridge, future-session work)
 
-For the current commit, this is `sorry`. The discharge plan is in
-`.colosseum/roadmap.md` (Round 3e). -/
+The math layer is now COMPLETE: all four Stage-2 obligations
+(`irv_ballots_tallied`, `irv_winners_shape`, `irv_round_counts_sum`,
+`irv_no_reappearance`) are proven theorems against the concrete math
+`IRV_spec` in `RcvSpec.lean` (Round 3e closed 2026-05-26). What remains
+is the BRIDGE: showing the Aeneas-extracted code's behavior matches.
+
+The bridge is a multi-day Aeneas refinement proof. Architectural plan:
+
+### Phase 1: Per-helper bridge lemmas (`@[step]` style)
+
+Each extracted helper has a math counterpart. Bridge lemma asserts they
+agree under the lifts:
+
+- `addr_in_bridge`: `addr_in xs a = .ok b` iff `b = (a ∈ xs.v)`. (Math
+  uses `x ∈ to_remove`; no separate `addr_in` function.)
+- `position_of_bridge`: `position_of needle haystack = .ok r` iff
+  `r.map .val = position_of_math needle haystack.v` (bridging the
+  Std.Usize → Nat conversion).
+- `first_active_index_bridge`: similar, but over the ranking × remaining
+  shape.
+- `count_at_index_bridge`: bridging valid : Slice ↔ List.
+- `tally_round_bridge`: produces matching RoundCounts.
+- `min_count_bridge`, `total_count_bridge`: U32 → Nat conversions.
+- `candidates_with_count_bridge`: Vec ↔ List of String.
+- `first_majority_index_bridge` ↔ `first_majority_candidate`:
+  NOTE: extracted returns the INDEX; math returns the CANDIDATE.
+  Bridge involves extracting `rc.candidate` from the indexed entry.
+- `remove_from_bridge`: Vec ↔ List, identical algorithm.
+
+Each ~30-50 lines of Lean proof using Aeneas's `step`/`progress`
+tactic and induction over the `loop` combinator.
+
+### Phase 2: irv_loop0 bridge
+
+The main loop. Match `verified_rcv_enclave_core.irv_spec_loop0` (using
+Aeneas's `loop` + `ControlFlow`) to math's `irv_loop` (fuel-bounded
+recursion). Branch-by-branch correspondence:
+- `round >= max_rounds`: matches math's `fuel = 0` (defensive).
+- `remaining.length = 0/1`: terminal branches with single rc.
+- `total = 0`: all-abstain. **Tricky**: extracted uses `Vec.push` of
+  tally_round result then `index_mut_back` to retroactively REPLACE the
+  last entry with zero_round. Math directly returns
+  `[zero_round_over_cs]`. Semantically equivalent; the bridge must
+  show `(push rc; index_mut_back 0 zero_round).v = [zero_round]`.
+- `first_majority = some idx`: extracted reads `rc[idx].candidate` and
+  builds singleton vec. Math returns `[w]` where `w` is the candidate.
+- terminal tie: both return remaining as winners.
+- Recursive: extracted continues; math recurses on smaller fuel.
+
+### Phase 3: irv_spec top-level
+
+Compose Phase 1+2 with the top-level structure (empty-candidates
+short-circuit + the loop invocation).
+
+### Risks
+
+- **Vec.push + index_mut_back semantics**: needs an Aeneas-specific
+  lemma about retroactive list-update.
+- **Std.Usize.ofNat bounds**: position indices need a bound proof.
+- **Loop combinator induction**: Aeneas's `loop` desugars to a Lean
+  function; induction on the "step count" requires a measure argument.
+- **Vec.clone calls**: extracted has many `clone` operations whose
+  semantics are `Vec.v` preserves. Need to either bridge or pre-prove
+  Vec.clone refines identity at the lift level.
+
+### Why deferred from this session
+
+The math-layer discharge (~24 new Lean lemmas, all 4 Stage-2 obligations
+proven, A7+A8 methodology findings patched) is a single coherent piece
+of verification work. The bridge proof is a SEPARATE multi-day project
+requiring Aeneas-framework expertise. Mixing the two risks subtle
+errors in the trust chain. Per the methodology's "conservative/safe"
+guidance, the bridge is queued for its own focused session.
+
+The current `sorry` here is well-defined and structurally sound: the
+lift functions are concrete, the math `IRV_spec` is concrete, and the
+goal is `lake env lean`-inspectable. -/
 theorem B10_lean_irv
     (valid_slice : Aeneas.Std.Slice (String × verified_rcv_enclave_core.Ballot))
     (candidates : Aeneas.Std.alloc.vec.Vec String) :
