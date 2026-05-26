@@ -325,6 +325,35 @@ lemma tally_round_candidates_in_remaining
   unfold tally_round at h
   exact tally_round_aux_candidates_in_cs valid remaining 0 remaining rc h
 
+/-- Under the A8 cover condition (every element of `remaining` appears
+somewhere in `ranking`) and non-empty `remaining`, `first_active_index`
+returns `some`. Load-bearing for both `irv_round_counts_sum` and
+`irv_no_reappearance` proofs: it shows that exhausted ballots (which
+would yield `none` and trigger the all-abstain branch at deep
+recursion) cannot occur under A8.
+
+Proof sketch (next-session work):
+- Induction on `ranking`.
+- nil: contradicts `h_cover` (remaining non-empty implies ∃ c ∈
+  remaining, c ∈ [] which is false).
+- r :: rs:
+  - If `r ∈ remaining`: position_of r remaining = some k (helper lemma
+    `position_of_mem_iff_some` to prove separately, induct over
+    `remaining` with `position_of.aux`).
+  - Else: recurse on rs. The cover transfers: each `c ∈ remaining` is
+    in `r :: rs` and `c ≠ r`, so `c ∈ rs`.
+
+Sub-lemma needed: `position_of_some_iff_mem` (`∃ k, position_of a xs =
+some k ↔ a ∈ xs`). The `position_of.aux` nesting makes the direct
+induction slightly awkward — easiest is to first prove the
+`position_of.aux` generalization with index parameter `i`. -/
+lemma first_active_index_defined
+    (ranking remaining : List Addr)
+    (h_pos : 1 ≤ remaining.length)
+    (h_cover : ∀ c ∈ remaining, c ∈ ranking) :
+    ∃ idx, first_active_index ranking remaining = some idx := by
+  sorry
+
 /-- If `first_majority_candidate threshold rc = some w`, then `w` is one of
 the candidates listed in `rc`. -/
 lemma first_majority_candidate_in_rc
