@@ -33,11 +33,17 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     /// Block 1 (alternate path): create a new election (overwrites prior,
     /// admin-only). Clears all ballots and resets `tally_result`.
+    ///
+    /// `enclave_pubkey` is the dstack-KMS-derived ECIES public key for this
+    /// election. Admin obtains it from dstack before calling this handler;
+    /// the contract stores but does not verify it (dstack_kms_trust per
+    /// intent §6.3). Voters fetch from `Election` query and encrypt under it.
     CreateElection {
         title: String,
         candidates: Vec<Addr>,
         start_at: Timestamp,
         end_at: Timestamp,
+        enclave_pubkey: HexBinary,
     },
 
     /// Block 3: voter submits a ballot ciphertext. `msg.sender` must be a

@@ -38,6 +38,12 @@ pub enum Phase {
 
 /// Election storage. Single-election contract; `CreateElection` overwrites
 /// (admin-only) — intent v0.3.4 §2.5 Block 1 (alternate path).
+///
+/// `enclave_pubkey` is the dstack-KMS-derived public key for this election
+/// (intent §2.5 state variables; §6.3 trust boundary). Stored at
+/// `CreateElection` time; the corresponding privkey is released by dstack
+/// only after the enclave attests at tally time. Voters fetch this field
+/// at `SubmitBallot` time and ECIES-encrypt their preference list under it.
 #[cw_serde]
 pub struct Election {
     pub id: u64,
@@ -50,6 +56,10 @@ pub struct Election {
     pub start_at: Timestamp,
     pub end_at: Timestamp,
     pub ballot_count: u32,
+    /// dstack-KMS-derived ECIES public key for this election. Set at
+    /// `CreateElection` (admin obtains via dstack key-derivation against
+    /// contract_addr + election_id, before the enclave is invoked).
+    pub enclave_pubkey: HexBinary,
 }
 
 /// Image-identity-binding registry per intent §6.1. Set at instantiate

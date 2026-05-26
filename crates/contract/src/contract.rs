@@ -60,7 +60,10 @@ pub fn execute(
             candidates,
             start_at,
             end_at,
-        } => exec_create_election(deps, env, info, title, candidates, start_at, end_at),
+            enclave_pubkey,
+        } => exec_create_election(
+            deps, env, info, title, candidates, start_at, end_at, enclave_pubkey,
+        ),
         ExecuteMsg::SubmitBallot { ciphertext } => {
             exec_submit_ballot(deps, env, info, ciphertext)
         }
@@ -103,6 +106,7 @@ fn exec_create_election(
     candidates: Vec<Addr>,
     start_at: Timestamp,
     end_at: Timestamp,
+    enclave_pubkey: HexBinary,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if info.sender != config.admin {
@@ -155,6 +159,7 @@ fn exec_create_election(
             start_at,
             end_at,
             ballot_count: 0,
+            enclave_pubkey,
         },
     )?;
 

@@ -103,6 +103,7 @@ fn fresh_election() -> Election {
         start_at: Timestamp::from_nanos(START_AT_NS),
         end_at: Timestamp::from_nanos(END_AT_NS),
         ballot_count: 0,
+        enclave_pubkey: HexBinary::from(vec![0u8; 33]),
     }
 }
 
@@ -429,6 +430,7 @@ pub fn derive_phase_total_and_partitioned() {
         start_at: Timestamp::from_nanos(start_ns),
         end_at: Timestamp::from_nanos(end_ns),
         ballot_count: 0,
+        enclave_pubkey: HexBinary::from(vec![0u8; 33]),
     };
     let now = Timestamp::from_nanos(now_ns);
 
