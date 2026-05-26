@@ -17,6 +17,14 @@ path = "src/main.rs"
 name = "verified-rcv-roundtrip"
 path = "src/bin/roundtrip.rs"
 
+[[bin]]
+name = "verified-rcv-enclave-server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "verified-rcv-smoke"
+path = "src/bin/smoke.rs"
+
 [dependencies]
 verified-rcv-enclave-core = { path = "../enclave-core", features = ["serialize"] }
 
@@ -33,3 +41,28 @@ k256 = { version = "0.13", default-features = false, features = ["ecdsa", "alloc
 # canonical_serialization per intent §2.5.
 borsh = { version = "1.5", features = ["std", "derive"] }
 clap = { version = "4", features = ["derive"] }
+
+# gRPC server stack (Phase 1 per docs/runtime-integration.md).
+tonic = "0.12"
+prost = "0.13"
+async-trait = "0.1"
+tokio = { version = "1.40", features = ["rt-multi-thread", "macros", "signal", "net"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Attestation envelope deps (Phase 3). reqwest is async (matches oauth3's
+# dstack client pattern: native unix_socket support on the async builder).
+sha2 = "0.10"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+urlencoding = "2"
+
+[build-dependencies]
+tonic-build = "0.12"
+
+[dev-dependencies]
+tokio = { version = "1.40", features = ["rt-multi-thread", "macros", "time", "net"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+# Cross-test (tests/cross_canonical.rs) verifies the contract's and
+# runtime's canonical_serialization produce byte-identical bytes. Use the
+# `library` feature so the contract builds as a lib (no entry_point macros).
+verified-rcv-contract = { path = "../contract", features = ["library"] }

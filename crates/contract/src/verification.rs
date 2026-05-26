@@ -103,7 +103,12 @@ fn fresh_election() -> Election {
         start_at: Timestamp::from_nanos(START_AT_NS),
         end_at: Timestamp::from_nanos(END_AT_NS),
         ballot_count: 0,
-        enclave_pubkey: HexBinary::from(vec![0u8; 33]),
+        enclave_pubkey: HexBinary::from({
+            // Valid compressed secp256k1 shape: 0x02 prefix + 32-byte X.
+            let mut b = vec![0u8; 33];
+            b[0] = 0x02;
+            b
+        }),
     }
 }
 
@@ -116,8 +121,8 @@ fn fresh_config() -> Config {
 
 fn fresh_registry() -> EnclaveImageRegistry {
     EnclaveImageRegistry {
-        mrtd: vec![0u8; 32],
-        rtmr: vec![0u8; 32],
+        mrtd: vec![0u8; 48], // TDX SHA-384 length (audit M3)
+        rtmr: vec![0u8; 48],
         vkey: "verified_rcv_vkey".to_string(),
     }
 }
@@ -430,7 +435,12 @@ pub fn derive_phase_total_and_partitioned() {
         start_at: Timestamp::from_nanos(start_ns),
         end_at: Timestamp::from_nanos(end_ns),
         ballot_count: 0,
-        enclave_pubkey: HexBinary::from(vec![0u8; 33]),
+        enclave_pubkey: HexBinary::from({
+            // Valid compressed secp256k1 shape: 0x02 prefix + 32-byte X.
+            let mut b = vec![0u8; 33];
+            b[0] = 0x02;
+            b
+        }),
     };
     let now = Timestamp::from_nanos(now_ns);
 

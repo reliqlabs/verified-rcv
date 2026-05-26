@@ -43,6 +43,10 @@
 
 #![forbid(unsafe_code)]
 
+pub mod attestation;
+pub mod dstack;
+pub mod server;
+
 use std::collections::HashSet;
 
 use borsh::from_slice as borsh_from_slice;

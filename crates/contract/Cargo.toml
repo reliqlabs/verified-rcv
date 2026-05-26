@@ -9,12 +9,23 @@ description = "CosmWasm contract for verified-rcv (ranked-choice voting with TDX
 crate-type = ["cdylib", "rlib"]
 
 [features]
+# Production default: NO mock attestation, NO dev-only paths reachable.
+# Audit finding C1 (2026-05-26): Mock must be compile-time excluded from
+# production wasm. Tests / dev builds opt in via `mock-attestation`.
 default = []
-mock = []
+
+# Mock attestation gate. When OFF (production), AttestationEnvelope::Mock
+# does not exist at all — the enum has only the Dstack variant and the
+# contract's match is exhaustive over real attestation.
+mock-attestation = []
+
+# Library mode: skip the entry_point macros so this crate can be imported
+# from tests and external tools.
 library = []
+
 # Kani / Verus harnesses live behind `verification` feature so they don't
 # bloat the wasm output.
-verification = []
+verification = ["mock-attestation"]
 
 [dependencies]
 cosmwasm-std = { workspace = true, features = ["std", "exports"] }
@@ -24,6 +35,10 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 hex.workspace = true
+# SHA-256 for the attestation commit-hash check (intent §3.2 B8(c)).
+# canonical_serialization is hand-rolled to match intent §2.5 v0.3.1 T7
+# byte-for-byte; see `contract::canonical_serialization`.
+sha2 = "0.10"
 
 # Shared core types with the enclave (TallyResult schema, Ballot, etc.).
 verified-rcv-enclave-core = { path = "../enclave-core", features = ["serialize"] }

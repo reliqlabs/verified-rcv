@@ -19,5 +19,7 @@ default = []
 # `serialize` enables serde + cosmwasm-schema derives on the public types so
 # the contract crate can embed them in message schemas. Aeneas extraction
 # runs with default features off — keep the core types free of derive-macro
-# noise for charon.
+# noise for charon. canonical_serialization is implemented as a hand-rolled
+# byte builder in the contract + runtime crates (matches intent §2.5
+# v0.3.1 T7 leaf-encoding pin exactly).
 serialize = ["dep:serde", "dep:serde_json", "dep:schemars", "dep:cw-schema"]
