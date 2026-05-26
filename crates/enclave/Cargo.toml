@@ -5,9 +5,17 @@ edition.workspace = true
 authors.workspace = true
 description = "Runtime wrapper for verified-rcv enclave — wires Tally_spec core to dstack TDX + Quartz attestation"
 
+[lib]
+name = "verified_rcv_enclave"
+path = "src/lib.rs"
+
 [[bin]]
 name = "verified-rcv-enclave"
 path = "src/main.rs"
+
+[[bin]]
+name = "verified-rcv-roundtrip"
+path = "src/bin/roundtrip.rs"
 
 [dependencies]
 verified-rcv-enclave-core = { path = "../enclave-core", features = ["serialize"] }
@@ -18,5 +26,10 @@ hex.workspace = true
 thiserror.workspace = true
 
 # Crypto primitives (ECIES decrypt via the same crate the Quartz example uses).
-ecies = { version = "0.2", default-features = false, features = ["pure"] }
+ecies = { version = "0.2", default-features = false, features = ["pure", "std"] }
 k256 = { version = "0.13", default-features = false, features = ["ecdsa", "alloc"] }
+
+# Roundtrip test binary deps. Borsh pin matches the UI's borsh-js choice;
+# canonical_serialization per intent §2.5.
+borsh = { version = "1.5", features = ["std", "derive"] }
+clap = { version = "4", features = ["derive"] }
