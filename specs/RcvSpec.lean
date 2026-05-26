@@ -116,12 +116,14 @@ shape but use plain `List` rather than `Vec` / `Slice`. The recursion is
 bounded by `candidates.length + 1` (each non-terminal round strictly
 shrinks `remaining`, so fuel is a safe upper bound). -/
 
+/-- Linear search with an explicit running index. Top-level (rather than
+let-rec) so induction is straightforward. -/
+def position_of_aux (a : Addr) : Nat → List Addr → Option Nat
+  | _, []      => none
+  | i, x :: xs => if x = a then some i else position_of_aux a (i + 1) xs
+
 /-- Linear search: position of `a` in `xs`, mirroring Rust's `position_of`. -/
-def position_of (a : Addr) : List Addr → Option Nat :=
-  let rec aux (i : Nat) : List Addr → Option Nat
-    | []      => none
-    | x :: xs => if x = a then some i else aux (i + 1) xs
-  aux 0
+def position_of (a : Addr) (xs : List Addr) : Option Nat := position_of_aux a 0 xs
 
 /-- First index in `remaining` that the ballot's `ranking` prefers, mirroring
 Rust's `first_active_index`. Structural recursion on `ranking`. -/
@@ -325,34 +327,76 @@ lemma tally_round_candidates_in_remaining
   unfold tally_round at h
   exact tally_round_aux_candidates_in_cs valid remaining 0 remaining rc h
 
+/-- `position_of_aux` returns `some` iff the target is in the list.
+Foundational lemma for `first_active_index_defined`. -/
+lemma position_of_aux_some_iff (a : Addr) :
+    ∀ (i : Nat) (xs : List Addr),
+      (∃ k, position_of_aux a i xs = some k) ↔ a ∈ xs := by
+  intro i xs
+  induction xs generalizing i with
+  | nil => simp [position_of_aux]
+  | cons x rest ih =>
+    constructor
+    · intro ⟨k, hk⟩
+      unfold position_of_aux at hk
+      by_cases hx : x = a
+      · exact hx ▸ List.mem_cons_self ..
+      · simp [hx] at hk
+        exact List.mem_cons_of_mem _ ((ih (i + 1)).mp ⟨k, hk⟩)
+    · intro h
+      unfold position_of_aux
+      by_cases hx : x = a
+      · exact ⟨i, by simp [hx]⟩
+      · simp [hx]
+        rw [List.mem_cons] at h
+        rcases h with h_eq | h_rest
+        · exact absurd h_eq.symm hx
+        · exact (ih (i + 1)).mpr h_rest
+
+/-- `first_active_index` returns `some` whenever `ranking` and `remaining`
+share any element. Used inside `first_active_index_defined`. -/
+lemma first_active_index_some_of_intersects
+    (ranking remaining : List Addr)
+    (h : ∃ r ∈ ranking, r ∈ remaining) :
+    ∃ idx, first_active_index ranking remaining = some idx := by
+  induction ranking with
+  | nil => obtain ⟨r, hr, _⟩ := h; simp at hr
+  | cons x rs ih =>
+    unfold first_active_index
+    by_cases hx : x ∈ remaining
+    · obtain ⟨k, hk⟩ := (position_of_aux_some_iff x 0 remaining).mpr hx
+      have : position_of x remaining = some k := hk
+      rw [this]
+      exact ⟨k, rfl⟩
+    · have h_pos_none : position_of x remaining = none := by
+        match h_p : position_of x remaining with
+        | none => rfl
+        | some k =>
+          exfalso
+          exact hx ((position_of_aux_some_iff x 0 remaining).mp ⟨k, h_p⟩)
+      rw [h_pos_none]
+      obtain ⟨r, hr_mem, hr_in_rem⟩ := h
+      rw [List.mem_cons] at hr_mem
+      rcases hr_mem with rfl | hr_in_rs
+      · exact absurd hr_in_rem hx
+      · exact ih ⟨r, hr_in_rs, hr_in_rem⟩
+
 /-- Under the A8 cover condition (every element of `remaining` appears
 somewhere in `ranking`) and non-empty `remaining`, `first_active_index`
 returns `some`. Load-bearing for both `irv_round_counts_sum` and
 `irv_no_reappearance` proofs: it shows that exhausted ballots (which
 would yield `none` and trigger the all-abstain branch at deep
-recursion) cannot occur under A8.
-
-Proof sketch (next-session work):
-- Induction on `ranking`.
-- nil: contradicts `h_cover` (remaining non-empty implies ∃ c ∈
-  remaining, c ∈ [] which is false).
-- r :: rs:
-  - If `r ∈ remaining`: position_of r remaining = some k (helper lemma
-    `position_of_mem_iff_some` to prove separately, induct over
-    `remaining` with `position_of.aux`).
-  - Else: recurse on rs. The cover transfers: each `c ∈ remaining` is
-    in `r :: rs` and `c ≠ r`, so `c ∈ rs`.
-
-Sub-lemma needed: `position_of_some_iff_mem` (`∃ k, position_of a xs =
-some k ↔ a ∈ xs`). The `position_of.aux` nesting makes the direct
-induction slightly awkward — easiest is to first prove the
-`position_of.aux` generalization with index parameter `i`. -/
+recursion) cannot occur under A8. -/
 lemma first_active_index_defined
     (ranking remaining : List Addr)
     (h_pos : 1 ≤ remaining.length)
     (h_cover : ∀ c ∈ remaining, c ∈ ranking) :
     ∃ idx, first_active_index ranking remaining = some idx := by
-  sorry
+  apply first_active_index_some_of_intersects
+  cases remaining with
+  | nil => simp at h_pos
+  | cons c0 rest =>
+    exact ⟨c0, h_cover c0 (List.mem_cons_self ..), List.mem_cons_self ..⟩
 
 /-- If `first_majority_candidate threshold rc = some w`, then `w` is one of
 the candidates listed in `rc`. -/
