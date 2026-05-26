@@ -620,18 +620,22 @@ theorem irv_winners_shape :
   exact ⟨inv.1, inv.2.2.1, inv.2.2.2⟩
 
 /-- Stage 2 round-conservation obligation (§2.5, §3.1 S8). Each round's
-per-candidate counts sum to `ballots_tallied`. Eliminated candidates'
-ballots transfer to the next-ranked surviving candidate rather than
-disappearing, so total ballots is conserved across rounds.
+per-candidate counts sum to `ballots_tallied`.
 
-Discharge plan: induction on `irv_loop` fuel. The base step is the
-all-abstain zero-round case where every count is 0 (sum 0 = ballots_tallied
-0 by S7's all-abstain corollary). The inductive step relies on
-`tally_round` placing each valid ballot into exactly one bucket (its
-first-active-among-remaining), and `count_at_index` summing across
-buckets recovering `|valid|`. -/
+Per intent v0.3.6 encoding-discipline note A8, the
+`∀ (_, b) ∈ valid, ∀ c ∈ cs, c ∈ b.ranking` hypothesis is required:
+without it, exhausted ballots trigger the all-abstain branch with
+sum = 0 ≠ valid.length. Stage 1 validates ballots as permutations of
+`cs`, so the hypothesis propagates that constraint to Stage 2.
+
+Discharge plan: induction on `irv_loop` fuel. Under the hypothesis,
+total > 0 at every recursion step (each ballot has a first-active in
+`remaining ⊆ cs`), so the all-abstain branch is only reached when
+`valid = []` (the base trivial case). Otherwise, `tally_round` places
+each ballot into exactly one bucket, summing to `valid.length`. -/
 theorem irv_round_counts_sum :
     ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
+      (∀ p ∈ valid, ∀ c ∈ cs, c ∈ p.snd.ranking) →
       ∀ rc ∈ (IRV_spec valid cs).per_round_counts,
         (rc.foldl (fun acc r => acc + r.count) 0) =
           (IRV_spec valid cs).ballots_tallied := by
@@ -641,6 +645,13 @@ theorem irv_round_counts_sum :
 candidate eliminated at round `i` does not reappear as a `RoundCount`
 entry in any later `per_round_counts[j]?` with `j > i`.
 
+Per intent v0.3.6 encoding-discipline note A8, the
+`∀ (_, b) ∈ valid, ∀ c ∈ cs, c ∈ b.ranking` hypothesis is required:
+without it, the all-abstain branch can trigger at deep recursion
+(`total = 0` at step `k > 0`), writing a round with the FULL `cs` —
+reintroducing every eliminated candidate. The hypothesis blocks that
+branch for non-empty `valid`.
+
 Discharge plan: induction on `irv_loop` fuel + the invariant that
 `tally_round` is called with `remaining` shrinking monotonically across
 recursive calls. `losers` is removed from `remaining` before the
@@ -648,8 +659,9 @@ recursive call, and `tally_round` enumerates `remaining` only — so any
 candidate in `eliminated_by_round[i]` cannot appear as `rc.candidate` in
 any subsequent `tally_round` output. -/
 theorem irv_no_reappearance :
-    ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet)
-      (i j : Nat) (eliminated : List Addr) (rc : RoundCounts) (c : Addr),
+    ∀ (valid : List (Addr × Ballot)) (cs : CandidateSet),
+      (∀ p ∈ valid, ∀ c ∈ cs, c ∈ p.snd.ranking) →
+      ∀ (i j : Nat) (eliminated : List Addr) (rc : RoundCounts) (c : Addr),
       (IRV_spec valid cs).eliminated_by_round[i]? = some eliminated →
       (IRV_spec valid cs).per_round_counts[j]? = some rc →
       i < j →
@@ -697,19 +709,26 @@ theorem s7_voter_partition
   exact decrypt_partition_length raw cs pk h_nodup
 
 /-- S8 — round counts sum (§3.1). For each round, the per-candidate counts
-sum to `ballots_tallied`. -/
+sum to `ballots_tallied`.
+
+Hypothesis (intent v0.3.6 A8): every Stage-1-valid ballot covers `cs`
+(Stage 1 validates as permutation; this is the weakest sufficient form). -/
 theorem s8_round_counts_sum
-    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (_h_nodup : cs.Nodup) :
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (_h_nodup : cs.Nodup)
+    (h_cover : ∀ p ∈ (decrypt_and_validate raw cs pk).valid, ∀ c ∈ cs, c ∈ p.snd.ranking) :
     let t := Tally_spec raw cs pk
     ∀ rc ∈ t.per_round_counts,
       (rc.foldl (fun acc r => acc + r.count) 0) = t.ballots_tallied := by
   simp only [Tally_spec]
-  exact irv_round_counts_sum (decrypt_and_validate raw cs pk).valid cs
+  exact irv_round_counts_sum (decrypt_and_validate raw cs pk).valid cs h_cover
 
 /-- S9 — no reappearance (§3.1). A candidate eliminated at round i does
-not appear as a key in `per_round_counts[j]` for any j > i. -/
+not appear as a key in `per_round_counts[j]` for any j > i.
+
+Hypothesis (intent v0.3.6 A8): same ballot-cover condition as S8. -/
 theorem s9_no_reappearance
-    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (_h_nodup : cs.Nodup) :
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) (_h_nodup : cs.Nodup)
+    (h_cover : ∀ p ∈ (decrypt_and_validate raw cs pk).valid, ∀ c ∈ cs, c ∈ p.snd.ranking) :
     let t := Tally_spec raw cs pk
     ∀ (i j : Nat) (eliminated : List Addr) (rc : RoundCounts) (c : Addr),
       t.eliminated_by_round[i]? = some eliminated →
@@ -719,7 +738,7 @@ theorem s9_no_reappearance
       ∀ entry ∈ rc, entry.candidate ≠ c := by
   simp only [Tally_spec]
   intro i j eliminated rc c h_elim h_rc h_lt h_mem
-  exact irv_no_reappearance (decrypt_and_validate raw cs pk).valid cs
+  exact irv_no_reappearance (decrypt_and_validate raw cs pk).valid cs h_cover
     i j eliminated rc c h_elim h_rc h_lt h_mem
 
 /-
