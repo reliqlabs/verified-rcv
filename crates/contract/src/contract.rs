@@ -397,11 +397,21 @@ pub(crate) fn exec_publish_result(
     check_tally_well_formed(&election, &tally)?;
 
     // N1 (v0.3.9) — publish-quote verification.
+    // B6 (v0.3.11) — also bind raw_ballots@end_at snapshot into commit hash.
     let registry = REGISTRY.load(deps.storage)?;
     let contract_addr = env.contract.address.as_str();
     let chain_id = env.block.chain_id.as_str();
-    let expected_commit =
-        compute_commit_hash(contract_addr, chain_id, election.id, &tally);
+    let ballots_view: Vec<(Addr, HexBinary)> = BALLOTS
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect::<StdResult<Vec<_>>>()?;
+    let ballots_hash = compute_ballots_hash(&election.candidates, &ballots_view);
+    let expected_commit = compute_commit_hash(
+        contract_addr,
+        chain_id,
+        election.id,
+        &ballots_hash,
+        &tally,
+    );
     verify_publish_quote(
         deps.as_ref(),
         &registry,
@@ -892,38 +902,95 @@ pub fn verify_registration_quote(
 // Commit hash + canonical_serialization (intent §2.5)
 // ============================================================
 
-/// Compute the canonical commit hash per intent §2.5 (v0.3.10 form):
-/// `SHA-256(canonical_serialization(contract_addr ‖ chain_id ‖ election_id ‖ tally_body))`.
+/// Compute the canonical commit hash per intent §2.5 (v0.3.11 form):
+/// `SHA-256(canonical_serialization(contract_addr ‖ chain_id ‖ election_id ‖ ballots_hash ‖ tally_body))`.
 /// Pinned at v0.3.9 to bind ReportData[0..32] of the publish quote;
-/// `chain_id` added at v0.3.10 (N4) for cross-chain replay defense.
+/// `chain_id` added at v0.3.10 (N4) for cross-chain replay defense;
+/// `ballots_hash` added at v0.3.11 (B6) to close §8.7 link 7
+/// (enclave_input_fidelity).
 pub fn compute_commit_hash(
     contract_addr: &str,
     chain_id: &str,
     election_id: u64,
+    ballots_hash: &[u8; 32],
     tally: &TallyResult,
 ) -> [u8; 32] {
-    let canonical = canonical_serialization(contract_addr, chain_id, election_id, tally);
+    let canonical =
+        canonical_serialization(contract_addr, chain_id, election_id, ballots_hash, tally);
     let mut hasher = Sha256::new();
     hasher.update(&canonical);
     hasher.finalize().into()
 }
 
 /// Hand-rolled canonical serialization per intent §2.5 v0.3.1 T7
-/// (chain_id field added at v0.3.10 / N4 — cross-chain replay defense).
+/// (chain_id added v0.3.10 N4; ballots_hash added v0.3.11 B6).
 /// MUST stay byte-identical to the runtime's
 /// `verified_rcv_enclave::attestation::canonical_serialization`.
 pub fn canonical_serialization(
     contract_addr: &str,
     chain_id: &str,
     election_id: u64,
+    ballots_hash: &[u8; 32],
     tally: &TallyResult,
 ) -> Vec<u8> {
     let mut out = Vec::new();
     write_borsh_string(&mut out, contract_addr);
     write_borsh_string(&mut out, chain_id);
     out.extend_from_slice(&election_id.to_le_bytes());
+    // v0.3.11 B6: ballots_hash binds the *input* (raw_ballots@end_at) into
+    // the commit preimage, closing §8.7 link 7 (enclave_input_fidelity).
+    // 32 raw bytes (no length prefix — fixed size).
+    out.extend_from_slice(ballots_hash);
     write_tally_body(&mut out, tally);
     out
+}
+
+/// v0.3.11 B6: compute SHA-256 over the chain-side snapshot of the
+/// (voter, ciphertext) pairs the enclave SHOULD have consumed.
+///
+/// Walks `election.candidates` in declaration order; for each candidate
+/// with a corresponding `BALLOTS` entry, emits `(addr_borsh, ciphertext_borsh)`.
+/// Candidates without a ballot are skipped (they appear in `non_voters`
+/// downstream). The chain-side iteration matches intent §2.5 Stage 1's
+/// candidate-declaration-order discipline; the runtime mirrors via the
+/// same ordering applied to its received raw_ballots vector.
+///
+/// If the orchestrator reorders or substitutes the raw_ballots, the
+/// runtime's commit_hash diverges from this value and chain rejects
+/// with `AttestationCommitMismatch`.
+pub fn compute_ballots_hash(
+    candidates: &[Addr],
+    ballots_view: &[(Addr, HexBinary)],
+) -> [u8; 32] {
+    // Build a lookup from voter address to ciphertext slice for O(N) chain-side
+    // iteration. `ballots_view` is assumed to come from `BALLOTS.range(...)`
+    // (lexicographic by address) — we re-project to candidate-declaration order.
+    let mut canonical = Vec::new();
+    let mut included: u32 = 0;
+    let mut body = Vec::new();
+    for cand in candidates {
+        // Linear scan over ballots_view (size is bounded by |candidates|,
+        // typically small).
+        for (voter, ct) in ballots_view {
+            if voter.as_str() == cand.as_str() {
+                write_borsh_string(&mut body, voter.as_str());
+                write_borsh_bytes(&mut body, ct.as_slice());
+                included = included.saturating_add(1);
+                break;
+            }
+        }
+    }
+    canonical.extend_from_slice(&included.to_le_bytes());
+    canonical.extend_from_slice(&body);
+    let mut hasher = Sha256::new();
+    hasher.update(&canonical);
+    hasher.finalize().into()
+}
+
+/// Write a Borsh-encoded `Vec<u8>`: u32 LE length prefix + bytes.
+fn write_borsh_bytes(out: &mut Vec<u8>, b: &[u8]) {
+    out.extend_from_slice(&(b.len() as u32).to_le_bytes());
+    out.extend_from_slice(b);
 }
 
 fn write_borsh_string(out: &mut Vec<u8>, s: &str) {
@@ -1215,6 +1282,11 @@ mod tests {
 
     /// `mock_env()` defaults `block.chain_id` to "cosmos-testnet-14002".
     const MOCK_CHAIN_ID: &str = "cosmos-testnet-14002";
+    /// Empty ballots view → ballots_hash of `compute_ballots_hash(&[], &[])`.
+    /// Used by unit tests that don't exercise the full BALLOTS write path.
+    fn empty_ballots_hash() -> [u8; 32] {
+        compute_ballots_hash(&[], &[])
+    }
 
     fn synthetic_pi_for_tally(
         contract_addr: &str,
@@ -1227,8 +1299,9 @@ mod tests {
         let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
         let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
         let r3 = reg.rtmr3.clone().unwrap_or_else(|| vec![0u8; 48]);
+        let bh = empty_ballots_hash();
         let commit =
-            compute_commit_hash(contract_addr, MOCK_CHAIN_ID, election_id, tally);
+            compute_commit_hash(contract_addr, MOCK_CHAIN_ID, election_id, &bh, tally);
         let rd = build_publish_report_data(&commit);
         let pi = build_synthetic_public_inputs(
             &mrtd,
@@ -1507,7 +1580,7 @@ mod tests {
     fn publish_quote_wrong_dst_rejected() {
         let reg = good_registry();
         let tally = minimal_valid_tally();
-        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &tally);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &tally);
         let mut rd = [0u8; 64];
         rd[..32].copy_from_slice(&commit);
         // Wrong DST in upper 32 — leave as zeros (no DST_VERIFIED_RCV_TALLY_V1).
@@ -1527,7 +1600,7 @@ mod tests {
         // PI committing to a DIFFERENT election_id
         let pi = synthetic_pi_for_tally("cw1xxx", 999, &tally, &reg);
         // Expected commit for the REAL election_id
-        let expected_commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &tally);
+        let expected_commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &tally);
         let deps = mock_dependencies();
         let err = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &dummy_proof(), &pi)
             .unwrap_err();
@@ -1539,7 +1612,7 @@ mod tests {
         let mut reg = good_registry();
         let tally = minimal_valid_tally();
         let pi = synthetic_pi_for_tally("cw1xxx", 1, &tally, &reg);
-        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &tally);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &tally);
         // Mutate registry to expect a DIFFERENT mrtd.
         reg.mrtd = vec![0xFF; 48];
         let deps = mock_dependencies();
@@ -1556,7 +1629,7 @@ mod tests {
         let reg = good_registry();
         let tally = minimal_valid_tally();
         let pi = synthetic_pi_for_tally("cw1xxx", 1, &tally, &reg);
-        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &tally);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &tally);
         let deps = mock_dependencies();
         verify_publish_quote(deps.as_ref(), &reg, &commit, &dummy_proof(), &pi).unwrap();
     }

@@ -16,7 +16,9 @@ Concrete API changes affecting this crate:
 | `server.rs` `TallyResponse` | `{ tally_json, attestation_json }` | `{ tally_json, proof, public_inputs }` |
 | `server.rs` `TallyRequest` | `{ contract_addr, election_id, candidates, raw_ballots }` | `{ contract_addr, election_id, candidates, raw_ballots, chain_id }` (chain_id added v0.3.10 N4) |
 | `server.rs` `TallyServiceImpl::new(dstack, EnvelopeConfig)` | takes prover URL | takes `EnclaveIdentity` (mrtd/rtmr*/tcb_status/timestamp) instead |
-| `attestation.rs` `canonical_serialization(addr, election_id, tally)` | 3-arg | 4-arg: `(addr, chain_id, election_id, tally)` |
+| `attestation.rs` `canonical_serialization(addr, election_id, tally)` | 3-arg | 5-arg: `(addr, chain_id, election_id, ballots_hash, tally)` (chain_id v0.3.10 N4; ballots_hash v0.3.11 B6) |
+| `attestation.rs` `compute_ballots_hash` | did not exist | NEW v0.3.11 B6: `compute_ballots_hash(candidates: &[String], entries: &[(String, Vec<u8>)]) -> [u8; 32]`. Cross-tested for byte-equality with the contract's `compute_ballots_hash(&[Addr], &[(Addr, HexBinary)])`. |
+| `server.rs` Tally handler | hashed `(contract_addr, election_id, tally)` only | v0.3.11 B6: also computes `ballots_hash = compute_ballots_hash(candidates, raw_ballots)` from received input, threads through `produce_publish_artifacts`. Host-substituted ballots fail chain-side `AttestationCommitMismatch`. |
 | `attestation.rs` `build_user_data` | existed | **removed** — `build_publish_report_data` produces the 64-byte ReportData directly |
 | Real prover gate | `ZKDCAP_PROVER_URL` env var (HTTP) | `real-zkdcap` cargo feature; default emits synthetic stub |
 
@@ -368,5 +370,5 @@ The contract code is ready (45 unit + 8 cross + 19 runtime + 11 math + 2 dstack 
 3. **B3**: TDX-quote parser populating `HealthResponse.mrtd_hex` / `rtmr_hex`.
 4. **B4**: `B10_lean` discharge (multi-day Aeneas refinement).
 5. **B5**: reproducible build (image-identity-binding §8.7 link 4).
-6. **B6**: `enclave_input_fidelity` (§8.7 link 7).
+6. ~~**B6**: `enclave_input_fidelity` (§8.7 link 7).~~ **DISCHARGED v0.3.11** via `ballots_hash` in canonical_serialization (cross-tested byte-identical between contract + runtime).
 7. **B7**: end-to-end Xion testnet smoke.

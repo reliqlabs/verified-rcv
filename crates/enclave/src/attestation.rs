@@ -65,20 +65,62 @@ pub enum AttestationError {
 // ---------------------------------------------------------------------------
 
 /// Borsh-style canonical serialization of `(contract_addr ‖ chain_id ‖
-/// election_id ‖ tally_body)`. The `chain_id` field was added at v0.3.10
-/// (N4) for cross-chain replay defense.
+/// election_id ‖ ballots_hash ‖ tally_body)`. The `chain_id` field was
+/// added at v0.3.10 (N4) for cross-chain replay defense; the
+/// `ballots_hash` field was added at v0.3.11 (B6) to close §8.7 link 7
+/// (enclave_input_fidelity).
 pub fn canonical_serialization(
     contract_addr: &str,
     chain_id: &str,
     election_id: u64,
+    ballots_hash: &[u8; 32],
     tally: &TallyResult,
 ) -> Vec<u8> {
     let mut out = Vec::new();
     write_borsh_string(&mut out, contract_addr);
     write_borsh_string(&mut out, chain_id);
     out.extend_from_slice(&election_id.to_le_bytes());
+    out.extend_from_slice(ballots_hash);
     write_tally_body(&mut out, tally);
     out
+}
+
+/// v0.3.11 B6 — compute SHA-256 over the enclave-side view of the
+/// (voter, ciphertext) pairs the runtime actually consumed.
+///
+/// `entries` is the raw_ballots vector the orchestrator passed in,
+/// in candidate-declaration order. Encoding: u32 LE count + for each
+/// included entry, Borsh-encoded `(voter: String, ciphertext: bytes)`.
+///
+/// MUST stay byte-identical to the chain's `compute_ballots_hash` so
+/// the resulting commit_hash matches under chain-side verification.
+pub fn compute_ballots_hash(
+    candidates: &[String],
+    entries: &[(String, Vec<u8>)],
+) -> [u8; 32] {
+    let mut body = Vec::new();
+    let mut included: u32 = 0;
+    for cand in candidates {
+        for (voter, ct) in entries {
+            if voter == cand {
+                write_borsh_string(&mut body, voter);
+                write_borsh_bytes(&mut body, ct);
+                included = included.saturating_add(1);
+                break;
+            }
+        }
+    }
+    let mut canonical = Vec::new();
+    canonical.extend_from_slice(&included.to_le_bytes());
+    canonical.extend_from_slice(&body);
+    let mut hasher = Sha256::new();
+    hasher.update(&canonical);
+    hasher.finalize().into()
+}
+
+fn write_borsh_bytes(out: &mut Vec<u8>, b: &[u8]) {
+    out.extend_from_slice(&(b.len() as u32).to_le_bytes());
+    out.extend_from_slice(b);
 }
 
 fn write_borsh_string(out: &mut Vec<u8>, s: &str) {
@@ -136,14 +178,16 @@ fn write_tally_body(out: &mut Vec<u8>, t: &TallyResult) {
 
 /// 64-byte ReportData for a publish quote: lower 32 = commit_hash, upper
 /// 32 = DST_VERIFIED_RCV_TALLY_V1 zero-padded. v0.3.10 (N4) added
-/// `chain_id` to the commit preimage.
+/// `chain_id`; v0.3.11 (B6) added `ballots_hash` for input-fidelity binding.
 pub fn build_publish_report_data(
     contract_addr: &str,
     chain_id: &str,
     election_id: u64,
+    ballots_hash: &[u8; 32],
     tally: &TallyResult,
 ) -> [u8; 64] {
-    let canonical = canonical_serialization(contract_addr, chain_id, election_id, tally);
+    let canonical =
+        canonical_serialization(contract_addr, chain_id, election_id, ballots_hash, tally);
     let mut hasher = Sha256::new();
     hasher.update(&canonical);
     let commit = hasher.finalize();
@@ -255,10 +299,16 @@ pub async fn produce_publish_artifacts(
     contract_addr: &str,
     chain_id: &str,
     election_id: u64,
+    ballots_hash: &[u8; 32],
     tally: &TallyResult,
 ) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
-    let report_data =
-        build_publish_report_data(contract_addr, chain_id, election_id, tally);
+    let report_data = build_publish_report_data(
+        contract_addr,
+        chain_id,
+        election_id,
+        ballots_hash,
+        tally,
+    );
     produce_artifacts_inner(identity, &report_data).await
 }
 
@@ -328,15 +378,18 @@ mod tests {
         }
     }
 
+    fn empty_bh() -> [u8; 32] {
+        compute_ballots_hash(&[], &[])
+    }
+
     #[test]
     fn publish_report_data_layout() {
         let tally = sample_tally();
-        let rd = build_publish_report_data("xion1contract", "xion-1", 7, &tally);
-        // lower 32 = SHA-256 commit
-        let canonical = canonical_serialization("xion1contract", "xion-1", 7, &tally);
+        let bh = empty_bh();
+        let rd = build_publish_report_data("xion1contract", "xion-1", 7, &bh, &tally);
+        let canonical = canonical_serialization("xion1contract", "xion-1", 7, &bh, &tally);
         let expect = Sha256::digest(&canonical);
         assert_eq!(&rd[..32], &expect[..]);
-        // upper 32 = DST_TALLY zero-padded
         assert_eq!(&rd[32..32 + DST_TALLY.len()], DST_TALLY);
         assert!(rd[32 + DST_TALLY.len()..].iter().all(|&b| b == 0));
     }
@@ -344,9 +397,56 @@ mod tests {
     #[test]
     fn chain_id_affects_canonical_serialization_bytes() {
         let tally = sample_tally();
-        let a = canonical_serialization("xion1c", "xion-1", 7, &tally);
-        let b = canonical_serialization("xion1c", "xion-2", 7, &tally);
+        let bh = empty_bh();
+        let a = canonical_serialization("xion1c", "xion-1", 7, &bh, &tally);
+        let b = canonical_serialization("xion1c", "xion-2", 7, &bh, &tally);
         assert_ne!(a, b, "chain_id must affect canonical_serialization bytes (N4)");
+    }
+
+    #[test]
+    fn ballots_hash_affects_canonical_serialization_bytes() {
+        // B6 (v0.3.11): different raw_ballots produce different commit hashes,
+        // even with the same chain/contract/election/tally.
+        let tally = sample_tally();
+        let bh_a = compute_ballots_hash(
+            &["alice".to_string()],
+            &[("alice".to_string(), vec![0u8; 4])],
+        );
+        let bh_b = compute_ballots_hash(
+            &["alice".to_string()],
+            &[("alice".to_string(), vec![0xFFu8; 4])],
+        );
+        let a = canonical_serialization("xion1c", "xion-1", 7, &bh_a, &tally);
+        let b = canonical_serialization("xion1c", "xion-1", 7, &bh_b, &tally);
+        assert_ne!(a, b, "ballots_hash must affect canonical_serialization bytes (B6)");
+    }
+
+    #[test]
+    fn ballots_hash_candidate_declaration_order_pinned() {
+        // The orchestrator MUST pass raw_ballots in candidate-declaration
+        // order. If it doesn't, ballots_hash diverges from the chain's
+        // expected value and the chain rejects.
+        let cands = vec!["alice".to_string(), "bob".to_string()];
+        let in_order = compute_ballots_hash(
+            &cands,
+            &[
+                ("alice".to_string(), vec![1, 2, 3]),
+                ("bob".to_string(), vec![4, 5, 6]),
+            ],
+        );
+        // Same ballots, but presented in a different order to the helper.
+        // Since the helper walks `candidates` in declaration order and
+        // filters by voter match, the order of `entries` shouldn't matter
+        // -- it should produce the same hash because both contain (alice,
+        // [1,2,3]) and (bob, [4,5,6]).
+        let shuffled = compute_ballots_hash(
+            &cands,
+            &[
+                ("bob".to_string(), vec![4, 5, 6]),
+                ("alice".to_string(), vec![1, 2, 3]),
+            ],
+        );
+        assert_eq!(in_order, shuffled);
     }
 
     #[test]
@@ -402,7 +502,13 @@ mod tests {
             dropped_voters: vec![],
             non_voters: vec![],
         };
-        let bytes = canonical_serialization("xc", "cid", 7, &tally);
+        // B6 (v0.3.11): empty ballots_hash used here (no entries for the
+        // single-candidate `a` since the helper requires the candidate to
+        // appear in raw_ballots; sample tally above is the math result, not
+        // the input). We use a fixed all-zero buffer to keep the byte-pin
+        // stable across tests.
+        let bh = [0u8; 32];
+        let bytes = canonical_serialization("xc", "cid", 7, &bh, &tally);
         let mut expect = Vec::new();
         expect.extend_from_slice(&2u32.to_le_bytes());
         expect.extend_from_slice(b"xc");
@@ -410,6 +516,8 @@ mod tests {
         expect.extend_from_slice(&3u32.to_le_bytes());
         expect.extend_from_slice(b"cid");
         expect.extend_from_slice(&7u64.to_le_bytes());
+        // B6 (v0.3.11): ballots_hash 32 raw bytes between election_id and tally_body.
+        expect.extend_from_slice(&bh);
         expect.extend_from_slice(&1u32.to_le_bytes());
         expect.extend_from_slice(&1u32.to_le_bytes());
         expect.extend_from_slice(b"a");

@@ -46,7 +46,8 @@ use verified_rcv_enclave_core::{RoundCount, RoundCounts, TallyResult};
 
 use crate::contract::{
     build_publish_report_data, build_synthetic_public_inputs, check_tally_well_formed,
-    compute_commit_hash, derive_phase, exec_publish_result, exec_submit_ballot,
+    compute_ballots_hash, compute_commit_hash, derive_phase, exec_publish_result,
+    exec_submit_ballot,
 };
 use crate::error::ContractError;
 use crate::state::{
@@ -145,7 +146,11 @@ fn fresh_publish_artifacts(
     tally: &TallyResult,
 ) -> (HexBinary, HexBinary) {
     let reg = fresh_registry();
-    let commit = compute_commit_hash(contract_addr, chain_id, election_id, tally);
+    // Empty ballots view for the harness — harnesses pre-populate BALLOTS
+    // selectively and the publish flow walks BALLOTS at PublishResult
+    // time. For the harness's chain-side commit, hash the empty view.
+    let bh = compute_ballots_hash(&[], &[]);
+    let commit = compute_commit_hash(contract_addr, chain_id, election_id, &bh, tally);
     let rd = build_publish_report_data(&commit);
     let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
     let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();

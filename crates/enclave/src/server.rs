@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use verified_rcv_enclave_core::{Addr, RawBallots, RawEntry};
 
-use crate::attestation::{produce_publish_artifacts, EnclaveIdentity};
+use crate::attestation::{compute_ballots_hash, produce_publish_artifacts, EnclaveIdentity};
 use crate::dstack::DstackClient;
 use crate::tally_spec;
 
@@ -71,7 +71,16 @@ impl TallyService for TallyServiceImpl {
         let candidates: Vec<Addr> = candidates;
         let tally = tally_spec(&raw_ballots, &candidates, &privkey);
 
-        // 3. v0.3.9 N1 attestation artifacts. Default build: synthetic
+        // 3. B6 (v0.3.11) — bind raw_ballots into the commit hash so a
+        //    host-substituted input set produces a different commit and
+        //    the chain rejects with AttestationCommitMismatch.
+        let ballots_for_hash: Vec<(String, Vec<u8>)> = raw_ballots
+            .iter()
+            .map(|e| (e.voter.clone(), e.ciphertext.clone()))
+            .collect();
+        let ballots_hash = compute_ballots_hash(&candidates, &ballots_for_hash);
+
+        // 4. v0.3.9 N1 attestation artifacts. Default build: synthetic
         //    `(proof, public_inputs)` matching §2.5 byte layout; real
         //    build (`--features real-zkdcap`): drive the zkdcap gnark
         //    prover via unix socket.
@@ -80,6 +89,7 @@ impl TallyService for TallyServiceImpl {
             &contract_addr,
             &chain_id,
             election_id,
+            &ballots_hash,
             &tally,
         )
         .await
@@ -167,15 +177,15 @@ mod tests {
         let pubkey = pk.serialize();
 
         let cands = vec!["A".to_string(), "B".to_string(), "C".to_string()];
+        // ECIES is nondeterministic (ephemeral key per encrypt). Capture
+        // the ciphertexts ONCE and reuse for the RPC + the expected-hash
+        // computation; otherwise the server's hash and the test's expected
+        // hash will diverge by random bytes.
+        let ct_a = encrypt_for_test(&["A", "B", "C"], &pubkey);
+        let ct_b = encrypt_for_test(&["A", "C", "B"], &pubkey);
         let raw_ballots = vec![
-            proto::RawBallot {
-                voter: "A".to_string(),
-                ciphertext: encrypt_for_test(&["A", "B", "C"], &pubkey),
-            },
-            proto::RawBallot {
-                voter: "B".to_string(),
-                ciphertext: encrypt_for_test(&["A", "C", "B"], &pubkey),
-            },
+            proto::RawBallot { voter: "A".to_string(), ciphertext: ct_a.clone() },
+            proto::RawBallot { voter: "B".to_string(), ciphertext: ct_b.clone() },
         ];
 
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -233,10 +243,20 @@ mod tests {
         for i in 0..32 {
             rd_low[i] = pi[(240 + i) * 32 + 31];
         }
+        // B6 (v0.3.11): server.rs hashed raw_ballots in candidate-declaration
+        // order; replicate that here for the expected ReportData.
+        let cands_str: Vec<String> =
+            cands.iter().map(|c| c.to_string()).collect();
+        let ballots_for_hash: Vec<(String, Vec<u8>)> = vec![
+            ("A".to_string(), ct_a),
+            ("B".to_string(), ct_b),
+        ];
+        let bh = crate::attestation::compute_ballots_hash(&cands_str, &ballots_for_hash);
         let expected_rd = crate::attestation::build_publish_report_data(
             "xion1contract",
             "xion-test-1",
             42,
+            &bh,
             &tally,
         );
         assert_eq!(rd_low, expected_rd[..32], "ReportData[0..32] = commit_hash");

@@ -3089,6 +3089,7 @@ dependencies = [
  "async-trait",
  "borsh",
  "clap",
+ "cosmwasm-std",
  "ecies",
  "hex",
  "k256",

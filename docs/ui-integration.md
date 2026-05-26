@@ -17,7 +17,7 @@ The audit re-review reshaped most of the contract's external surface. If the UI 
 | `UpdateRegistry` | immediate `{ registry }` | **removed**; replaced by `ProposeRegistryUpdate` + `FinalizeRegistryUpdate` + `CancelRegistryUpdate` timelock flow |
 | `QueryMsg::PendingRegistry` | did not exist | new — shows `Option<{ registry, apply_after }>` |
 | `QueryMsg::HistoricalTally { election_id }` | did not exist | new — archives prior tallies on re-CreateElection |
-| `canonical_serialization` preimage | `Borsh(contract_addr) ‖ u64_LE(election_id) ‖ tally_body` | `Borsh(contract_addr) ‖ Borsh(chain_id) ‖ u64_LE(election_id) ‖ tally_body` (chain_id added v0.3.10 N4 for cross-chain replay defense) |
+| `canonical_serialization` preimage | `Borsh(contract_addr) ‖ u64_LE(election_id) ‖ tally_body` | `Borsh(contract_addr) ‖ Borsh(chain_id) ‖ u64_LE(election_id) ‖ ballots_hash[32] ‖ tally_body` (chain_id v0.3.10 N4 cross-chain replay defense; ballots_hash v0.3.11 B6 input fidelity) |
 
 The trust-chain implications are positive: the chain now verifies the gnark Groth16 proof directly via `xion.zk.v1.Query/ProofVerifyGnark`, so the "attestation display" in the UI is genuinely a re-rendering of chain-verified facts — not just a documented future check.
 
@@ -387,7 +387,7 @@ A user who clicks "why should I trust this result?" should be able to walk from 
 
 ## Known limitations the UI should disclose honestly
 
-1. **`enclave_input_fidelity` is still open** (intent §8.7 link 7). The chain binds the *output* (tally) to the enclave but does NOT yet bind the *input* (ballots). A malicious host running a correct enclave image could substitute ballots; the chain would accept the resulting attested tally as valid. UI's Trust page should disclose this.
+1. **~~`enclave_input_fidelity` is still open~~ DISCHARGED v0.3.11 B6** (intent §8.7 link 7). The chain now binds BOTH the *output* (tally) and the *input* (`ballots_hash`) into the publish-quote commit. A host that substitutes ballots produces a different `ballots_hash`; the chain rejects with `AttestationCommitMismatch`. UI's Trust page can show this as "input binding: ✓" alongside the existing output-binding facts.
 2. **`B10_lean` has a `sorry`**. The Lean theorem that "EnclaveImage = Tally_spec" is incomplete. The math correctness obligation is documented future work. Surface this on the Trust page.
 3. **Admin trust surface remains for VM-with-matching-MRTD**. After N2 timelock, an admin who controls hardware with the right MRTD and accepts the visibility cost of the timelock can still substitute a different VM. Disclose under "trust assumptions."
 

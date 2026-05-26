@@ -74,3 +74,6 @@ tokio-stream = { version = "0.1", features = ["net"] }
 # runtime's canonical_serialization produce byte-identical bytes. Use the
 # `library` feature so the contract builds as a lib (no entry_point macros).
 verified-rcv-contract = { path = "../contract", features = ["library"] }
+# Cross-test calls into the contract's compute_ballots_hash, which takes
+# cosmwasm-std Addr + HexBinary directly. v0.3.11 B6.
+cosmwasm-std = { workspace = true, features = ["std"] }
