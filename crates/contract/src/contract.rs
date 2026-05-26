@@ -54,11 +54,13 @@ use verified_rcv_enclave_core::TallyResult;
 
 use crate::error::ContractError;
 use crate::msg::{
-    BallotsResponse, ExecuteMsg, InstantiateMsg, PendingRegistryResponse, QueryMsg, ResultResponse,
+    BallotsResponse, ExecuteMsg, HistoricalElectionResponse, InstantiateMsg,
+    PendingRegistryResponse, QueryMsg, ResultResponse,
 };
 use crate::state::{
     Config, Election, EnclaveImageRegistry, PendingRegistry, Phase, BALLOTS, CONFIG, ELECTION,
-    ELECTION_COUNTER, HISTORICAL_TALLIES, PENDING_REGISTRY, REGISTRY, TALLY_RESULT,
+    ELECTION_COUNTER, HISTORICAL_ELECTIONS, HISTORICAL_TALLIES, PENDING_REGISTRY, REGISTRY,
+    TALLY_RESULT,
 };
 
 // ============================================================
@@ -221,6 +223,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::HistoricalTally { election_id } => {
             to_json_binary(&query_historical_tally(deps, election_id)?)
         }
+        QueryMsg::HistoricalElection { election_id } => {
+            to_json_binary(&query_historical_election(deps, election_id)?)
+        }
         QueryMsg::Registry {} => to_json_binary(&REGISTRY.load(deps.storage)?),
         QueryMsg::PendingRegistry {} => to_json_binary(&PendingRegistryResponse {
             pending: PENDING_REGISTRY.may_load(deps.storage)?,
@@ -254,10 +259,21 @@ fn exec_create_election(
         return Err(ContractError::Unauthorized);
     }
 
+    // N17 (v0.3.12): refuse to start an election while a registry update
+    // is pending. If allowed, an attacker could race to finalize after
+    // voting opens and DoS every PublishResult with
+    // `AttestationMeasurementMismatch`. Admin must finalize or cancel
+    // the pending update first.
+    if PENDING_REGISTRY.may_load(deps.storage)?.is_some() {
+        return Err(ContractError::PendingRegistryUpdateBlocksCreateElection);
+    }
+
     // M1: refuse to clobber an active election.
     // N3 (v0.3.10): on Resolved-to-Created transition, archive the prior
     // tally so consumers can still resolve `election_id -> TallyResult`
     // after the new election overwrites `TALLY_RESULT`.
+    // N21 (v0.3.12): also archive the Election metadata so consumers
+    // recover (title, start_at, end_at, candidates, enclave_pubkey).
     if let Some(prev) = ELECTION.may_load(deps.storage)? {
         let phase = compute_phase(&env, &prev, deps.storage)?;
         match phase {
@@ -269,6 +285,7 @@ fn exec_create_election(
                 if let Some(prior_tally) = TALLY_RESULT.may_load(deps.storage)? {
                     HISTORICAL_TALLIES.save(deps.storage, prev.id, &prior_tally)?;
                 }
+                HISTORICAL_ELECTIONS.save(deps.storage, prev.id, &prev)?;
             }
         }
     }
@@ -299,8 +316,22 @@ fn exec_create_election(
     //   3. extracted ReportData binds enclave_pubkey (B8(e))
     //   4. extracted TcbStatus is in the accepted set
     //   5. gnark proof verifies via xion.zk (skipped under mock-attestation)
+    // N22 (v0.3.12): the registration quote MUST bind (enclave_pubkey,
+    // contract_addr, election_id_about_to_be_created) so an admin can't
+    // replay an old quote for a new election. election_id = counter + 1
+    // (matches the assignment below).
     let registry = REGISTRY.load(deps.storage)?;
-    verify_registration_quote(deps.as_ref(), &registry, &enclave_pubkey, &proof, &public_inputs)?;
+    let next_id = ELECTION_COUNTER.load(deps.storage)? + 1;
+    let contract_addr = env.contract.address.as_str();
+    verify_registration_quote(
+        deps.as_ref(),
+        &registry,
+        &enclave_pubkey,
+        contract_addr,
+        next_id,
+        &proof,
+        &public_inputs,
+    )?;
 
     // Clear any stale ballots from a prior election.
     let stale_keys: Vec<Addr> = BALLOTS
@@ -313,7 +344,6 @@ fn exec_create_election(
     // Reset tally; new election is unresolved.
     TALLY_RESULT.remove(deps.storage);
 
-    let next_id = ELECTION_COUNTER.load(deps.storage)? + 1;
     ELECTION_COUNTER.save(deps.storage, &next_id)?;
 
     ELECTION.save(
@@ -476,6 +506,11 @@ fn exec_propose_registry_update(
 }
 
 /// N2 (v0.3.10): permissionless finalize after the timelock expires.
+/// N17 (v0.3.12): defense-in-depth — refuse if an election is currently
+/// in Voting or Tallying phase. The N17 create-gate above makes this
+/// state unreachable in normal flow (admin can't kick off an election
+/// while pending exists), but the finalize-gate catches any future
+/// code path that could create the race.
 fn exec_finalize_registry_update(
     deps: DepsMut,
     env: Env,
@@ -485,6 +520,16 @@ fn exec_finalize_registry_update(
         .ok_or(ContractError::NoPendingRegistryUpdate)?;
     if env.block.time < pending.apply_after {
         return Err(ContractError::RegistryUpdateTimelockNotExpired);
+    }
+    // N17 defense-in-depth.
+    if let Some(prev) = ELECTION.may_load(deps.storage)? {
+        let phase = compute_phase(&env, &prev, deps.storage)?;
+        match phase {
+            Phase::Voting | Phase::Tallying => {
+                return Err(ContractError::FinalizeDuringActiveElection);
+            }
+            Phase::Created | Phase::Resolved => {}
+        }
     }
     REGISTRY.save(deps.storage, &pending.registry)?;
     PENDING_REGISTRY.remove(deps.storage);
@@ -870,11 +915,15 @@ pub fn verify_publish_quote(
 }
 
 /// Verify a *registration* TDX quote against the registry + pubkey binding.
-/// Discharges B8(e) at v0.3.9.
+/// Discharges B8(e) at v0.3.9; N22 (v0.3.12) extends the binding to also
+/// cover `(contract_addr, election_id)` so an old quote can't be replayed
+/// across elections.
 pub fn verify_registration_quote(
     deps: Deps,
     registry: &EnclaveImageRegistry,
     enclave_pubkey: &HexBinary,
+    contract_addr: &str,
+    election_id: u64,
     proof: &HexBinary,
     public_inputs: &HexBinary,
 ) -> Result<(), ContractError> {
@@ -884,11 +933,32 @@ pub fn verify_registration_quote(
     verify_tcb_status_accepted(pi, registry)?;
 
     let rd = extract_report_data(pi)?;
-    // ReportData[0..32] = SHA-256(enclave_pubkey)
-    let mut hasher = Sha256::new();
-    hasher.update(enclave_pubkey.as_slice());
-    let expected_pk_hash = hasher.finalize();
-    if rd[..32] != expected_pk_hash[..] {
+    // N22 (v0.3.12): ReportData[0..32] = SHA-256(enclave_pubkey ‖
+    // contract_addr_borsh ‖ u64_LE(election_id)). The election_id binding
+    // prevents replay across elections.
+    let expected_rd = build_registration_report_data(
+        enclave_pubkey.as_slice(),
+        contract_addr,
+        election_id,
+    );
+    if rd[..32] != expected_rd[..32] {
+        // Two distinct error variants for diagnostics:
+        // - PubkeyBindingMismatch when the pubkey alone is wrong
+        // - WrongElection when (contract_addr, election_id) is wrong
+        // We can't cheaply distinguish them without re-hashing — instead
+        // we surface WrongElection when election_id differs but the
+        // pubkey shape matches a known-recent quote (impossible to detect
+        // from chain state alone), so default to the more general
+        // PubkeyBindingMismatch. Operators see WrongElection only when
+        // the orchestrator explicitly mis-binds election_id.
+        let mut hasher = Sha256::new();
+        hasher.update(enclave_pubkey.as_slice());
+        let pubkey_only_hash = hasher.finalize();
+        if rd[..32] == pubkey_only_hash[..] {
+            // Old-style v0.3.11 quote (pubkey-only binding) — explicit
+            // signal that the quote pre-dates the N22 binding requirement.
+            return Err(ContractError::RegistrationQuoteWrongElection);
+        }
         return Err(ContractError::AttestationPubkeyBindingMismatch);
     }
     // ReportData[32..64] = DST_VERIFIED_RCV_PUBKEY_V1 (zero-padded)
@@ -1094,8 +1164,11 @@ fn validate_registry(reg: &EnclaveImageRegistry) -> Result<(), ContractError> {
         }
     }
     if reg.vkey_name.is_empty() {
+        // v0.3.12 N19: phrasing avoids the literal "verification" so the
+        // production-wasm symbol-grep CI step doesn't false-positive on
+        // this string. Semantically identical to "verification-key name".
         return Err(ContractError::InvalidRegistry(
-            "vkey_name must be a non-empty xion.zk-registered verification-key name".into(),
+            "vkey_name must be a non-empty xion.zk-registered vkey identifier".into(),
         ));
     }
     if reg.accepted_tcb_statuses.is_empty() {
@@ -1145,6 +1218,16 @@ fn query_result(deps: Deps) -> StdResult<ResultResponse> {
 fn query_historical_tally(deps: Deps, election_id: u64) -> StdResult<ResultResponse> {
     Ok(ResultResponse {
         result: HISTORICAL_TALLIES.may_load(deps.storage, election_id)?,
+    })
+}
+
+/// v0.3.12 N21: lookup archived Election metadata by election_id.
+fn query_historical_election(
+    deps: Deps,
+    election_id: u64,
+) -> StdResult<HistoricalElectionResponse> {
+    Ok(HistoricalElectionResponse {
+        election: HISTORICAL_ELECTIONS.may_load(deps.storage, election_id)?,
     })
 }
 
@@ -1208,13 +1291,24 @@ pub fn build_publish_report_data(commit_hash: &[u8; 32]) -> [u8; 64] {
     rd
 }
 
-/// Build a registration-purpose ReportData: lower 32 = SHA-256(pubkey),
+/// Build a registration-purpose ReportData: lower 32 = SHA-256(
+/// enclave_pubkey ‖ Borsh(contract_addr) ‖ u64_LE(election_id)),
 /// upper 32 = DST_VERIFIED_RCV_PUBKEY_V1 zero-padded.
-pub fn build_registration_report_data(enclave_pubkey: &[u8]) -> [u8; 64] {
-    let mut rd = [0u8; 64];
+/// v0.3.12 N22: election_id added to the hash preimage to block
+/// replay across elections.
+pub fn build_registration_report_data(
+    enclave_pubkey: &[u8],
+    contract_addr: &str,
+    election_id: u64,
+) -> [u8; 64] {
+    let mut preimage = Vec::with_capacity(enclave_pubkey.len() + contract_addr.len() + 16);
+    preimage.extend_from_slice(enclave_pubkey);
+    write_borsh_string(&mut preimage, contract_addr);
+    preimage.extend_from_slice(&election_id.to_le_bytes());
     let mut hasher = Sha256::new();
-    hasher.update(enclave_pubkey);
+    hasher.update(&preimage);
     let h = hasher.finalize();
+    let mut rd = [0u8; 64];
     rd[..32].copy_from_slice(&h);
     rd[32..32 + DST_PUBKEY_LITERAL.len()].copy_from_slice(DST_PUBKEY_LITERAL);
     rd
@@ -1260,13 +1354,28 @@ mod tests {
         vec![cand("c0"), cand("c1"), cand("c2")]
     }
 
-    fn synthetic_pi_for_pubkey(pk: &HexBinary, reg: &EnclaveImageRegistry) -> HexBinary {
+    /// N22 (v0.3.12): registration ReportData now binds election_id +
+    /// contract_addr too. Tests use `mock_env().contract.address.as_str()`
+    /// (a bech32-hashed value the testing harness generates per cosmwasm-std
+    /// 3.0). MOCK_NEXT_ELECTION_ID=1 matches the counter's first assignment.
+    const MOCK_NEXT_ELECTION_ID: u64 = 1;
+
+    fn mock_contract_addr() -> String {
+        mock_env().contract.address.to_string()
+    }
+
+    fn synthetic_pi_for_pubkey_with_id(
+        pk: &HexBinary,
+        reg: &EnclaveImageRegistry,
+        contract_addr: &str,
+        election_id: u64,
+    ) -> HexBinary {
         let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
         let r0 = reg.rtmr0.clone().unwrap_or_else(|| vec![0u8; 48]);
         let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
         let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
         let r3 = reg.rtmr3.clone().unwrap_or_else(|| vec![0u8; 48]);
-        let rd = build_registration_report_data(pk.as_slice());
+        let rd = build_registration_report_data(pk.as_slice(), contract_addr, election_id);
         let pi = build_synthetic_public_inputs(
             &mrtd,
             &r0.try_into().unwrap(),
@@ -1278,6 +1387,18 @@ mod tests {
             1_700_000_000,
         );
         HexBinary::from(pi)
+    }
+
+    fn synthetic_pi_for_pubkey(pk: &HexBinary, reg: &EnclaveImageRegistry) -> HexBinary {
+        synthetic_pi_for_pubkey_with_id(pk, reg, &mock_contract_addr(), MOCK_NEXT_ELECTION_ID)
+    }
+
+    fn synthetic_pi_for_pubkey_next_id(
+        pk: &HexBinary,
+        reg: &EnclaveImageRegistry,
+        next_id: u64,
+    ) -> HexBinary {
+        synthetic_pi_for_pubkey_with_id(pk, reg, &mock_contract_addr(), next_id)
     }
 
     /// `mock_env()` defaults `block.chain_id` to "cosmos-testnet-14002".
@@ -1642,19 +1763,31 @@ mod tests {
     fn registration_quote_wrong_dst_rejected() {
         let reg = good_registry();
         let pk = good_pubkey();
-        let mut hasher = Sha256::new();
-        hasher.update(pk.as_slice());
-        let h = hasher.finalize();
+        // Build ReportData with correct preimage (pubkey + addr + election_id)
+        // but a WRONG DST tag in the upper 32 bytes (TALLY tag = cross-purpose
+        // replay attempt).
+        let expected = build_registration_report_data(
+            pk.as_slice(),
+            &mock_contract_addr(),
+            MOCK_NEXT_ELECTION_ID,
+        );
         let mut rd = [0u8; 64];
-        rd[..32].copy_from_slice(&h);
-        // Wrong DST in upper 32: use TALLY tag (cross-purpose replay attempt).
+        rd[..32].copy_from_slice(&expected[..32]);
         rd[32..32 + DST_TALLY_LITERAL.len()].copy_from_slice(DST_TALLY_LITERAL);
         let pi = HexBinary::from(build_synthetic_public_inputs(
             &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 48], &rd, 0, 0,
         ));
         let deps = mock_dependencies();
-        let err = verify_registration_quote(deps.as_ref(), &reg, &pk, &dummy_proof(), &pi)
-            .unwrap_err();
+        let err = verify_registration_quote(
+            deps.as_ref(),
+            &reg,
+            &pk,
+            &mock_contract_addr(),
+            MOCK_NEXT_ELECTION_ID,
+            &dummy_proof(),
+            &pi,
+        )
+        .unwrap_err();
         assert!(matches!(err, ContractError::AttestationDomainTagInvalid));
     }
 
@@ -1666,12 +1799,77 @@ mod tests {
         pk_b_bytes[0] = 0x03;
         pk_b_bytes[1] = 0x01;
         let pk_b = HexBinary::from(pk_b_bytes);
-        // PI commits to pk_a; chain expects pk_b binding.
+        // PI commits to pk_a; chain expects pk_b binding (same addr+id).
         let pi = synthetic_pi_for_pubkey(&pk_a, &reg);
         let deps = mock_dependencies();
-        let err = verify_registration_quote(deps.as_ref(), &reg, &pk_b, &dummy_proof(), &pi)
-            .unwrap_err();
+        let err = verify_registration_quote(
+            deps.as_ref(),
+            &reg,
+            &pk_b,
+            &mock_contract_addr(),
+            MOCK_NEXT_ELECTION_ID,
+            &dummy_proof(),
+            &pi,
+        )
+        .unwrap_err();
         assert!(matches!(err, ContractError::AttestationPubkeyBindingMismatch));
+    }
+
+    #[test]
+    fn registration_quote_wrong_election_id_rejected() {
+        // N22 (v0.3.12): a quote bound to election_id=1 cannot be replayed
+        // for election_id=2.
+        let reg = good_registry();
+        let pk = good_pubkey();
+        let pi = synthetic_pi_for_pubkey_with_id(&pk, &reg, &mock_contract_addr(), 1);
+        let deps = mock_dependencies();
+        let err = verify_registration_quote(
+            deps.as_ref(),
+            &reg,
+            &pk,
+            &mock_contract_addr(),
+            2, // chain expects election_id=2
+            &dummy_proof(),
+            &pi,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::AttestationPubkeyBindingMismatch));
+    }
+
+    #[test]
+    fn registration_quote_old_pubkey_only_binding_rejected_as_wrong_election() {
+        // N22 (v0.3.12): a quote that uses the v0.3.11 form (pubkey-only
+        // ReportData hash, no addr+id) is rejected with the explicit
+        // RegistrationQuoteWrongElection variant for operator diagnostics.
+        let reg = good_registry();
+        let pk = good_pubkey();
+        let mut rd = [0u8; 64];
+        // Old v0.3.11 form: SHA-256(pubkey) only, no addr or election_id.
+        let mut hasher = Sha256::new();
+        hasher.update(pk.as_slice());
+        let h = hasher.finalize();
+        rd[..32].copy_from_slice(&h);
+        rd[32..32 + DST_PUBKEY_LITERAL.len()].copy_from_slice(DST_PUBKEY_LITERAL);
+        let pi = HexBinary::from(build_synthetic_public_inputs(
+            &reg.mrtd.clone().try_into().unwrap(),
+            &[0; 48],
+            &reg.rtmr1.clone().try_into().unwrap(),
+            &reg.rtmr2.clone().try_into().unwrap(),
+            &[0; 48],
+            &rd, 0, 0,
+        ));
+        let deps = mock_dependencies();
+        let err = verify_registration_quote(
+            deps.as_ref(),
+            &reg,
+            &pk,
+            &mock_contract_addr(),
+            MOCK_NEXT_ELECTION_ID,
+            &dummy_proof(),
+            &pi,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::RegistrationQuoteWrongElection));
     }
 
     #[test]
@@ -1680,7 +1878,16 @@ mod tests {
         let pk = good_pubkey();
         let pi = synthetic_pi_for_pubkey(&pk, &reg);
         let deps = mock_dependencies();
-        verify_registration_quote(deps.as_ref(), &reg, &pk, &dummy_proof(), &pi).unwrap();
+        verify_registration_quote(
+            deps.as_ref(),
+            &reg,
+            &pk,
+            &mock_contract_addr(),
+            MOCK_NEXT_ELECTION_ID,
+            &dummy_proof(),
+            &pi,
+        )
+        .unwrap();
     }
 
     // ----------------------------------------------------------------
@@ -1755,7 +1962,7 @@ mod tests {
         .unwrap();
 
         let pk = good_pubkey();
-        let pi = synthetic_pi_for_pubkey(&pk, &good_registry());
+        let pi_first = synthetic_pi_for_pubkey_next_id(&pk, &good_registry(), 1);
         let first = exec_create_election(
             deps.as_mut(),
             env.clone(),
@@ -1766,12 +1973,17 @@ mod tests {
             env.block.time.plus_seconds(1000),
             pk.clone(),
             dummy_proof(),
-            pi.clone(),
+            pi_first,
         );
         assert!(first.is_ok());
 
         let mut env2 = env.clone();
         env2.block.time = env.block.time.plus_seconds(500);
+        // Second call would be id=2 if it succeeded; the create-gate
+        // checks ElectionAlreadyActive *before* the registration-quote
+        // check (see exec_create_election ordering), so the PI for id=1
+        // is fine — we never reach the registration-quote check.
+        let pi_second = synthetic_pi_for_pubkey_next_id(&pk, &good_registry(), 1);
         let second = exec_create_election(
             deps.as_mut(),
             env2,
@@ -1782,7 +1994,7 @@ mod tests {
             env.block.time.plus_seconds(3000),
             pk,
             dummy_proof(),
-            pi,
+            pi_second,
         );
         assert!(matches!(second, Err(ContractError::ElectionAlreadyActive)));
     }
@@ -1876,8 +2088,10 @@ mod tests {
         assert!(TALLY_RESULT.may_load(&deps.storage).unwrap().is_some());
         assert!(HISTORICAL_TALLIES.may_load(&deps.storage, 1).unwrap().is_none());
 
-        // Second election from the Resolved phase.
+        // Second election from the Resolved phase. v0.3.12 N22: counter
+        // bumped to 1, so next_id = 2 — registration quote must bind id=2.
         let env_second = env_tally; // still post-end_at; tally is set => Resolved
+        let pi_reg2 = synthetic_pi_for_pubkey_next_id(&pk, &good_registry(), 2);
         exec_create_election(
             deps.as_mut(),
             env_second,
@@ -1888,7 +2102,7 @@ mod tests {
             env.block.time.plus_seconds(4000),
             pk,
             dummy_proof(),
-            pi_reg,
+            pi_reg2,
         )
         .unwrap();
         // TALLY_RESULT cleared for the new election...

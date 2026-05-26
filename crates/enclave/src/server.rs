@@ -9,7 +9,10 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use verified_rcv_enclave_core::{Addr, RawBallots, RawEntry};
 
-use crate::attestation::{compute_ballots_hash, produce_publish_artifacts, EnclaveIdentity};
+use crate::attestation::{
+    compute_ballots_hash, produce_publish_artifacts, produce_registration_artifacts,
+    EnclaveIdentity,
+};
 use crate::dstack::DstackClient;
 use crate::tally_spec;
 
@@ -18,7 +21,10 @@ pub mod proto {
 }
 
 use proto::tally_service_server::{TallyService, TallyServiceServer};
-use proto::{HealthRequest, HealthResponse, TallyRequest, TallyResponse};
+use proto::{
+    HealthRequest, HealthResponse, RegisterPubkeyRequest, RegisterPubkeyResponse, TallyRequest,
+    TallyResponse,
+};
 
 pub struct TallyServiceImpl {
     dstack: Arc<dyn DstackClient>,
@@ -29,11 +35,31 @@ pub struct TallyServiceImpl {
     /// concrete values matter only for the chain's measurement equality
     /// check against its registry.
     identity: EnclaveIdentity,
+    /// Track 2: measurements parsed from a real TDX quote at boot.
+    /// `Some(_)` ⇒ Health returns ready=true + hex strings; `None` ⇒
+    /// Health returns ready=false + empty (simulator path, or boot quote
+    /// failed to parse). See `bin/server.rs::main` for the boot probe.
+    measurements: Option<crate::tdx_quote::Measurements>,
 }
 
 impl TallyServiceImpl {
     pub fn new(dstack: Arc<dyn DstackClient>, identity: EnclaveIdentity) -> Self {
-        Self { dstack, identity }
+        Self { dstack, identity, measurements: None }
+    }
+
+    /// Same as `new`, but stamps in pre-parsed TDX measurements so Health
+    /// can surface them. Production boot path uses this; simulator + tests
+    /// use `new`.
+    pub fn with_measurements(
+        dstack: Arc<dyn DstackClient>,
+        identity: EnclaveIdentity,
+        measurements: crate::tdx_quote::Measurements,
+    ) -> Self {
+        Self {
+            dstack,
+            identity,
+            measurements: Some(measurements),
+        }
     }
 
     pub fn into_server(self) -> TallyServiceServer<Self> {
@@ -85,6 +111,7 @@ impl TallyService for TallyServiceImpl {
         //    build (`--features real-zkdcap`): drive the zkdcap gnark
         //    prover via unix socket.
         let (proof, public_inputs) = produce_publish_artifacts(
+            self.dstack.as_ref(),
             &self.identity,
             &contract_addr,
             &chain_id,
@@ -109,28 +136,74 @@ impl TallyService for TallyServiceImpl {
         &self,
         _req: Request<HealthRequest>,
     ) -> Result<Response<HealthResponse>, Status> {
-        // Audit remediation M5 (2026-05-26):
+        // Track 2 (2026-05-26+): when the boot probe parsed real TDX
+        // measurements from a dstack-signed quote, surface them. Otherwise
+        // (simulator mode, or quote was malformed) keep the M5 honest-gap
+        // fallback: ready=false + empty hex strings, so an operator who
+        // populates the on-chain `EnclaveImageRegistry { mrtd, rtmr* }`
+        // from this response will only do so against real values.
         //
-        // The honest answer for `mrtd_hex` / `rtmr_hex` requires parsing
-        // a real TDX quote, which we don't have yet. The previous
-        // implementation returned `compose_hash` (a dstack image
-        // identifier) in the `mrtd_hex` slot, which would lead an operator
-        // following docs/deploy.md to populate the on-chain
-        // `EnclaveImageRegistry { mrtd, rtmr* }` with the wrong value —
-        // making every subsequent attestation fail verification (or, worse,
-        // pass against the wrong baseline).
-        //
-        // We now return `ready = false` and an EMPTY `mrtd_hex` /
-        // `rtmr_hex` until a TDX-quote parser is wired.
-        let _identity = self
+        // The proto's `rtmr_hex` is conventionally RTMR0 (the build-time
+        // measurement most operators register first). RTMR1..3 are not
+        // surfaced today; if a deploy needs them, extend the proto.
+        match &self.measurements {
+            Some(m) => Ok(Response::new(HealthResponse {
+                ready: true,
+                mrtd_hex: hex::encode(m.mrtd),
+                rtmr_hex: hex::encode(m.rtmr0),
+            })),
+            None => Ok(Response::new(HealthResponse {
+                ready: false,
+                mrtd_hex: String::new(),
+                rtmr_hex: String::new(),
+            })),
+        }
+    }
+
+    async fn register_pubkey(
+        &self,
+        req: Request<RegisterPubkeyRequest>,
+    ) -> Result<Response<RegisterPubkeyResponse>, Status> {
+        let RegisterPubkeyRequest { contract_addr, election_id } = req.into_inner();
+
+        // 1. Same KMS derivation context the Tally path uses
+        //    (verified-rcv-v1:{contract_addr}:{election_id}) — so the
+        //    privkey released by dstack at tally time matches the pubkey
+        //    we hand back here.
+        let privkey_bytes = self
             .dstack
-            .get_image_identity()
+            .derive_privkey(&contract_addr, election_id)
             .await
-            .map_err(|e| Status::internal(format!("dstack image identity: {e}")))?;
-        Ok(Response::new(HealthResponse {
-            ready: false,
-            mrtd_hex: String::new(),
-            rtmr_hex: String::new(),
+            .map_err(|e| Status::internal(format!("dstack derive_privkey: {e}")))?;
+
+        // 2. Derive the SEC1-compressed pubkey (33 bytes, leading 0x02|0x03).
+        //    k256 is already a dep via the ECIES decoder; reuse it here
+        //    so we don't introduce a second curve impl.
+        let signing = k256::ecdsa::SigningKey::from_slice(&privkey_bytes)
+            .map_err(|e| Status::internal(format!("k256 from_slice: {e}")))?;
+        let pubkey_point = signing.verifying_key().to_encoded_point(true);
+        let enclave_pubkey: Vec<u8> = pubkey_point.as_bytes().to_vec();
+
+        // 3. Registration artifacts. v0.3.12 N22: ReportData[0..32] =
+        //    SHA-256(enclave_pubkey ‖ borsh_string(contract_addr) ‖
+        //    u64_LE(election_id)); ReportData[32..58] =
+        //    DST_VERIFIED_RCV_PUBKEY_V1. The (contract_addr, election_id)
+        //    binding blocks an admin replaying an old registration quote
+        //    across elections.
+        let (proof, public_inputs) = produce_registration_artifacts(
+            self.dstack.as_ref(),
+            &self.identity,
+            &enclave_pubkey,
+            &contract_addr,
+            election_id,
+        )
+        .await
+        .map_err(|e| Status::internal(format!("registration artifacts: {e}")))?;
+
+        Ok(Response::new(RegisterPubkeyResponse {
+            enclave_pubkey,
+            proof,
+            public_inputs,
         }))
     }
 }
@@ -260,6 +333,201 @@ mod tests {
             &tally,
         );
         assert_eq!(rd_low, expected_rd[..32], "ReportData[0..32] = commit_hash");
+
+        server_task.abort();
+    }
+
+    /// Track 3 smoke: derive enclave_pubkey + registration artifacts via
+    /// RegisterPubkey RPC, assert pubkey shape + ReportData layout.
+    #[tokio::test]
+    async fn register_pubkey_smoke() {
+        use sha2::{Digest, Sha256};
+
+        // Deterministic fixed simulator key so the derivation is reproducible.
+        let priv32 = [0x42u8; 32];
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let svc = TallyServiceImpl::new(
+            Arc::new(SimulatorDstackClient::with_privkey(priv32)),
+            dev_identity(),
+        );
+        let server_task = tokio::spawn(async move {
+            Server::builder()
+                .add_service(TallyServiceServer::new(svc))
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .await
+                .unwrap();
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TallyServiceClient::connect(format!("http://{addr}"))
+            .await
+            .expect("client connect");
+        let resp = client
+            .register_pubkey(Request::new(proto::RegisterPubkeyRequest {
+                contract_addr: "xion1contract".to_string(),
+                election_id: 7,
+            }))
+            .await
+            .expect("register_pubkey rpc")
+            .into_inner();
+
+        // (a) Pubkey shape: SEC1 compressed = 33 bytes, leading 0x02 or 0x03.
+        assert_eq!(
+            resp.enclave_pubkey.len(),
+            33,
+            "enclave_pubkey is SEC1-compressed (33 bytes)"
+        );
+        assert!(
+            resp.enclave_pubkey[0] == 0x02 || resp.enclave_pubkey[0] == 0x03,
+            "enclave_pubkey leading byte is 0x02 or 0x03 (got 0x{:02x})",
+            resp.enclave_pubkey[0]
+        );
+
+        // (b) public_inputs length matches the gnark layout.
+        assert_eq!(
+            resp.public_inputs.len(),
+            crate::attestation::GNARK_PUBLIC_INPUTS_LEN
+        );
+
+        // (c) v0.3.12 N22: ReportData[0..32] =
+        //     SHA-256(enclave_pubkey ‖ borsh_string(contract_addr) ‖ u64_LE(election_id)).
+        //     Use the runtime's canonical builder to derive the expected
+        //     hash bytewise, so this test fails loudly if either side drifts.
+        let pi = &resp.public_inputs;
+        let mut rd_low = [0u8; 32];
+        for i in 0..32 {
+            rd_low[i] = pi[(240 + i) * 32 + 31];
+        }
+        let expected_rd = crate::attestation::build_registration_report_data(
+            &resp.enclave_pubkey,
+            "xion1contract",
+            7,
+        );
+        assert_eq!(rd_low, expected_rd[..32], "ReportData[0..32] = N22 preimage hash");
+        let _ = Sha256::new(); // keep sha2 import warm for future tests
+
+        // (d) ReportData[32..58] = DST_VERIFIED_RCV_PUBKEY_V1.
+        let mut rd_high = [0u8; 32];
+        for i in 0..32 {
+            rd_high[i] = pi[(240 + 32 + i) * 32 + 31];
+        }
+        assert_eq!(
+            &rd_high[..crate::attestation::DST_PUBKEY.len()],
+            crate::attestation::DST_PUBKEY,
+            "ReportData[32..58] = DST_VERIFIED_RCV_PUBKEY_V1"
+        );
+
+        // (e) Proof bytes present (sentinel under default features).
+        assert!(!resp.proof.is_empty(), "proof bytes present");
+
+        server_task.abort();
+    }
+
+    /// Track 2 smoke: when `with_measurements` is used, Health returns the
+    /// cached MRTD + RTMR0 hex strings and ready=true. Without it (the
+    /// simulator boot path), Health returns ready=false + empty hex.
+    #[tokio::test]
+    async fn health_returns_cached_measurements() {
+        let priv32 = [0x11u8; 32];
+
+        // Path 1: no measurements cached.
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let svc_no_m = TallyServiceImpl::new(
+            Arc::new(SimulatorDstackClient::with_privkey(priv32)),
+            dev_identity(),
+        );
+        let task_no_m = tokio::spawn(async move {
+            Server::builder()
+                .add_service(TallyServiceServer::new(svc_no_m))
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .await
+                .unwrap();
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let mut client = TallyServiceClient::connect(format!("http://{addr}"))
+            .await
+            .expect("client connect");
+        let resp = client
+            .health(Request::new(proto::HealthRequest {}))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(!resp.ready, "no measurements ⇒ ready=false");
+        assert!(resp.mrtd_hex.is_empty());
+        assert!(resp.rtmr_hex.is_empty());
+        task_no_m.abort();
+
+        // Path 2: with cached measurements.
+        let m = crate::tdx_quote::Measurements {
+            mrtd: [0xAA; 48],
+            rtmr0: [0xBB; 48],
+            rtmr1: [0xCC; 48],
+            rtmr2: [0xDD; 48],
+            rtmr3: [0xEE; 48],
+        };
+        let listener2 = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr2 = listener2.local_addr().unwrap();
+        let svc_with_m = TallyServiceImpl::with_measurements(
+            Arc::new(SimulatorDstackClient::with_privkey(priv32)),
+            dev_identity(),
+            m.clone(),
+        );
+        let task_with_m = tokio::spawn(async move {
+            Server::builder()
+                .add_service(TallyServiceServer::new(svc_with_m))
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener2))
+                .await
+                .unwrap();
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let mut client2 = TallyServiceClient::connect(format!("http://{addr2}"))
+            .await
+            .expect("client2 connect");
+        let resp2 = client2
+            .health(Request::new(proto::HealthRequest {}))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(resp2.ready, "cached measurements ⇒ ready=true");
+        assert_eq!(resp2.mrtd_hex, hex::encode(m.mrtd));
+        assert_eq!(resp2.rtmr_hex, hex::encode(m.rtmr0));
+        task_with_m.abort();
+    }
+
+    /// Determinism: same (contract_addr, election_id) → same pubkey, same proof.
+    #[tokio::test]
+    async fn register_pubkey_deterministic_for_same_input() {
+        let priv32 = [0x33u8; 32];
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let svc = TallyServiceImpl::new(
+            Arc::new(SimulatorDstackClient::with_privkey(priv32)),
+            dev_identity(),
+        );
+        let server_task = tokio::spawn(async move {
+            Server::builder()
+                .add_service(TallyServiceServer::new(svc))
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .await
+                .unwrap();
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let mut client = TallyServiceClient::connect(format!("http://{addr}"))
+            .await
+            .expect("client connect");
+        let mk = || proto::RegisterPubkeyRequest {
+            contract_addr: "xion1abc".to_string(),
+            election_id: 99,
+        };
+        let a = client.register_pubkey(Request::new(mk())).await.unwrap().into_inner();
+        let b = client.register_pubkey(Request::new(mk())).await.unwrap().into_inner();
+        assert_eq!(a.enclave_pubkey, b.enclave_pubkey);
+        assert_eq!(a.public_inputs, b.public_inputs);
 
         server_task.abort();
     }

@@ -9,6 +9,12 @@ package verified_rcv;
 service TallyService {
   rpc Tally(TallyRequest) returns (TallyResponse);
   rpc Health(HealthRequest) returns (HealthResponse);
+  // v0.3.11 admin self-service: derive (pubkey, registration artifacts)
+  // for the (contract_addr, election_id) the admin is about to create on
+  // chain. Lets the UI's CreateElection flow obtain its enclave_pubkey +
+  // (proof, public_inputs) registration tuple without an out-of-band
+  // operator step.
+  rpc RegisterPubkey(RegisterPubkeyRequest) returns (RegisterPubkeyResponse);
 }
 
 message TallyRequest {
@@ -56,6 +62,31 @@ message TallyResponse {
   // The 9_792-byte `public_inputs` blob per intent §2.5 gnark public_inputs
   // byte layout. Carries MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖
   // Timestamp as 306 BE fr-elements (one byte per `uints.U8`).
+  bytes public_inputs = 3;
+}
+
+message RegisterPubkeyRequest {
+  // The CosmWasm contract address (bech32) the admin will pass at
+  // CreateElection. Bound into the dstack KMS derivation path so the
+  // returned (pubkey, proof) match what the contract will later see at
+  // PublishResult time.
+  string contract_addr = 1;
+  // Election ID the admin is about to use at CreateElection.
+  uint64 election_id = 2;
+}
+
+message RegisterPubkeyResponse {
+  // 33-byte SEC1-compressed secp256k1 public key derived from the dstack
+  // KMS privkey for `(contract_addr, election_id)`. The admin posts this
+  // as the election's enclave_pubkey at CreateElection.
+  bytes enclave_pubkey = 1;
+  // Gnark Groth16 BN254 proof bytes binding ReportData =
+  // SHA-256(enclave_pubkey) ‖ DST_VERIFIED_RCV_PUBKEY_V1. The chain
+  // verifies via xion.zk.v1.Query/ProofVerifyGnark at CreateElection time
+  // (registration purpose) the same way PublishResult does for publish.
+  bytes proof = 2;
+  // 9_792-byte public_inputs blob (gnark fr-element layout) carrying the
+  // registration ReportData.
   bytes public_inputs = 3;
 }
 

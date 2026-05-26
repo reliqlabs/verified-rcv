@@ -166,9 +166,12 @@ fn compute_ballots_hash_contract_vs_runtime_byte_identical() {
 
 #[test]
 fn registration_report_data_dst_matches_contract_layout() {
+    // v0.3.12 N22: ReportData[0..32] now binds (enclave_pubkey,
+    // contract_addr, election_id). Cross-test must pass identical
+    // (contract_addr, election_id) to both implementations.
     let pk = vec![0x02u8; 33];
-    let contract_rd = contract_impl::build_registration_report_data(&pk);
-    let runtime_rd = runtime_impl::build_registration_report_data(&pk);
+    let contract_rd = contract_impl::build_registration_report_data(&pk, "xion1addr", 7);
+    let runtime_rd = runtime_impl::build_registration_report_data(&pk, "xion1addr", 7);
     assert_eq!(contract_rd, runtime_rd);
 }
 

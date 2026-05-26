@@ -1,0 +1,26 @@
+# v0.3.12 N20 audit re-review remediation (informational).
+#
+# Production wasm is built via `cosmwasm/optimizer` Docker image (see
+# .github/workflows/ci.yml). The optimizer's deterministic build pipeline
+# handles wasm-feature lowering correctly.
+#
+# These rustflags below get raw `cargo build --target wasm32-unknown-unknown
+# --release` closer to the optimizer's output — useful for local dev
+# sanity-checking (`cosmwasm-check` will still fail at the static
+# deserializer stage on Rust 1.82+ because compiler-builtins emits
+# bulk-memory ops despite the target-feature flag; only the optimizer
+# image's post-build lowering produces a CosmWasm-3.x-VM-acceptable
+# artifact). NEVER ship raw `cargo build` output to a CosmWasm chain.
+#
+# Production deploy:
+#   docker run --rm -v "$PWD":/code \
+#     --mount type=volume,source="$(basename "$PWD")_cache",target=/target \
+#     --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+#     cosmwasm/optimizer:0.17.0 ./crates/contract
+#   # → produces artifacts/verified_rcv_contract.wasm (the deploy target).
+
+[target.wasm32-unknown-unknown]
+rustflags = [
+    "-C", "link-arg=-s",
+    "-C", "target-feature=-bulk-memory,-multivalue,-mutable-globals,-nontrapping-fptoint,-reference-types,-sign-ext,-simd128",
+]

@@ -197,12 +197,26 @@ pub fn build_publish_report_data(
     rd
 }
 
-/// 64-byte ReportData for a registration quote: lower 32 =
-/// SHA-256(enclave_pubkey), upper 32 = DST_VERIFIED_RCV_PUBKEY_V1
-/// zero-padded.
-pub fn build_registration_report_data(enclave_pubkey: &[u8]) -> [u8; 64] {
+/// 64-byte ReportData for a registration quote.
+///
+/// v0.3.11 form: `SHA-256(enclave_pubkey)` only.
+/// v0.3.12 (N22) form: `SHA-256(enclave_pubkey ‖ borsh_string(contract_addr) ‖ u64_LE(election_id))`.
+/// The election_id binding blocks an admin replaying an old registration
+/// quote for a new election. Preimage layout must stay byte-identical to
+/// the contract's `verified_rcv_contract::contract::build_registration_report_data`
+/// — `tests/cross_canonical.rs::registration_report_data_dst_matches_contract_layout`
+/// is the load-bearing equality cross-test.
+pub fn build_registration_report_data(
+    enclave_pubkey: &[u8],
+    contract_addr: &str,
+    election_id: u64,
+) -> [u8; 64] {
+    let mut preimage = Vec::with_capacity(enclave_pubkey.len() + contract_addr.len() + 16);
+    preimage.extend_from_slice(enclave_pubkey);
+    write_borsh_string(&mut preimage, contract_addr);
+    preimage.extend_from_slice(&election_id.to_le_bytes());
     let mut hasher = Sha256::new();
-    hasher.update(enclave_pubkey);
+    hasher.update(&preimage);
     let h = hasher.finalize();
     let mut rd = [0u8; 64];
     rd[..32].copy_from_slice(&h);
@@ -291,10 +305,12 @@ pub struct EnclaveIdentity {
 }
 
 /// Synthesize a publish-quote `(proof, public_inputs)` pair. Default
-/// build: the proof is a 192-byte sentinel; the chain's `mock-attestation`
-/// build skips the cryptographic verify. Real build (`--features
-/// real-zkdcap`): drives the zkdcap gnark prover via unix socket.
+/// build: the proof is a 192-byte sentinel and the dstack client is
+/// unused (the chain's `mock-attestation` build skips cryptographic
+/// verify). Real build (`--features real-zkdcap`): drives the zkdcap
+/// gnark prover via unix socket and binds a dstack-signed TDX quote.
 pub async fn produce_publish_artifacts(
+    dstack: &dyn crate::dstack::DstackClient,
     identity: &EnclaveIdentity,
     contract_addr: &str,
     chain_id: &str,
@@ -309,20 +325,26 @@ pub async fn produce_publish_artifacts(
         ballots_hash,
         tally,
     );
-    produce_artifacts_inner(identity, &report_data).await
+    produce_artifacts_inner(dstack, identity, &report_data).await
 }
 
 /// Synthesize a registration-quote `(proof, public_inputs)` pair.
+/// v0.3.12 N22: binds `(contract_addr, election_id)` so an admin can't
+/// replay an old registration quote for a new election.
 pub async fn produce_registration_artifacts(
+    dstack: &dyn crate::dstack::DstackClient,
     identity: &EnclaveIdentity,
     enclave_pubkey: &[u8],
+    contract_addr: &str,
+    election_id: u64,
 ) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
-    let report_data = build_registration_report_data(enclave_pubkey);
-    produce_artifacts_inner(identity, &report_data).await
+    let report_data = build_registration_report_data(enclave_pubkey, contract_addr, election_id);
+    produce_artifacts_inner(dstack, identity, &report_data).await
 }
 
 #[cfg(not(feature = "real-zkdcap"))]
 async fn produce_artifacts_inner(
+    _dstack: &dyn crate::dstack::DstackClient,
     identity: &EnclaveIdentity,
     report_data: &[u8; 64],
 ) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
@@ -346,16 +368,198 @@ async fn produce_artifacts_inner(
 
 #[cfg(feature = "real-zkdcap")]
 async fn produce_artifacts_inner(
-    _identity: &EnclaveIdentity,
-    _report_data: &[u8; 64],
+    dstack: &dyn crate::dstack::DstackClient,
+    identity: &EnclaveIdentity,
+    report_data: &[u8; 64],
 ) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
-    // TODO(real-zkdcap): connect to zkdcap gnark prove server via unix
-    // socket (see /Users/mvid/Development/reliq/zkdcap/host/src/gnark.rs),
-    // submit (quote_hex, pre_verified_json, timestamp), parse returned
-    // proof JSON, extract proof + public_inputs.
-    Err(AttestationError::ZkProver(
-        "real-zkdcap path not yet wired; build without the feature to use the synthetic stub".into(),
-    ))
+    // 1. Real TDX quote bound to report_data via dstack guest agent.
+    let quote = dstack.get_quote(report_data).await?;
+
+    // 2. POST to the gnark prove server. Mirrors
+    //    /Users/mvid/Development/reliq/zkdcap/host/src/gnark.rs (POST
+    //    /prove over a unix socket, body
+    //    `{quote_hex, pre_verified_json, timestamp}`). Response is the
+    //    proof JSON pinned by
+    //    /Users/mvid/Development/reliq/zkdcap/circuits/dcap-gnark/cmd/verify-remote/main.go::proofJSON
+    //    (pi_a / pi_b / pi_c / commitments / commitment_pok /
+    //    public_signals as decimal strings).
+    let socket_path = std::env::var("ZKDCAP_PROVER_SOCKET")
+        .unwrap_or_else(|_| "/tmp/gnark-prove-gpu.sock".to_string());
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| AttestationError::ZkProver(format!("clock: {e}")))?
+        .as_secs();
+    let pre_verified_json = real_zkdcap::build_pre_verified_json(&quote, now_secs).await?;
+    let request_body = serde_json::json!({
+        "quote_hex": hex::encode(&quote),
+        "pre_verified_json": pre_verified_json,
+        "timestamp": now_secs,
+    });
+    let response_bytes =
+        real_zkdcap::post_unix_socket(&socket_path, &request_body).await?;
+    let proof_json: serde_json::Value = serde_json::from_slice(&response_bytes)
+        .map_err(|e| AttestationError::ZkProver(format!("parse prove response: {e}")))?;
+
+    // 3. Public inputs: built locally from the (identity, report_data)
+    //    tuple. The gnark server's `public_signals` SHOULD produce the
+    //    same bytewise blob; we use the local build to avoid parser
+    //    risk and keep the chain-side verifier's input deterministic
+    //    relative to our state. A future hardening pass can extract
+    //    `public_signals` and assert equality.
+    let public_inputs = build_public_inputs(
+        &identity.mrtd,
+        &identity.rtmr0,
+        &identity.rtmr1,
+        &identity.rtmr2,
+        &identity.rtmr3,
+        report_data,
+        identity.tcb_status,
+        identity.timestamp,
+    );
+
+    // 4. Proof bytes for the chain's `xion.zk.v1.Query/ProofVerifyGnark`.
+    //    The gnark server's JSON is the canonical proof object (per
+    //    verify-remote/main.go reconstruction); the chain's verifier
+    //    accepts either gnark-native binary or JSON depending on the
+    //    xion zk module's decoder. We forward the raw response bytes so
+    //    the verifier sees byte-identical input to what `verify-remote`
+    //    accepts off-chain. If xion's decoder rejects JSON and requires
+    //    gnark-native binary, the conversion belongs here (see TODO).
+    //
+    //    TODO(real-zkdcap N23): when xion's gnark verifier serialization
+    //    is pinned, replace this passthrough with the canonical encoder.
+    //    Reconstruct `*groth16_bn254.Proof` from `proof_json.{pi_a,
+    //    pi_b, pi_c, commitments, commitment_pok}` (matches
+    //    verify-remote/main.go::reconstructProof) and emit gnark-native
+    //    bytes (320 + N*64 for N commitments).
+    let proof = response_bytes;
+    let _ = proof_json; // Parsed for future use; not directly consumed today.
+
+    Ok((proof, public_inputs))
+}
+
+// ---------------------------------------------------------------------------
+// real-zkdcap helpers (gated; not compiled in default builds)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "real-zkdcap")]
+mod real_zkdcap {
+    use super::AttestationError;
+    use anyhow::Context;
+    use serde_json::Value;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::UnixStream;
+
+    /// Fetch PCS collateral + extract pre-verified inputs, then convert
+    /// to the JSON shape the gnark server expects (camelCase per
+    /// zkdcap/circuits/dcap-gnark/witness/types.go::PreVerifiedJSON).
+    ///
+    /// Implementation mirrors `zkdcap/host/src/gnark.rs::build_pre_verified_json`
+    /// and `build_qe_identity_json` to keep the chain-side verifier
+    /// happy when the deployed gnark prove server is the same binary
+    /// oauth3 deploys.
+    pub async fn build_pre_verified_json(
+        quote: &[u8],
+        now_secs: u64,
+    ) -> Result<Value, AttestationError> {
+        let collateral = dcap_qvl::collateral::get_collateral_from_pcs(quote)
+            .await
+            .map_err(|e| AttestationError::ZkProver(format!("PCS collateral fetch: {e}")))?;
+        let pre = dcap_qvl::verify::rustcrypto::extract_pre_verified(quote, &collateral, now_secs)
+            .map_err(|e| AttestationError::ZkProver(format!("extract pre-verified: {e}")))?;
+
+        let tcb_info =
+            serde_json::to_value(&pre.tcb_info).context("serialize tcb_info")
+            .map_err(|e| AttestationError::ZkProver(format!("{e}")))?;
+        let qe = &pre.qe_identity;
+        let tcb_levels = serde_json::to_value(&qe.tcb_levels)
+            .map_err(|e| AttestationError::ZkProver(format!("serialize qe tcb_levels: {e}")))?;
+        let qe_identity = serde_json::json!({
+            "id": qe.id,
+            "version": qe.version,
+            "issueDate": qe.issue_date,
+            "nextUpdate": qe.next_update,
+            "tcbEvaluationDataNumber": qe.tcb_evaluation_data_number,
+            "miscselect": hex::encode(qe.miscselect),
+            "miscselectMask": hex::encode(qe.miscselect_mask),
+            "attributes": hex::encode(qe.attributes),
+            "attributesMask": hex::encode(qe.attributes_mask),
+            "mrsigner": hex::encode(qe.mrsigner),
+            "isvprodid": qe.isvprodid,
+            "tcbLevels": tcb_levels,
+        });
+
+        Ok(serde_json::json!({
+            "tcb_info": tcb_info,
+            "qe_identity": qe_identity,
+            "pck_leaf_der": hex::encode(&pre.pck_leaf_der),
+            "cpu_svn": hex::encode(pre.cpu_svn),
+            "pce_svn": pre.pce_svn,
+            "fmspc": hex::encode(pre.fmspc),
+            "ppid": hex::encode(&pre.ppid),
+        }))
+    }
+
+    /// POST `body` as JSON to `POST /prove HTTP/1.1` over a unix socket;
+    /// return the response body bytes. Matches gnark.rs's raw HTTP wire
+    /// format (gnark prove server speaks HTTP/1.1 over a unix socket
+    /// with `Connection: close` semantics; we don't pull a full HTTP
+    /// client in for this one POST).
+    pub async fn post_unix_socket(
+        socket_path: &str,
+        body: &Value,
+    ) -> Result<Vec<u8>, AttestationError> {
+        let body_bytes = serde_json::to_vec(body)
+            .map_err(|e| AttestationError::ZkProver(format!("serialize request: {e}")))?;
+
+        let mut stream = UnixStream::connect(socket_path)
+            .await
+            .map_err(|e| AttestationError::ZkProver(format!("connect {socket_path}: {e}")))?;
+        let request = format!(
+            "POST /prove HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body_bytes.len()
+        );
+        stream
+            .write_all(request.as_bytes())
+            .await
+            .map_err(|e| AttestationError::ZkProver(format!("write headers: {e}")))?;
+        stream
+            .write_all(&body_bytes)
+            .await
+            .map_err(|e| AttestationError::ZkProver(format!("write body: {e}")))?;
+        stream
+            .flush()
+            .await
+            .map_err(|e| AttestationError::ZkProver(format!("flush: {e}")))?;
+
+        let mut response = Vec::new();
+        stream
+            .read_to_end(&mut response)
+            .await
+            .map_err(|e| AttestationError::ZkProver(format!("read response: {e}")))?;
+
+        // Split off HTTP status + headers; require 200.
+        let sep = b"\r\n\r\n";
+        let body_start = response
+            .windows(4)
+            .position(|w| w == sep)
+            .ok_or_else(|| {
+                AttestationError::ZkProver("malformed HTTP response (no header separator)".into())
+            })?
+            + 4;
+        let status_line: &[u8] = response
+            .windows(2)
+            .position(|w| w == b"\r\n")
+            .map(|i| &response[..i])
+            .unwrap_or(&response[..0]);
+        if !status_line.windows(3).any(|w| w == b"200") {
+            return Err(AttestationError::ZkProver(format!(
+                "gnark prove server returned non-200: {}",
+                String::from_utf8_lossy(status_line)
+            )));
+        }
+        Ok(response[body_start..].to_vec())
+    }
 }
 
 #[cfg(test)]
@@ -452,11 +656,33 @@ mod tests {
     #[test]
     fn registration_report_data_layout() {
         let pk = vec![0x02u8; 33];
-        let rd = build_registration_report_data(&pk);
-        let expect = Sha256::digest(&pk);
+        let rd = build_registration_report_data(&pk, "xion1addr", 7);
+        let mut preimage = Vec::new();
+        preimage.extend_from_slice(&pk);
+        write_borsh_string(&mut preimage, "xion1addr");
+        preimage.extend_from_slice(&7u64.to_le_bytes());
+        let expect = Sha256::digest(&preimage);
         assert_eq!(&rd[..32], &expect[..]);
         assert_eq!(&rd[32..32 + DST_PUBKEY.len()], DST_PUBKEY);
         assert!(rd[32 + DST_PUBKEY.len()..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn registration_report_data_election_id_binds_n22() {
+        // N22 (v0.3.12): election_id MUST affect the registration ReportData
+        // bytes so old quotes can't replay across elections.
+        let pk = vec![0x03u8; 33];
+        let a = build_registration_report_data(&pk, "xion1addr", 1);
+        let b = build_registration_report_data(&pk, "xion1addr", 2);
+        assert_ne!(a[..32], b[..32], "election_id must affect registration ReportData");
+    }
+
+    #[test]
+    fn registration_report_data_contract_addr_binds_n22() {
+        let pk = vec![0x03u8; 33];
+        let a = build_registration_report_data(&pk, "xion1A", 7);
+        let b = build_registration_report_data(&pk, "xion1B", 7);
+        assert_ne!(a[..32], b[..32], "contract_addr must affect registration ReportData");
     }
 
     #[test]

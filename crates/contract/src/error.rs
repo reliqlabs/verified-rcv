@@ -141,4 +141,33 @@ pub enum ContractError {
     /// N2: `FinalizeRegistryUpdate` called before the timelock expired.
     #[error("registry update timelock not yet expired (apply_after unreached)")]
     RegistryUpdateTimelockNotExpired,
+
+    // N17 audit re-review remediation (v0.3.12 — finalize-mid-election DoS).
+
+    /// N17: `CreateElection` while a registry update is pending. If
+    /// allowed, an attacker would race to finalize after voting opens
+    /// and cause every PublishResult to fail with
+    /// `AttestationMeasurementMismatch`. Admin must finalize or cancel
+    /// the pending update before starting an election.
+    #[error("a registry update is pending; finalize or cancel before creating an election")]
+    PendingRegistryUpdateBlocksCreateElection,
+
+    /// N17 defense-in-depth: `FinalizeRegistryUpdate` while an election
+    /// is in `Voting` or `Tallying` phase. The propose-gate plus the
+    /// create-gate make this state unreachable in normal flow, but the
+    /// finalize-gate catches any future code path that could create an
+    /// election with a pending registry slipping through.
+    #[error("registry update cannot finalize while an election is in Voting or Tallying phase")]
+    FinalizeDuringActiveElection,
+
+    // N22 audit re-review remediation (v0.3.12 — registration quote replay
+    // across elections).
+
+    /// N22: `CreateElection`'s registration quote was bound to a different
+    /// `(contract_addr, election_id)` tuple than the one being assigned.
+    /// This blocks privkey-replay-across-elections: admin who reuses an
+    /// old quote for a new election fails this check because the
+    /// quote's ReportData hashes a different election_id.
+    #[error("registration quote bound to wrong election_id (replay attempt)")]
+    RegistrationQuoteWrongElection,
 }

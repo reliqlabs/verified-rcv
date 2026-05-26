@@ -11,7 +11,7 @@ description = "Runtime wrapper for verified-rcv enclave — wires Tally_spec cor
 # tests + dev. When `real-zkdcap` is on, the runtime connects to the
 # zkdcap Go prover via unix socket (see /Users/mvid/Development/reliq/zkdcap/host/src/gnark.rs).
 default = []
-real-zkdcap = []
+real-zkdcap = ["dep:dcap-qvl", "dep:anyhow"]
 
 [lib]
 name = "verified_rcv_enclave"
@@ -63,6 +63,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sha2 = "0.10"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 urlencoding = "2"
+
+# real-zkdcap-gated deps. dcap-qvl pins to the same reliqlabs/dcap-qvl
+# feat/cosmwasm branch zkdcap-host uses, so the pre_verified extract
+# semantics are byte-identical to oauth3's reference deployment.
+dcap-qvl = { git = "https://github.com/reliqlabs/dcap-qvl", branch = "feat/cosmwasm", default-features = false, features = ["std", "report", "rustcrypto"], optional = true }
+anyhow = { version = "1", optional = true }
 
 [build-dependencies]
 tonic-build = "0.12"

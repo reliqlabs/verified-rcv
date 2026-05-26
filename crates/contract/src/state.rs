@@ -154,3 +154,10 @@ pub const BALLOTS: Map<&Addr, HexBinary> = Map::new("ballots");
 /// archived here so consumers can pin by election_id without depending
 /// on `TALLY_RESULT` (which always reflects the *current* election).
 pub const HISTORICAL_TALLIES: Map<u64, TallyResult> = Map::new("historical_tallies");
+
+/// Historical Election metadata indexed by election_id. v0.3.12 N21:
+/// the v0.3.10 N3 archival fix preserved `TallyResult` but lost the
+/// `Election` (title, start_at, end_at, enclave_pubkey, candidates).
+/// Consumers querying `HistoricalTally` for old elections now also get
+/// the full Election context via `HistoricalElection`.
+pub const HISTORICAL_ELECTIONS: Map<u64, Election> = Map::new("historical_elections");

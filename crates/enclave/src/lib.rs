@@ -46,6 +46,7 @@
 pub mod attestation;
 pub mod dstack;
 pub mod server;
+pub mod tdx_quote;
 
 use std::collections::HashSet;
 

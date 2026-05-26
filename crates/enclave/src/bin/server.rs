@@ -75,12 +75,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .parse()?;
 
     let dstack: Arc<dyn DstackClient> = Arc::from(build_client_from_env());
-    let identity = identity_from_env();
+    let mut identity = identity_from_env();
 
-    // Boot health check: a Health-equivalent dstack call to confirm the
-    // transport is up before binding the listener. In simulator mode this
-    // is trivial; against a real dstack guest agent this fails fast if
-    // the socket path is wrong or the agent isn't running.
+    // Boot probe 1: dstack `/Info` to confirm transport. Cheap; just
+    // logged (compose-hash is the dstack-side image identifier, not the
+    // on-chain registry value).
     match dstack.get_image_identity().await {
         Ok(id) => tracing::info!(
             compose_hash = %hex::encode(&id.compose_hash),
@@ -89,7 +88,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Err(e) => tracing::warn!(error = %e, "dstack image identity probe failed (continuing — may be simulator)"),
     }
 
-    let svc = TallyServiceImpl::new(dstack, identity);
+    // Boot probe 2 (Track 2): request a TDX quote with all-zero report_data
+    // and parse `MRTD` + `RTMR0..3` from it. On Phala this surfaces the
+    // CVM's real image identity for the Health RPC. In simulator mode the
+    // mock quote is too short / unparseable, so `measurements` stays None
+    // and Health falls back to ready=false + empty hex.
+    let measurements = match dstack.get_quote(&[0u8; 64]).await {
+        Ok(quote) => match verified_rcv_enclave::tdx_quote::parse_measurements(&quote) {
+            Ok(m) => {
+                tracing::info!(
+                    mrtd = %hex::encode(m.mrtd),
+                    rtmr0 = %hex::encode(m.rtmr0),
+                    "parsed TDX measurements from boot quote"
+                );
+                // The env-supplied `MRTD` / `RTMR*` defaults to all zeros
+                // when unset. If the operator left them unset (production
+                // path), populate from the boot-probed quote so the
+                // chain's measurement equality check against the on-chain
+                // registry uses the live values rather than the env stub.
+                if identity.mrtd == [0u8; 48] {
+                    identity.mrtd = m.mrtd;
+                }
+                if identity.rtmr0 == [0u8; 48] {
+                    identity.rtmr0 = m.rtmr0;
+                }
+                if identity.rtmr1 == [0u8; 48] {
+                    identity.rtmr1 = m.rtmr1;
+                }
+                if identity.rtmr2 == [0u8; 48] {
+                    identity.rtmr2 = m.rtmr2;
+                }
+                if identity.rtmr3 == [0u8; 48] {
+                    identity.rtmr3 = m.rtmr3;
+                }
+                Some(m)
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "boot quote did not parse as TDX 1.0 (expected in simulator / non-Phala dev)");
+                None
+            }
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "boot quote request failed (continuing without cached measurements)");
+            None
+        }
+    };
+
+    let svc = match measurements {
+        Some(m) => TallyServiceImpl::with_measurements(dstack, identity, m),
+        None => TallyServiceImpl::new(dstack, identity),
+    };
     tracing::info!(%listen_addr, "verified-rcv enclave server starting");
 
     Server::builder()

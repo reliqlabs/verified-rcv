@@ -162,6 +162,12 @@ pub enum QueryMsg {
     #[returns(ResultResponse)]
     HistoricalTally { election_id: u64 },
 
+    /// v0.3.12 N21: query archived Election metadata by `election_id`.
+    /// Companion to `HistoricalTally` — together they fully recover
+    /// the state of a superseded election.
+    #[returns(HistoricalElectionResponse)]
+    HistoricalElection { election_id: u64 },
+
     #[returns(EnclaveImageRegistry)]
     Registry {},
 
@@ -185,4 +191,10 @@ pub struct ResultResponse {
 pub struct PendingRegistryResponse {
     /// `None` if no update is currently pending.
     pub pending: Option<crate::state::PendingRegistry>,
+}
+
+#[cw_serde]
+pub struct HistoricalElectionResponse {
+    /// `None` if no election with `election_id` has been archived.
+    pub election: Option<crate::state::Election>,
 }
