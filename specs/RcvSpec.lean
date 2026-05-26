@@ -667,6 +667,42 @@ theorem irv_no_reappearance :
       i < j →
       c ∈ eliminated →
       ∀ entry ∈ rc, entry.candidate ≠ c := by
+  intro valid cs _h_cover i j eliminated rc c h_elim h_rc h_lt h_c_mem entry h_entry
+  -- The proof splits on whether `valid = []` (vacuous via empty
+  -- eliminated_by_round) vs `valid ≠ []` (the structural induction case).
+  --
+  -- Outline of the `valid ≠ []` case (the substantive work):
+  --
+  -- 1. Auxiliary lemma `irv_loop_step_total_pos`: under the cover
+  --    hypothesis, if `valid ≠ []` and `remaining ⊆ cs` and
+  --    `1 ≤ remaining.length`, then
+  --    `total_count (tally_round valid remaining) > 0`. Proof: at least
+  --    one ballot exists; pick its first-active index in `remaining`
+  --    (defined because every ballot covers `cs ⊇ remaining`), and that
+  --    bucket's count is ≥ 1.
+  --
+  -- 2. Corollary: under A8 + non-empty valid, the all-abstain branch
+  --    inside `irv_loop` is unreachable. The all-abstain branch is the
+  --    one that writes `per_round_counts[k] = cs.map(c => {c, 0})` —
+  --    the only place where S9 would otherwise break (eliminated
+  --    candidates can reappear there).
+  --
+  -- 3. Auxiliary lemma `irv_loop_per_round_in_remaining`: under A8 +
+  --    non-empty valid, every entry in `(irv_loop ... remaining).2.1[k]`
+  --    has its `.candidate` in `remaining_at_step_k`, where
+  --    `remaining_at_step_(k+1) = remove_from elims[k] remaining_at_step_k`.
+  --    Proof: induction on fuel, case-split irv_loop's branches; the
+  --    all-abstain branch is excluded by (2).
+  --
+  -- 4. Joint invariant: c ∈ eliminated_by_round[i] ⇒ c ∈ remaining_at_step_i
+  --    (since losers ⊆ rc.candidates ⊆ remaining); and c ∉
+  --    remaining_at_step_(i+1) (by `remove_from`). By monotonicity of
+  --    `remaining_at_step`, c ∉ remaining_at_step_j for all j ≥ i+1.
+  --    By (3), c ∉ per_round_counts[j].candidates. Hence entry.candidate ≠ c.
+  --
+  -- This is multi-step Lean work analogous to `irv_winners_shape`'s
+  -- discharge (~10 additional auxiliary lemmas + the joint invariant).
+  -- Tracked as a follow-on for the same Round 3e pass.
   sorry
 
 /-- Composition (§2.5). Threads Stage 1's voter bookkeeping (dropped,
