@@ -1,3 +1,16 @@
+// v0.3.10 N5: Aeneas-extractability constraints (see crate-level docs
+// below) require non-idiomatic Rust: explicit indexed for-loops, no
+// iterator chains, no `is_empty()` shortcuts, no `vec![]` macro in the
+// algorithmic core, no `+=` operators. Each of these patterns is what
+// the Lean-extracted model needs; idiomatic clippy fixes break the
+// extraction chain.
+#![allow(clippy::len_zero)]
+#![allow(clippy::assign_op_pattern)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::vec_init_then_push)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::manual_range_contains)]
+
 //! Aeneas-extractable IRV tally core for verified-rcv.
 //!
 //! This crate is the central methodology obligation: B10_lean

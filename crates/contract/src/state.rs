@@ -14,7 +14,8 @@ use cw_storage_plus::{Item, Map};
 use verified_rcv_enclave_core::TallyResult;
 
 /// Contract-wide configuration. Set at instantiate; admin may rotate registry
-/// later via `UpdateRegistry` (M3) but Config itself is immutable.
+/// later via the timelocked `ProposeRegistryUpdate` + `FinalizeRegistryUpdate`
+/// flow (v0.3.10 N2). Config itself is immutable post-instantiate.
 #[cw_serde]
 pub struct Config {
     pub admin: Addr,
@@ -22,6 +23,21 @@ pub struct Config {
     /// supplies its own start_at / end_at) but retained on Config for
     /// future-default behaviour parity with the intent schema.
     pub voting_duration_seconds: u64,
+    /// v0.3.10 N2: number of seconds between `ProposeRegistryUpdate` and
+    /// the earliest `FinalizeRegistryUpdate`. Production deployments
+    /// should set this to a meaningful value (e.g., 86400 = 1 day) so
+    /// voters can detect a registry rotation before it lands. 0 means
+    /// immediate finalize allowed (same-block propose → finalize).
+    pub registry_update_delay_seconds: u64,
+}
+
+/// v0.3.10 N2: a registry update that has been proposed but not yet
+/// finalized. `apply_after` is the earliest timestamp at which
+/// `FinalizeRegistryUpdate` may apply the new registry.
+#[cw_serde]
+pub struct PendingRegistry {
+    pub registry: EnclaveImageRegistry,
+    pub apply_after: Timestamp,
 }
 
 /// The phase derived from `(block.time, election, tally_result)`. Computed
@@ -116,12 +132,25 @@ pub const CONFIG: Item<Config> = Item::new("config");
 pub const ELECTION: Item<Election> = Item::new("election");
 pub const ELECTION_COUNTER: Item<u64> = Item::new("election_counter");
 pub const REGISTRY: Item<EnclaveImageRegistry> = Item::new("registry");
+/// v0.3.10 N2: pending registry update awaiting timelock expiry.
+pub const PENDING_REGISTRY: Item<PendingRegistry> = Item::new("pending_registry");
 
 /// Tally result. Set once at `PublishResult`; immutable thereafter (B1).
 /// Stored as `Item<TallyResult>` and queried as `Option<TallyResult>`
 /// (the storage absence is the `None` case).
+///
+/// v0.3.10 N3: when `CreateElection` succeeds while the prior election
+/// is in `Resolved` phase, the prior tally is moved into
+/// `HISTORICAL_TALLIES` (keyed by its election_id) before being cleared.
+/// Consumers that pinned by `election_id` can still resolve the result.
 pub const TALLY_RESULT: Item<TallyResult> = Item::new("tally_result");
 
 /// Encrypted ballots: voter address → ciphertext. Keys are constrained to
 /// the candidate set by the `SubmitBallot` handler (intent S4 + B6).
 pub const BALLOTS: Map<&Addr, HexBinary> = Map::new("ballots");
+
+/// Historical tallies indexed by election_id. v0.3.10 N3: on
+/// `CreateElection` from `Resolved` phase, the just-resolved tally is
+/// archived here so consumers can pin by election_id without depending
+/// on `TALLY_RESULT` (which always reflects the *current* election).
+pub const HISTORICAL_TALLIES: Map<u64, TallyResult> = Map::new("historical_tallies");

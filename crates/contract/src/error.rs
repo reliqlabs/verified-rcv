@@ -125,4 +125,20 @@ pub enum ContractError {
     /// circuit-hard-rejected by the gnark prover.
     #[error("attestation TcbStatus={status} not in accepted set")]
     AttestationTcbStatusUnaccepted { status: u8 },
+
+    // N2 audit re-review remediations (v0.3.10 — timelocked registry update).
+
+    /// N2: `ProposeRegistryUpdate` while another update is already pending.
+    /// The admin must `CancelRegistryUpdate` or `FinalizeRegistryUpdate`
+    /// first (only one slot).
+    #[error("a registry update is already pending; cancel or finalize before proposing another")]
+    RegistryUpdateAlreadyPending,
+
+    /// N2: `FinalizeRegistryUpdate` with no pending update.
+    #[error("no pending registry update to finalize")]
+    NoPendingRegistryUpdate,
+
+    /// N2: `FinalizeRegistryUpdate` called before the timelock expired.
+    #[error("registry update timelock not yet expired (apply_after unreached)")]
+    RegistryUpdateTimelockNotExpired,
 }

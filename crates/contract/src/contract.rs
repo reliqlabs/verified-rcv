@@ -54,11 +54,11 @@ use verified_rcv_enclave_core::TallyResult;
 
 use crate::error::ContractError;
 use crate::msg::{
-    BallotsResponse, ExecuteMsg, InstantiateMsg, QueryMsg, ResultResponse,
+    BallotsResponse, ExecuteMsg, InstantiateMsg, PendingRegistryResponse, QueryMsg, ResultResponse,
 };
 use crate::state::{
-    Config, Election, EnclaveImageRegistry, Phase, BALLOTS, CONFIG, ELECTION, ELECTION_COUNTER,
-    REGISTRY, TALLY_RESULT,
+    Config, Election, EnclaveImageRegistry, PendingRegistry, Phase, BALLOTS, CONFIG, ELECTION,
+    ELECTION_COUNTER, HISTORICAL_TALLIES, PENDING_REGISTRY, REGISTRY, TALLY_RESULT,
 };
 
 // ============================================================
@@ -156,6 +156,7 @@ pub fn instantiate(
         &Config {
             admin,
             voting_duration_seconds: msg.voting_duration_seconds,
+            registry_update_delay_seconds: msg.registry_update_delay_seconds,
         },
     )?;
     REGISTRY.save(deps.storage, &msg.registry)?;
@@ -201,9 +202,11 @@ pub fn execute(
             proof,
             public_inputs,
         } => exec_publish_result(deps, env, tally, proof, public_inputs),
-        ExecuteMsg::UpdateRegistry { registry } => {
-            exec_update_registry(deps, env, info, registry)
+        ExecuteMsg::ProposeRegistryUpdate { registry } => {
+            exec_propose_registry_update(deps, env, info, registry)
         }
+        ExecuteMsg::FinalizeRegistryUpdate {} => exec_finalize_registry_update(deps, env),
+        ExecuteMsg::CancelRegistryUpdate {} => exec_cancel_registry_update(deps, info),
     }
 }
 
@@ -215,7 +218,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Phase {} => to_json_binary(&query_phase(deps, env)?),
         QueryMsg::Ballots {} => to_json_binary(&query_ballots(deps)?),
         QueryMsg::Result {} => to_json_binary(&query_result(deps)?),
+        QueryMsg::HistoricalTally { election_id } => {
+            to_json_binary(&query_historical_tally(deps, election_id)?)
+        }
         QueryMsg::Registry {} => to_json_binary(&REGISTRY.load(deps.storage)?),
+        QueryMsg::PendingRegistry {} => to_json_binary(&PendingRegistryResponse {
+            pending: PENDING_REGISTRY.may_load(deps.storage)?,
+        }),
     }
 }
 
@@ -246,13 +255,21 @@ fn exec_create_election(
     }
 
     // M1: refuse to clobber an active election.
+    // N3 (v0.3.10): on Resolved-to-Created transition, archive the prior
+    // tally so consumers can still resolve `election_id -> TallyResult`
+    // after the new election overwrites `TALLY_RESULT`.
     if let Some(prev) = ELECTION.may_load(deps.storage)? {
         let phase = compute_phase(&env, &prev, deps.storage)?;
         match phase {
             Phase::Voting | Phase::Tallying => {
                 return Err(ContractError::ElectionAlreadyActive);
             }
-            Phase::Created | Phase::Resolved => {} // OK to replace
+            Phase::Created => {} // first-election overwrite, no tally to archive
+            Phase::Resolved => {
+                if let Some(prior_tally) = TALLY_RESULT.may_load(deps.storage)? {
+                    HISTORICAL_TALLIES.save(deps.storage, prev.id, &prior_tally)?;
+                }
+            }
         }
     }
 
@@ -382,7 +399,9 @@ pub(crate) fn exec_publish_result(
     // N1 (v0.3.9) — publish-quote verification.
     let registry = REGISTRY.load(deps.storage)?;
     let contract_addr = env.contract.address.as_str();
-    let expected_commit = compute_commit_hash(contract_addr, election.id, &tally);
+    let chain_id = env.block.chain_id.as_str();
+    let expected_commit =
+        compute_commit_hash(contract_addr, chain_id, election.id, &tally);
     verify_publish_quote(
         deps.as_ref(),
         &registry,
@@ -399,8 +418,11 @@ pub(crate) fn exec_publish_result(
         .add_attribute("winners_count", tally.winners.len().to_string()))
 }
 
-/// M3 audit remediation: admin-only registry rotation.
-fn exec_update_registry(
+/// N2 (v0.3.10): admin proposes a registry update. Stored as pending
+/// with `apply_after = now + config.registry_update_delay_seconds`.
+/// Voters can observe via `QueryMsg::PendingRegistry` and react before
+/// the timelock expires.
+fn exec_propose_registry_update(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -411,6 +433,10 @@ fn exec_update_registry(
         return Err(ContractError::Unauthorized);
     }
     validate_registry(&new_registry)?;
+    // M3-equivalent gating: refuse to start a registry rotation during
+    // an active election (voters can't react if the election is in
+    // flight). Allowed in Created (pre-voting) or Resolved (post-publish)
+    // or with no prior election.
     if let Some(prev) = ELECTION.may_load(deps.storage)? {
         let phase = compute_phase(&env, &prev, deps.storage)?;
         match phase {
@@ -420,8 +446,52 @@ fn exec_update_registry(
             Phase::Created | Phase::Resolved => {}
         }
     }
-    REGISTRY.save(deps.storage, &new_registry)?;
-    Ok(Response::new().add_attribute("action", "update_registry"))
+    if PENDING_REGISTRY.may_load(deps.storage)?.is_some() {
+        return Err(ContractError::RegistryUpdateAlreadyPending);
+    }
+    let apply_after = env
+        .block
+        .time
+        .plus_seconds(config.registry_update_delay_seconds);
+    PENDING_REGISTRY.save(
+        deps.storage,
+        &PendingRegistry {
+            registry: new_registry,
+            apply_after,
+        },
+    )?;
+    Ok(Response::new()
+        .add_attribute("action", "propose_registry_update")
+        .add_attribute("apply_after", apply_after.seconds().to_string()))
+}
+
+/// N2 (v0.3.10): permissionless finalize after the timelock expires.
+fn exec_finalize_registry_update(
+    deps: DepsMut,
+    env: Env,
+) -> Result<Response, ContractError> {
+    let pending = PENDING_REGISTRY
+        .may_load(deps.storage)?
+        .ok_or(ContractError::NoPendingRegistryUpdate)?;
+    if env.block.time < pending.apply_after {
+        return Err(ContractError::RegistryUpdateTimelockNotExpired);
+    }
+    REGISTRY.save(deps.storage, &pending.registry)?;
+    PENDING_REGISTRY.remove(deps.storage);
+    Ok(Response::new().add_attribute("action", "finalize_registry_update"))
+}
+
+/// N2 (v0.3.10): admin discards a pending registry update.
+fn exec_cancel_registry_update(
+    deps: DepsMut,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    if info.sender != config.admin {
+        return Err(ContractError::Unauthorized);
+    }
+    PENDING_REGISTRY.remove(deps.storage);
+    Ok(Response::new().add_attribute("action", "cancel_registry_update"))
 }
 
 // ============================================================
@@ -610,8 +680,8 @@ pub fn extract_measurement_48(
     start_elem: usize,
 ) -> Result<[u8; 48], ContractError> {
     let mut out = [0u8; 48];
-    for i in 0..48 {
-        out[i] = extract_u8_from_fr(public_inputs, start_elem + i)?;
+    for (i, b) in out.iter_mut().enumerate() {
+        *b = extract_u8_from_fr(public_inputs, start_elem + i)?;
     }
     Ok(out)
 }
@@ -619,8 +689,8 @@ pub fn extract_measurement_48(
 /// Extract the 64-byte ReportData from `public_inputs`.
 pub fn extract_report_data(public_inputs: &[u8]) -> Result<[u8; 64], ContractError> {
     let mut out = [0u8; 64];
-    for i in 0..64 {
-        out[i] = extract_u8_from_fr(public_inputs, ELEM_REPORTDATA_START + i)?;
+    for (i, b) in out.iter_mut().enumerate() {
+        *b = extract_u8_from_fr(public_inputs, ELEM_REPORTDATA_START + i)?;
     }
     Ok(out)
 }
@@ -822,30 +892,35 @@ pub fn verify_registration_quote(
 // Commit hash + canonical_serialization (intent §2.5)
 // ============================================================
 
-/// Compute the canonical commit hash per intent §2.5 (v0.3.8 form):
-/// `SHA-256(canonical_serialization(contract_addr ‖ election_id ‖ tally_body))`.
-/// Pinned at v0.3.9 to bind ReportData[0..32] of the publish quote.
+/// Compute the canonical commit hash per intent §2.5 (v0.3.10 form):
+/// `SHA-256(canonical_serialization(contract_addr ‖ chain_id ‖ election_id ‖ tally_body))`.
+/// Pinned at v0.3.9 to bind ReportData[0..32] of the publish quote;
+/// `chain_id` added at v0.3.10 (N4) for cross-chain replay defense.
 pub fn compute_commit_hash(
     contract_addr: &str,
+    chain_id: &str,
     election_id: u64,
     tally: &TallyResult,
 ) -> [u8; 32] {
-    let canonical = canonical_serialization(contract_addr, election_id, tally);
+    let canonical = canonical_serialization(contract_addr, chain_id, election_id, tally);
     let mut hasher = Sha256::new();
     hasher.update(&canonical);
     hasher.finalize().into()
 }
 
-/// Hand-rolled canonical serialization per intent §2.5 v0.3.1 T7.
+/// Hand-rolled canonical serialization per intent §2.5 v0.3.1 T7
+/// (chain_id field added at v0.3.10 / N4 — cross-chain replay defense).
 /// MUST stay byte-identical to the runtime's
 /// `verified_rcv_enclave::attestation::canonical_serialization`.
 pub fn canonical_serialization(
     contract_addr: &str,
+    chain_id: &str,
     election_id: u64,
     tally: &TallyResult,
 ) -> Vec<u8> {
     let mut out = Vec::new();
     write_borsh_string(&mut out, contract_addr);
+    write_borsh_string(&mut out, chain_id);
     out.extend_from_slice(&election_id.to_le_bytes());
     write_tally_body(&mut out, tally);
     out
@@ -999,6 +1074,13 @@ fn query_result(deps: Deps) -> StdResult<ResultResponse> {
     })
 }
 
+/// v0.3.10 N3: lookup archived tally by election_id.
+fn query_historical_tally(deps: Deps, election_id: u64) -> StdResult<ResultResponse> {
+    Ok(ResultResponse {
+        result: HISTORICAL_TALLIES.may_load(deps.storage, election_id)?,
+    })
+}
+
 // ============================================================
 // Synthetic-public-inputs helper (test-only utility, v0.3.9)
 // ============================================================
@@ -1131,6 +1213,9 @@ mod tests {
         HexBinary::from(pi)
     }
 
+    /// `mock_env()` defaults `block.chain_id` to "cosmos-testnet-14002".
+    const MOCK_CHAIN_ID: &str = "cosmos-testnet-14002";
+
     fn synthetic_pi_for_tally(
         contract_addr: &str,
         election_id: u64,
@@ -1142,7 +1227,8 @@ mod tests {
         let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
         let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
         let r3 = reg.rtmr3.clone().unwrap_or_else(|| vec![0u8; 48]);
-        let commit = compute_commit_hash(contract_addr, election_id, tally);
+        let commit =
+            compute_commit_hash(contract_addr, MOCK_CHAIN_ID, election_id, tally);
         let rd = build_publish_report_data(&commit);
         let pi = build_synthetic_public_inputs(
             &mrtd,
@@ -1302,8 +1388,8 @@ mod tests {
     #[test]
     fn measurement_extraction_round_trip() {
         let mut mrtd = [0u8; 48];
-        for i in 0..48 {
-            mrtd[i] = i as u8;
+        for (i, b) in mrtd.iter_mut().enumerate() {
+            *b = i as u8;
         }
         let pi = build_synthetic_public_inputs(
             &mrtd, &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0, 0,
@@ -1314,8 +1400,8 @@ mod tests {
     #[test]
     fn report_data_extraction_round_trip() {
         let mut rd = [0u8; 64];
-        for i in 0..64 {
-            rd[i] = (i + 1) as u8;
+        for (i, b) in rd.iter_mut().enumerate() {
+            *b = (i + 1) as u8;
         }
         let pi = build_synthetic_public_inputs(
             &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 48], &rd, 0, 0,
@@ -1421,7 +1507,7 @@ mod tests {
     fn publish_quote_wrong_dst_rejected() {
         let reg = good_registry();
         let tally = minimal_valid_tally();
-        let commit = compute_commit_hash("cw1xxx", 1, &tally);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &tally);
         let mut rd = [0u8; 64];
         rd[..32].copy_from_slice(&commit);
         // Wrong DST in upper 32 — leave as zeros (no DST_VERIFIED_RCV_TALLY_V1).
@@ -1441,7 +1527,7 @@ mod tests {
         // PI committing to a DIFFERENT election_id
         let pi = synthetic_pi_for_tally("cw1xxx", 999, &tally, &reg);
         // Expected commit for the REAL election_id
-        let expected_commit = compute_commit_hash("cw1xxx", 1, &tally);
+        let expected_commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &tally);
         let deps = mock_dependencies();
         let err = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &dummy_proof(), &pi)
             .unwrap_err();
@@ -1453,7 +1539,7 @@ mod tests {
         let mut reg = good_registry();
         let tally = minimal_valid_tally();
         let pi = synthetic_pi_for_tally("cw1xxx", 1, &tally, &reg);
-        let commit = compute_commit_hash("cw1xxx", 1, &tally);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &tally);
         // Mutate registry to expect a DIFFERENT mrtd.
         reg.mrtd = vec![0xFF; 48];
         let deps = mock_dependencies();
@@ -1470,7 +1556,7 @@ mod tests {
         let reg = good_registry();
         let tally = minimal_valid_tally();
         let pi = synthetic_pi_for_tally("cw1xxx", 1, &tally, &reg);
-        let commit = compute_commit_hash("cw1xxx", 1, &tally);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &tally);
         let deps = mock_dependencies();
         verify_publish_quote(deps.as_ref(), &reg, &commit, &dummy_proof(), &pi).unwrap();
     }
@@ -1590,6 +1676,7 @@ mod tests {
                 admin: Some(admin.clone()),
                 registry: good_registry(),
                 voting_duration_seconds: 1000,
+                registry_update_delay_seconds: 0,
             },
         )
         .unwrap();
@@ -1641,6 +1728,7 @@ mod tests {
                 admin: Some(admin),
                 registry: good_registry(),
                 voting_duration_seconds: 1000,
+                registry_update_delay_seconds: 0,
             },
         )
         .unwrap();
@@ -1662,6 +1750,82 @@ mod tests {
     }
 
     #[test]
+    fn create_election_from_resolved_archives_prior_tally() {
+        // N3 (v0.3.10): on Resolved → Created transition, the prior
+        // tally is archived to HISTORICAL_TALLIES keyed by election_id.
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let admin = CwAddr::unchecked("admin");
+        let info = message_info(&admin, &[]);
+        instantiate(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            InstantiateMsg {
+                admin: Some(admin),
+                registry: good_registry(),
+                voting_duration_seconds: 1000,
+                registry_update_delay_seconds: 0,
+            },
+        )
+        .unwrap();
+        // First election: create + publish (which advances to Resolved).
+        let pk = good_pubkey();
+        let pi_reg = synthetic_pi_for_pubkey(&pk, &good_registry());
+        exec_create_election(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            "first".into(),
+            three_cands(),
+            env.block.time.plus_seconds(10),
+            env.block.time.plus_seconds(1000),
+            pk.clone(),
+            dummy_proof(),
+            pi_reg.clone(),
+        )
+        .unwrap();
+        // Fast-forward into Tallying then publish.
+        let mut env_tally = env.clone();
+        env_tally.block.time = env.block.time.plus_seconds(2000);
+        let first_tally = minimal_valid_tally();
+        let pi_pub =
+            synthetic_pi_for_tally(env_tally.contract.address.as_str(), 1, &first_tally, &good_registry());
+        exec_publish_result(
+            deps.as_mut(),
+            env_tally.clone(),
+            first_tally.clone(),
+            dummy_proof(),
+            pi_pub,
+        )
+        .unwrap();
+        // Sanity: TALLY_RESULT loaded.
+        assert!(TALLY_RESULT.may_load(&deps.storage).unwrap().is_some());
+        assert!(HISTORICAL_TALLIES.may_load(&deps.storage, 1).unwrap().is_none());
+
+        // Second election from the Resolved phase.
+        let env_second = env_tally; // still post-end_at; tally is set => Resolved
+        exec_create_election(
+            deps.as_mut(),
+            env_second,
+            info,
+            "second".into(),
+            three_cands(),
+            env.block.time.plus_seconds(3000),
+            env.block.time.plus_seconds(4000),
+            pk,
+            dummy_proof(),
+            pi_reg,
+        )
+        .unwrap();
+        // TALLY_RESULT cleared for the new election...
+        assert!(TALLY_RESULT.may_load(&deps.storage).unwrap().is_none());
+        // ...but the prior tally is archived under election_id=1.
+        let archived = HISTORICAL_TALLIES.may_load(&deps.storage, 1).unwrap();
+        assert_eq!(archived, Some(first_tally));
+    }
+
+    #[test]
     fn create_election_with_bad_registration_quote_rejected() {
         let mut deps = mock_dependencies();
         let env = mock_env();
@@ -1675,6 +1839,7 @@ mod tests {
                 admin: Some(admin),
                 registry: good_registry(),
                 voting_duration_seconds: 1000,
+                registry_update_delay_seconds: 0,
             },
         )
         .unwrap();
@@ -1703,23 +1868,50 @@ mod tests {
     // M3: UpdateRegistry gating (schema v0.3.9)
     // ----------------------------------------------------------------
 
-    #[test]
-    fn update_registry_during_voting_rejected() {
-        let mut deps = mock_dependencies();
-        let env = mock_env();
-        let admin = CwAddr::unchecked("admin");
+    fn new_registry_v2() -> EnclaveImageRegistry {
+        EnclaveImageRegistry {
+            vkey_name: "verified_rcv_v2".into(),
+            mrtd: vec![1u8; 48],
+            rtmr1: vec![1u8; 48],
+            rtmr2: vec![1u8; 48],
+            rtmr0: None,
+            rtmr3: None,
+            accepted_tcb_statuses: vec![0, 1, 2, 3],
+        }
+    }
+
+    fn instantiate_with_delay(
+        deps: &mut cosmwasm_std::OwnedDeps<
+            cosmwasm_std::testing::MockStorage,
+            cosmwasm_std::testing::MockApi,
+            cosmwasm_std::testing::MockQuerier,
+        >,
+        admin: CwAddr,
+        delay: u64,
+    ) {
         let info = message_info(&admin, &[]);
+        let env = mock_env();
         instantiate(
             deps.as_mut(),
-            env.clone(),
-            info.clone(),
+            env,
+            info,
             InstantiateMsg {
-                admin: Some(admin.clone()),
+                admin: Some(admin),
                 registry: good_registry(),
                 voting_duration_seconds: 1000,
+                registry_update_delay_seconds: delay,
             },
         )
         .unwrap();
+    }
+
+    #[test]
+    fn propose_registry_update_during_voting_rejected() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let admin = CwAddr::unchecked("admin");
+        instantiate_with_delay(&mut deps, admin.clone(), 0);
+        let info = message_info(&admin, &[]);
         let pk = good_pubkey();
         let pi = synthetic_pi_for_pubkey(&pk, &good_registry());
         exec_create_election(
@@ -1737,76 +1929,135 @@ mod tests {
         .unwrap();
         let mut env2 = env.clone();
         env2.block.time = env.block.time.plus_seconds(500);
-        let new_reg = EnclaveImageRegistry {
-            vkey_name: "verified_rcv_v2".into(),
-            mrtd: vec![1u8; 48],
-            rtmr1: vec![1u8; 48],
-            rtmr2: vec![1u8; 48],
-            rtmr0: None,
-            rtmr3: None,
-            accepted_tcb_statuses: vec![0, 1, 2, 3],
-        };
-        let err = exec_update_registry(deps.as_mut(), env2, info, new_reg).unwrap_err();
+        let err =
+            exec_propose_registry_update(deps.as_mut(), env2, info, new_registry_v2()).unwrap_err();
         assert!(matches!(err, ContractError::RegistryUpdateDuringActiveElection));
     }
 
     #[test]
-    fn update_registry_initial_state_ok() {
+    fn propose_then_finalize_with_zero_delay_ok() {
+        // delay=0: propose + finalize can happen in the same block, but
+        // it's still two transactions (not one). This is the minimum
+        // additional friction the v0.3.10 N2 flow imposes.
         let mut deps = mock_dependencies();
         let env = mock_env();
         let admin = CwAddr::unchecked("admin");
+        instantiate_with_delay(&mut deps, admin.clone(), 0);
         let info = message_info(&admin, &[]);
-        instantiate(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            InstantiateMsg {
-                admin: Some(admin),
-                registry: good_registry(),
-                voting_duration_seconds: 1000,
-            },
-        )
-        .unwrap();
-        let new_reg = EnclaveImageRegistry {
-            vkey_name: "verified_rcv_v2".into(),
-            mrtd: vec![1u8; 48],
-            rtmr1: vec![1u8; 48],
-            rtmr2: vec![1u8; 48],
-            rtmr0: None,
-            rtmr3: None,
-            accepted_tcb_statuses: vec![0, 1, 2, 3],
-        };
-        exec_update_registry(deps.as_mut(), env, info, new_reg).unwrap();
+        exec_propose_registry_update(deps.as_mut(), env.clone(), info, new_registry_v2()).unwrap();
+        // Registry not yet updated -- finalize required.
+        assert_eq!(REGISTRY.load(&deps.storage).unwrap().vkey_name, "verified_rcv_v1");
+        exec_finalize_registry_update(deps.as_mut(), env).unwrap();
+        assert_eq!(REGISTRY.load(&deps.storage).unwrap().vkey_name, "verified_rcv_v2");
+        assert!(PENDING_REGISTRY.may_load(&deps.storage).unwrap().is_none());
     }
 
     #[test]
-    fn update_registry_non_admin_rejected() {
+    fn finalize_before_timelock_expiry_rejected() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let admin = CwAddr::unchecked("admin");
+        instantiate_with_delay(&mut deps, admin.clone(), 86400);
+        let info = message_info(&admin, &[]);
+        exec_propose_registry_update(deps.as_mut(), env.clone(), info, new_registry_v2()).unwrap();
+        // Try to finalize at the same block (before delay).
+        let err = exec_finalize_registry_update(deps.as_mut(), env.clone()).unwrap_err();
+        assert!(matches!(err, ContractError::RegistryUpdateTimelockNotExpired));
+        // Fast forward past the delay; now it succeeds.
+        let mut env_later = env.clone();
+        env_later.block.time = env.block.time.plus_seconds(86401);
+        exec_finalize_registry_update(deps.as_mut(), env_later).unwrap();
+        assert_eq!(REGISTRY.load(&deps.storage).unwrap().vkey_name, "verified_rcv_v2");
+    }
+
+    #[test]
+    fn finalize_without_pending_rejected() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let admin = CwAddr::unchecked("admin");
+        instantiate_with_delay(&mut deps, admin, 0);
+        let err = exec_finalize_registry_update(deps.as_mut(), env).unwrap_err();
+        assert!(matches!(err, ContractError::NoPendingRegistryUpdate));
+    }
+
+    #[test]
+    fn finalize_permissionless_after_timelock() {
+        // After the timelock expires, ANY address (not just admin) can
+        // finalize. This prevents a misbehaving admin from soft-bricking
+        // a pending update.
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let admin = CwAddr::unchecked("admin");
+        let stranger = CwAddr::unchecked("stranger");
+        instantiate_with_delay(&mut deps, admin.clone(), 100);
+        exec_propose_registry_update(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&admin, &[]),
+            new_registry_v2(),
+        )
+        .unwrap();
+        let mut env_later = env.clone();
+        env_later.block.time = env.block.time.plus_seconds(101);
+        // Stranger (not admin) calls finalize: should succeed.
+        let _info_stranger = message_info(&stranger, &[]);
+        exec_finalize_registry_update(deps.as_mut(), env_later).unwrap();
+        assert_eq!(REGISTRY.load(&deps.storage).unwrap().vkey_name, "verified_rcv_v2");
+    }
+
+    #[test]
+    fn propose_while_pending_rejected() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let admin = CwAddr::unchecked("admin");
+        instantiate_with_delay(&mut deps, admin.clone(), 100);
+        let info = message_info(&admin, &[]);
+        exec_propose_registry_update(deps.as_mut(), env.clone(), info.clone(), new_registry_v2())
+            .unwrap();
+        let mut second = new_registry_v2();
+        second.vkey_name = "verified_rcv_v3".into();
+        let err = exec_propose_registry_update(deps.as_mut(), env, info, second).unwrap_err();
+        assert!(matches!(err, ContractError::RegistryUpdateAlreadyPending));
+    }
+
+    #[test]
+    fn cancel_clears_pending_admin_only() {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let admin = CwAddr::unchecked("admin");
         let attacker = CwAddr::unchecked("attacker");
-        instantiate(
+        instantiate_with_delay(&mut deps, admin.clone(), 100);
+        exec_propose_registry_update(
             deps.as_mut(),
-            env.clone(),
+            env,
             message_info(&admin, &[]),
-            InstantiateMsg {
-                admin: Some(admin),
-                registry: good_registry(),
-                voting_duration_seconds: 1000,
-            },
+            new_registry_v2(),
         )
         .unwrap();
-        let new_reg = EnclaveImageRegistry {
-            vkey_name: "evil".into(),
-            mrtd: vec![1u8; 48],
-            rtmr1: vec![1u8; 48],
-            rtmr2: vec![1u8; 48],
-            rtmr0: None,
-            rtmr3: None,
-            accepted_tcb_statuses: vec![0],
-        };
-        let err = exec_update_registry(deps.as_mut(), env, message_info(&attacker, &[]), new_reg)
-            .unwrap_err();
+        // Attacker cannot cancel.
+        let err =
+            exec_cancel_registry_update(deps.as_mut(), message_info(&attacker, &[])).unwrap_err();
+        assert!(matches!(err, ContractError::Unauthorized));
+        assert!(PENDING_REGISTRY.may_load(&deps.storage).unwrap().is_some());
+        // Admin can.
+        exec_cancel_registry_update(deps.as_mut(), message_info(&admin, &[])).unwrap();
+        assert!(PENDING_REGISTRY.may_load(&deps.storage).unwrap().is_none());
+    }
+
+    #[test]
+    fn propose_non_admin_rejected() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let admin = CwAddr::unchecked("admin");
+        let attacker = CwAddr::unchecked("attacker");
+        instantiate_with_delay(&mut deps, admin, 0);
+        let err = exec_propose_registry_update(
+            deps.as_mut(),
+            env,
+            message_info(&attacker, &[]),
+            new_registry_v2(),
+        )
+        .unwrap_err();
         assert!(matches!(err, ContractError::Unauthorized));
     }
 }

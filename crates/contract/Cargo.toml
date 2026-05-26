@@ -48,3 +48,9 @@ verified-rcv-enclave-core = { path = "../enclave-core", features = ["serialize"]
 
 [dev-dependencies]
 cosmwasm-std = { workspace = true, features = ["std", "exports"] }
+
+[lints.rust]
+# `kani` is an external cfg consumed by the Kani verifier; declare it
+# explicitly so plain rustc (and clippy --features verification) doesn't
+# warn about unknown cfg conditions.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

@@ -36,6 +36,7 @@
 
 #![allow(clippy::needless_return)]
 #![allow(unexpected_cfgs)]
+#![allow(dead_code)]
 #![cfg(feature = "verification")]
 
 use cosmwasm_std::testing::{message_info, mock_env, MockApi, MockQuerier, MockStorage};
@@ -116,6 +117,7 @@ fn fresh_config() -> Config {
     Config {
         admin: Addr::unchecked(ADMIN),
         voting_duration_seconds: 1000,
+        registry_update_delay_seconds: 0,
     }
 }
 
@@ -138,11 +140,12 @@ fn fresh_registry() -> EnclaveImageRegistry {
 /// are irrelevant — only the layout + commit_hash + DST equality is checked.
 fn fresh_publish_artifacts(
     contract_addr: &str,
+    chain_id: &str,
     election_id: u64,
     tally: &TallyResult,
 ) -> (HexBinary, HexBinary) {
     let reg = fresh_registry();
-    let commit = compute_commit_hash(contract_addr, election_id, tally);
+    let commit = compute_commit_hash(contract_addr, chain_id, election_id, tally);
     let rd = build_publish_report_data(&commit);
     let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
     let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
@@ -219,7 +222,7 @@ pub fn b1_tally_result_present_after_publish() {
     let tally = minimal_valid_tally();
     let contract_addr = env.contract.address.to_string();
     let election_id = ELECTION.load(&deps.storage).unwrap().id;
-    let (proof, pi) = fresh_publish_artifacts(&contract_addr, election_id, &tally);
+    let (proof, pi) = fresh_publish_artifacts(&contract_addr, &env.block.chain_id, election_id, &tally);
     let res = exec_publish_result(
         deps.as_mut(),
         env.clone(),
@@ -317,7 +320,7 @@ pub fn s10_resolution_after_end_at() {
     let tally = minimal_valid_tally();
     let contract_addr = env.contract.address.to_string();
     let election_id = ELECTION.load(&deps.storage).unwrap().id;
-    let (proof, pi) = fresh_publish_artifacts(&contract_addr, election_id, &tally);
+    let (proof, pi) = fresh_publish_artifacts(&contract_addr, &env.block.chain_id, election_id, &tally);
     let res = exec_publish_result(
         deps.as_mut(),
         env.clone(),
@@ -402,7 +405,7 @@ pub fn already_resolved_enforced() {
     let tally = minimal_valid_tally();
     let contract_addr = env.contract.address.to_string();
     let election_id = ELECTION.load(&deps.storage).unwrap().id;
-    let (proof, pi) = fresh_publish_artifacts(&contract_addr, election_id, &tally);
+    let (proof, pi) = fresh_publish_artifacts(&contract_addr, &env.block.chain_id, election_id, &tally);
     let res = exec_publish_result(
         deps.as_mut(),
         env,

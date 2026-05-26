@@ -64,15 +64,18 @@ pub enum AttestationError {
 // canonical_serialization (intent §2.5 v0.3.1 T7 leaf pin)
 // ---------------------------------------------------------------------------
 
-/// Borsh-style canonical serialization of `(contract_addr ‖ election_id ‖
-/// tally_body)`.
+/// Borsh-style canonical serialization of `(contract_addr ‖ chain_id ‖
+/// election_id ‖ tally_body)`. The `chain_id` field was added at v0.3.10
+/// (N4) for cross-chain replay defense.
 pub fn canonical_serialization(
     contract_addr: &str,
+    chain_id: &str,
     election_id: u64,
     tally: &TallyResult,
 ) -> Vec<u8> {
     let mut out = Vec::new();
     write_borsh_string(&mut out, contract_addr);
+    write_borsh_string(&mut out, chain_id);
     out.extend_from_slice(&election_id.to_le_bytes());
     write_tally_body(&mut out, tally);
     out
@@ -132,13 +135,15 @@ fn write_tally_body(out: &mut Vec<u8>, t: &TallyResult) {
 // ---------------------------------------------------------------------------
 
 /// 64-byte ReportData for a publish quote: lower 32 = commit_hash, upper
-/// 32 = DST_VERIFIED_RCV_TALLY_V1 zero-padded.
+/// 32 = DST_VERIFIED_RCV_TALLY_V1 zero-padded. v0.3.10 (N4) added
+/// `chain_id` to the commit preimage.
 pub fn build_publish_report_data(
     contract_addr: &str,
+    chain_id: &str,
     election_id: u64,
     tally: &TallyResult,
 ) -> [u8; 64] {
-    let canonical = canonical_serialization(contract_addr, election_id, tally);
+    let canonical = canonical_serialization(contract_addr, chain_id, election_id, tally);
     let mut hasher = Sha256::new();
     hasher.update(&canonical);
     let commit = hasher.finalize();
@@ -248,10 +253,12 @@ pub struct EnclaveIdentity {
 pub async fn produce_publish_artifacts(
     identity: &EnclaveIdentity,
     contract_addr: &str,
+    chain_id: &str,
     election_id: u64,
     tally: &TallyResult,
 ) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
-    let report_data = build_publish_report_data(contract_addr, election_id, tally);
+    let report_data =
+        build_publish_report_data(contract_addr, chain_id, election_id, tally);
     produce_artifacts_inner(identity, &report_data).await
 }
 
@@ -324,14 +331,22 @@ mod tests {
     #[test]
     fn publish_report_data_layout() {
         let tally = sample_tally();
-        let rd = build_publish_report_data("xion1contract", 7, &tally);
+        let rd = build_publish_report_data("xion1contract", "xion-1", 7, &tally);
         // lower 32 = SHA-256 commit
-        let canonical = canonical_serialization("xion1contract", 7, &tally);
+        let canonical = canonical_serialization("xion1contract", "xion-1", 7, &tally);
         let expect = Sha256::digest(&canonical);
         assert_eq!(&rd[..32], &expect[..]);
         // upper 32 = DST_TALLY zero-padded
         assert_eq!(&rd[32..32 + DST_TALLY.len()], DST_TALLY);
         assert!(rd[32 + DST_TALLY.len()..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn chain_id_affects_canonical_serialization_bytes() {
+        let tally = sample_tally();
+        let a = canonical_serialization("xion1c", "xion-1", 7, &tally);
+        let b = canonical_serialization("xion1c", "xion-2", 7, &tally);
+        assert_ne!(a, b, "chain_id must affect canonical_serialization bytes (N4)");
     }
 
     #[test]
@@ -369,7 +384,7 @@ mod tests {
             }
         }
         // Byte values at the right offsets.
-        assert_eq!(pi[0 * 32 + 31], 0xAB);
+        assert_eq!(pi[31], 0xAB);
         assert_eq!(pi[47 * 32 + 31], 0xCD);
     }
 
@@ -387,10 +402,13 @@ mod tests {
             dropped_voters: vec![],
             non_voters: vec![],
         };
-        let bytes = canonical_serialization("xc", 7, &tally);
+        let bytes = canonical_serialization("xc", "cid", 7, &tally);
         let mut expect = Vec::new();
         expect.extend_from_slice(&2u32.to_le_bytes());
         expect.extend_from_slice(b"xc");
+        // N4 (v0.3.10): chain_id between contract_addr and election_id.
+        expect.extend_from_slice(&3u32.to_le_bytes());
+        expect.extend_from_slice(b"cid");
         expect.extend_from_slice(&7u64.to_le_bytes());
         expect.extend_from_slice(&1u32.to_le_bytes());
         expect.extend_from_slice(&1u32.to_le_bytes());

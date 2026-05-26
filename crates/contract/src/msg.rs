@@ -44,6 +44,11 @@ pub struct InstantiateMsg {
     /// `CreateElection`; this field is retained for future-default
     /// behaviour parity.
     pub voting_duration_seconds: u64,
+    /// v0.3.10 N2: timelock delay between `ProposeRegistryUpdate` and
+    /// the earliest `FinalizeRegistryUpdate`. Production deployments
+    /// should set this to a non-zero value (e.g., 86400 = 1 day) so
+    /// voters can detect a registry rotation before it takes effect.
+    pub registry_update_delay_seconds: u64,
 }
 
 #[cw_serde]
@@ -109,11 +114,23 @@ pub enum ExecuteMsg {
         public_inputs: HexBinary,
     },
 
-    /// M3 audit remediation: admin-only registry rotation. Gated on no
-    /// active election (initial-Created or Resolved phase only). Used to
-    /// upgrade the enclave image between elections without re-instantiating
+    /// v0.3.10 N2 (replaces v0.3.8 M3 UpdateRegistry):
+    /// admin-only proposal of a new registry. Stored as a pending update
+    /// with `apply_after = env.block.time + config.registry_update_delay_seconds`.
+    /// Voters can observe via `QueryMsg::PendingRegistry` and react
+    /// before the timelock expires.
+    ProposeRegistryUpdate { registry: EnclaveImageRegistry },
+
+    /// v0.3.10 N2: permissionless finalize of a previously-proposed
+    /// registry update. Requires `env.block.time >= pending.apply_after`.
+    /// Anyone (not just admin) can call once the timelock expires, so a
+    /// misbehaving admin who proposes-and-disappears doesn't soft-brick
     /// the contract.
-    UpdateRegistry { registry: EnclaveImageRegistry },
+    FinalizeRegistryUpdate {},
+
+    /// v0.3.10 N2: admin-only cancellation of a pending registry update.
+    /// Discards the pending slot; no-op if nothing is pending.
+    CancelRegistryUpdate {},
 }
 
 #[cw_serde]
@@ -135,11 +152,23 @@ pub enum QueryMsg {
     Ballots {},
 
     /// `None` until `PublishResult` succeeds; `Some(TallyResult)` thereafter.
+    /// Reflects the CURRENT election only — for archived prior elections
+    /// (v0.3.10 N3) use `HistoricalTally`.
     #[returns(ResultResponse)]
     Result {},
 
+    /// v0.3.10 N3: query an archived tally by `election_id`. Returns
+    /// `None` if no election with that id has resolved-then-been-superseded.
+    #[returns(ResultResponse)]
+    HistoricalTally { election_id: u64 },
+
     #[returns(EnclaveImageRegistry)]
     Registry {},
+
+    /// v0.3.10 N2: query the currently-pending registry update (if any),
+    /// for voters to observe before the timelock expires.
+    #[returns(PendingRegistryResponse)]
+    PendingRegistry {},
 }
 
 #[cw_serde]
@@ -150,4 +179,10 @@ pub struct BallotsResponse {
 #[cw_serde]
 pub struct ResultResponse {
     pub result: Option<TallyResult>,
+}
+
+#[cw_serde]
+pub struct PendingRegistryResponse {
+    /// `None` if no update is currently pending.
+    pub pending: Option<crate::state::PendingRegistry>,
 }

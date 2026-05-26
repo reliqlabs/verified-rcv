@@ -34,6 +34,8 @@ struct Args {
     contract_addr: String,
     #[arg(long, default_value_t = 0)]
     election_id: u64,
+    #[arg(long, default_value = "xion-smoke-1")]
+    chain_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -83,6 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         election_id: args.election_id,
         candidates: candidates.clone(),
         raw_ballots,
+        chain_id: args.chain_id.clone(),
     };
 
     let mut req = Request::new(tally_req);

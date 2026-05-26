@@ -37,8 +37,10 @@ fn sample_tally() -> TallyResult {
 #[test]
 fn canonical_serialization_contract_vs_runtime_byte_identical() {
     let tally = sample_tally();
-    let contract_bytes = contract_impl::canonical_serialization("xion1abcdef", 42, &tally);
-    let runtime_bytes = runtime_impl::canonical_serialization("xion1abcdef", 42, &tally);
+    let contract_bytes =
+        contract_impl::canonical_serialization("xion1abcdef", "xion-1", 42, &tally);
+    let runtime_bytes =
+        runtime_impl::canonical_serialization("xion1abcdef", "xion-1", 42, &tally);
     assert_eq!(
         contract_bytes, runtime_bytes,
         "canonical_serialization divergence between contract and runtime"
@@ -48,13 +50,25 @@ fn canonical_serialization_contract_vs_runtime_byte_identical() {
 #[test]
 fn canonical_serialization_election_id_affects_bytes() {
     let tally = sample_tally();
-    let a = runtime_impl::canonical_serialization("xion1addr", 1, &tally);
-    let b = runtime_impl::canonical_serialization("xion1addr", 2, &tally);
+    let a = runtime_impl::canonical_serialization("xion1addr", "cid", 1, &tally);
+    let b = runtime_impl::canonical_serialization("xion1addr", "cid", 2, &tally);
     assert_ne!(a, b, "election_id must affect canonical_serialization bytes (M2)");
 }
 
 #[test]
-fn canonical_serialization_empty_tally_election_id_only() {
+fn canonical_serialization_chain_id_affects_bytes() {
+    // N4 (v0.3.10): chain_id is part of the commit preimage; cross-chain
+    // replay defense.
+    let tally = sample_tally();
+    let a = runtime_impl::canonical_serialization("xion1addr", "xion-1", 7, &tally);
+    let b = runtime_impl::canonical_serialization("xion1addr", "xion-2", 7, &tally);
+    assert_ne!(a, b, "chain_id must affect canonical_serialization bytes (N4)");
+}
+
+#[test]
+fn canonical_serialization_empty_tally_position_check() {
+    // Sanity: with contract_addr="a" (1 byte), chain_id="b" (1 byte),
+    // election_id at bytes [5+5..5+5+8] = [10..18].
     let tally = TallyResult {
         winners: vec![],
         per_round_counts: vec![],
@@ -64,42 +78,36 @@ fn canonical_serialization_empty_tally_election_id_only() {
         dropped_voters: vec![],
         non_voters: vec![],
     };
-    let bytes_e1 = runtime_impl::canonical_serialization("a", 1, &tally);
-    let bytes_e2 = runtime_impl::canonical_serialization("a", 2, &tally);
-    assert_eq!(bytes_e1[0..5], bytes_e2[0..5]); // contract_addr identical
-    assert_eq!(bytes_e1[5..13], 1u64.to_le_bytes());
-    assert_eq!(bytes_e2[5..13], 2u64.to_le_bytes());
-    assert_eq!(bytes_e1[13..], bytes_e2[13..]); // tally_body identical
+    let bytes_e1 = runtime_impl::canonical_serialization("a", "b", 1, &tally);
+    let bytes_e2 = runtime_impl::canonical_serialization("a", "b", 2, &tally);
+    assert_eq!(bytes_e1[0..5], bytes_e2[0..5]); // contract_addr
+    assert_eq!(bytes_e1[5..10], bytes_e2[5..10]); // chain_id
+    assert_eq!(bytes_e1[10..18], 1u64.to_le_bytes());
+    assert_eq!(bytes_e2[10..18], 2u64.to_le_bytes());
+    assert_eq!(bytes_e1[18..], bytes_e2[18..]);
 }
 
 #[test]
 fn commit_hash_matches_runtime_publish_report_data() {
-    // v0.3.9 N1: the contract's `compute_commit_hash` lower 32 must equal
-    // the runtime's `build_publish_report_data` lower 32 (the SHA-256 over
-    // canonical_serialization). This is the load-bearing equivalence for
-    // B8(c) under the gnark path.
     use sha2::{Digest, Sha256};
     let tally = sample_tally();
-    let contract_commit = contract_impl::compute_commit_hash("xion1c", 7, &tally);
-    let runtime_rd = runtime_impl::build_publish_report_data("xion1c", 7, &tally);
+    let contract_commit =
+        contract_impl::compute_commit_hash("xion1c", "xion-1", 7, &tally);
+    let runtime_rd =
+        runtime_impl::build_publish_report_data("xion1c", "xion-1", 7, &tally);
     assert_eq!(&runtime_rd[..32], &contract_commit[..]);
-
-    // Independent SHA-256 sanity.
-    let canonical = runtime_impl::canonical_serialization("xion1c", 7, &tally);
+    let canonical = runtime_impl::canonical_serialization("xion1c", "xion-1", 7, &tally);
     let expected = Sha256::digest(&canonical);
     assert_eq!(&runtime_rd[..32], &expected[..]);
 }
 
 #[test]
 fn publish_report_data_dst_matches_contract_layout() {
-    // ReportData[32..64] = DST_VERIFIED_RCV_TALLY_V1 zero-padded; same
-    // literal used contract-side. The contract's `build_publish_report_data`
-    // and runtime's `build_publish_report_data` should produce identical
-    // 64-byte buffers.
     let tally = sample_tally();
-    let commit = contract_impl::compute_commit_hash("xion1c", 7, &tally);
+    let commit = contract_impl::compute_commit_hash("xion1c", "xion-1", 7, &tally);
     let contract_rd = contract_impl::build_publish_report_data(&commit);
-    let runtime_rd = runtime_impl::build_publish_report_data("xion1c", 7, &tally);
+    let runtime_rd =
+        runtime_impl::build_publish_report_data("xion1c", "xion-1", 7, &tally);
     assert_eq!(contract_rd, runtime_rd);
 }
 
@@ -118,16 +126,16 @@ fn synthetic_public_inputs_round_trip_contract_extraction() {
     // identical bytes — this is what the contract relies on at every
     // PublishResult.
     let mut mrtd = [0u8; 48];
-    for i in 0..48 {
-        mrtd[i] = (i as u8).wrapping_add(0x10);
+    for (i, b) in mrtd.iter_mut().enumerate() {
+        *b = (i as u8).wrapping_add(0x10);
     }
     let mut rtmr1 = [0u8; 48];
-    for i in 0..48 {
-        rtmr1[i] = (i as u8).wrapping_add(0x20);
+    for (i, b) in rtmr1.iter_mut().enumerate() {
+        *b = (i as u8).wrapping_add(0x20);
     }
     let mut rd = [0u8; 64];
-    for i in 0..64 {
-        rd[i] = (i as u8).wrapping_add(0xA0);
+    for (i, b) in rd.iter_mut().enumerate() {
+        *b = (i as u8).wrapping_add(0xA0);
     }
     let pi = runtime_impl::build_public_inputs(
         &mrtd, &[0; 48], &rtmr1, &[0; 48], &[0; 48], &rd, 3, 1_700_000_000,

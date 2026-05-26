@@ -47,8 +47,13 @@ impl TallyService for TallyServiceImpl {
         &self,
         req: Request<TallyRequest>,
     ) -> Result<Response<TallyResponse>, Status> {
-        let TallyRequest { contract_addr, election_id, candidates, raw_ballots } =
-            req.into_inner();
+        let TallyRequest {
+            contract_addr,
+            election_id,
+            candidates,
+            raw_ballots,
+            chain_id,
+        } = req.into_inner();
 
         // 1. KMS handshake. Privkey MUST come from dstack KMS per
         //    docs/runtime-integration.md trust-model section.
@@ -70,10 +75,15 @@ impl TallyService for TallyServiceImpl {
         //    `(proof, public_inputs)` matching §2.5 byte layout; real
         //    build (`--features real-zkdcap`): drive the zkdcap gnark
         //    prover via unix socket.
-        let (proof, public_inputs) =
-            produce_publish_artifacts(&self.identity, &contract_addr, election_id, &tally)
-                .await
-                .map_err(|e| Status::internal(format!("attestation artifacts: {e}")))?;
+        let (proof, public_inputs) = produce_publish_artifacts(
+            &self.identity,
+            &contract_addr,
+            &chain_id,
+            election_id,
+            &tally,
+        )
+        .await
+        .map_err(|e| Status::internal(format!("attestation artifacts: {e}")))?;
 
         let tally_json = serde_json::to_string(&tally)
             .map_err(|e| Status::internal(format!("serialize tally: {e}")))?;
@@ -193,6 +203,7 @@ mod tests {
                 election_id: 42,
                 candidates: cands.clone(),
                 raw_ballots,
+                chain_id: "xion-test-1".to_string(),
             }))
             .await
             .expect("tally rpc")
@@ -222,8 +233,12 @@ mod tests {
         for i in 0..32 {
             rd_low[i] = pi[(240 + i) * 32 + 31];
         }
-        let expected_rd =
-            crate::attestation::build_publish_report_data("xion1contract", 42, &tally);
+        let expected_rd = crate::attestation::build_publish_report_data(
+            "xion1contract",
+            "xion-test-1",
+            42,
+            &tally,
+        );
         assert_eq!(rd_low, expected_rd[..32], "ReportData[0..32] = commit_hash");
 
         server_task.abort();

@@ -29,6 +29,12 @@ message TallyRequest {
   // before this RPC. The runtime walks them linearly without further
   // reordering.
   repeated RawBallot raw_ballots = 4;
+
+  // v0.3.10 N4: chain identifier (e.g. "xion-1"). Bound into the
+  // attestation commit hash for cross-chain replay defense. The chain's
+  // contract reads this from `env.block.chain_id` at PublishResult
+  // time and checks bytewise equality.
+  string chain_id = 5;
 }
 
 message RawBallot {
