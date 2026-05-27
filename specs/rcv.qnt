@@ -99,6 +99,15 @@ module rcv {
     rtmr: str,
   }
 
+  // v0.3.10 N2: a pending registry update awaiting timelock expiry.
+  // Mirrors `crates/contract/src/state.rs::PendingRegistry`.
+  // present=false denotes the storage-absent case (no proposal in flight).
+  type PendingRegistryUpdate = {
+    present: bool,
+    new_registry: Registry,
+    unlock_time: Time,
+  }
+
   // ============================================================
   // Constants — canonical values for the predicate definitions
   // ============================================================
@@ -107,6 +116,22 @@ module rcv {
     vkey: "verified_rcv_vkey",
     mrtd: "verified_rcv_mrtd",
     rtmr: "verified_rcv_rtmr",
+  }
+
+  // A non-canonical registry used as the candidate for proposed updates.
+  // Distinct from CANONICAL_REGISTRY so a finalized update visibly mutates
+  // `registry` (image_registration_honest flips from true to false on
+  // finalize, exercising B8 / inv_b8_publish_implies_registry_honest).
+  pure val ROTATED_REGISTRY: Registry = {
+    vkey: "rotated_vkey",
+    mrtd: "rotated_mrtd",
+    rtmr: "rotated_rtmr",
+  }
+
+  pure val EMPTY_PENDING_REGISTRY: PendingRegistryUpdate = {
+    present: false,
+    new_registry: CANONICAL_REGISTRY,
+    unlock_time: 0,
   }
 
   pure val EMPTY_TALLY: TallyResult = {
@@ -129,6 +154,38 @@ module rcv {
   var contract_tally_result: OptionalTally
   var registry: Registry
   var block_time: Time
+
+  // v0.3.10 N2: pending registry rotation. Cleared on finalize / cancel;
+  // populated by `propose_registry_update`. The N17 (v0.3.12) gates on
+  // `create_election` and `finalize_registry_update` read this slot.
+  var pending_registry_update: PendingRegistryUpdate
+
+  // One-step witness flag: `true` iff the most recent transition was a
+  // `create_election_attempt` (cleared by every other action). The
+  // contract's `exec_create_election` rejects when `PENDING_REGISTRY`
+  // is `Some` (v0.3.12 N17 first gate). The N17 attack join state is
+  // `(create_election_just_fired AND pending_registry_update.present)`;
+  // since `create_election_attempt`'s guard requires
+  // `not(pending_registry_update.present)`, this conjunction is
+  // unreachable.
+  var create_election_just_fired: bool
+
+  // One-step witness flag for the finalize action, same shape: `true`
+  // iff the most recent transition was `finalize_registry_update`.
+  // The N17 second-gate attack join is
+  // `(finalize_just_fired AND derived_phase ∈ {Voting, Tallying})`;
+  // unreachable under finalize's guard.
+  var finalize_just_fired: bool
+
+  // Ghost variable: snapshot of `registry` at the moment
+  // `publish_result` fires. Anchors B8 ("publish only when registry
+  // honest") under the v0.3.10 N2 registry-rotation lifecycle. Before
+  // any publish, this is the canonical registry. After publish, this
+  // is *frozen* to whatever `registry` held at that step — even if a
+  // subsequent `finalize_registry_update` mutates the live registry.
+  // `inv_b8_publish_implies_registry_honest` now reads the ghost
+  // instead of the live registry.
+  var ghost_registry_at_publish: Registry
 
   // Enclave-side state. `consumed_ballots` is what the enclave
   // actually decrypted — modeling `enclave_input_fidelity` from §8.7.
@@ -272,6 +329,10 @@ module rcv {
     enclave_computed_tally' = { present: false, value: EMPTY_TALLY },
     ghost_ballots_at_end_at' = Map(),
     ghost_ballots_at_end_at_captured' = false,
+    pending_registry_update' = EMPTY_PENDING_REGISTRY,
+    create_election_just_fired' = false,
+    finalize_just_fired' = false,
+    ghost_registry_at_publish' = CANONICAL_REGISTRY,
   }
 
   // ============================================================
@@ -297,6 +358,10 @@ module rcv {
     enclave_has_session_key' = enclave_has_session_key,
     enclave_consumed_ballots' = enclave_consumed_ballots,
     enclave_computed_tally' = enclave_computed_tally,
+    pending_registry_update' = pending_registry_update,
+    create_election_just_fired' = false,
+    finalize_just_fired' = false,
+    ghost_registry_at_publish' = ghost_registry_at_publish,
   }
 
   // intent §2.5 Block 3 — submit_ballot. Requires the sender to be a
@@ -318,6 +383,10 @@ module rcv {
     enclave_computed_tally' = enclave_computed_tally,
     ghost_ballots_at_end_at' = ghost_ballots_at_end_at,
     ghost_ballots_at_end_at_captured' = ghost_ballots_at_end_at_captured,
+    pending_registry_update' = pending_registry_update,
+    create_election_just_fired' = false,
+    finalize_just_fired' = false,
+    ghost_registry_at_publish' = ghost_registry_at_publish,
   }
 
   // intent §2.5 Block 5 — close_and_tally. Idempotent event-only;
@@ -333,6 +402,10 @@ module rcv {
     enclave_computed_tally' = enclave_computed_tally,
     ghost_ballots_at_end_at' = ghost_ballots_at_end_at,
     ghost_ballots_at_end_at_captured' = ghost_ballots_at_end_at_captured,
+    pending_registry_update' = pending_registry_update,
+    create_election_just_fired' = false,
+    finalize_just_fired' = false,
+    ghost_registry_at_publish' = ghost_registry_at_publish,
   }
 
   // intent §2.5 Block E1 — enclave computes Tally_spec over the
@@ -356,6 +429,10 @@ module rcv {
     enclave_has_session_key' = enclave_has_session_key,
     ghost_ballots_at_end_at' = ghost_ballots_at_end_at,
     ghost_ballots_at_end_at_captured' = ghost_ballots_at_end_at_captured,
+    pending_registry_update' = pending_registry_update,
+    create_election_just_fired' = false,
+    finalize_just_fired' = false,
+    ghost_registry_at_publish' = ghost_registry_at_publish,
   }
 
   // intent §2.5 Block 6 — publish_result. Requires Tallying phase,
@@ -380,6 +457,138 @@ module rcv {
     enclave_computed_tally' = enclave_computed_tally,
     ghost_ballots_at_end_at' = ghost_ballots_at_end_at,
     ghost_ballots_at_end_at_captured' = ghost_ballots_at_end_at_captured,
+    pending_registry_update' = pending_registry_update,
+    create_election_just_fired' = false,
+    finalize_just_fired' = false,
+    // Capture registry at publish time. B8 ("registry honest at
+    // publish") then reads `ghost_registry_at_publish`, which the
+    // v0.3.10 N2 registry rotation cannot mutate.
+    ghost_registry_at_publish' = registry,
+  }
+
+  // ============================================================
+  // v0.3.10 N2 / v0.3.12 N17 — registry-rotation lifecycle
+  // ============================================================
+  //
+  // Mirrors the three handlers in `crates/contract/src/contract.rs`:
+  //   - `exec_propose_registry_update`
+  //   - `exec_finalize_registry_update`
+  //   - `exec_cancel_registry_update`
+  // and the v0.3.12 N17 *create_election* gate.
+  //
+  // The model elides admin authorization (modelled implicitly — only
+  // these actions ever touch `pending_registry_update`, and the trace
+  // generator may fire them at will, matching the worst case that the
+  // admin is the attacker).
+  //
+  // Phase predicate used by the gates: an "active election" is any
+  // state where `derived_phase ∈ {Voting, Tallying}`. `Created` and
+  // `Resolved` are allowed (matches the contract's
+  // `Phase::Created | Phase::Resolved => {}` arm).
+
+  pure def is_active_phase(p: Phase): bool = {
+    p == Voting or p == Tallying
+  }
+
+  // N2 (v0.3.10): admin proposes a registry update with timelock.
+  // N17 (v0.3.12) added dual gate: also refuse if any election is
+  // currently in Voting/Tallying. Refuses if a proposal is already
+  // pending (matches `RegistryUpdateAlreadyPending`).
+  action propose_registry_update(new_reg: Registry, timelock: int): bool = all {
+    timelock >= 0,
+    not(pending_registry_update.present),
+    not(is_active_phase(derived_phase(block_time, contract_tally_result))),
+    pending_registry_update' = {
+      present: true,
+      new_registry: new_reg,
+      unlock_time: block_time + timelock,
+    },
+    contract_ballots' = contract_ballots,
+    contract_tally_result' = contract_tally_result,
+    registry' = registry,
+    block_time' = block_time,
+    enclave_has_session_key' = enclave_has_session_key,
+    enclave_consumed_ballots' = enclave_consumed_ballots,
+    enclave_computed_tally' = enclave_computed_tally,
+    ghost_ballots_at_end_at' = ghost_ballots_at_end_at,
+    ghost_ballots_at_end_at_captured' = ghost_ballots_at_end_at_captured,
+    create_election_just_fired' = false,
+    finalize_just_fired' = false,
+    ghost_registry_at_publish' = ghost_registry_at_publish,
+  }
+
+  // N2 (v0.3.10): permissionless finalize after the timelock expires.
+  // N17 (v0.3.12) second gate: refuse during Voting/Tallying as
+  // defense-in-depth (unreachable under the create_election gate, but
+  // cheap to enforce). Replaces `registry` with the pending value and
+  // clears the slot.
+  action finalize_registry_update: bool = all {
+    pending_registry_update.present,
+    block_time >= pending_registry_update.unlock_time,
+    not(is_active_phase(derived_phase(block_time, contract_tally_result))),
+    registry' = pending_registry_update.new_registry,
+    pending_registry_update' = EMPTY_PENDING_REGISTRY,
+    contract_ballots' = contract_ballots,
+    contract_tally_result' = contract_tally_result,
+    block_time' = block_time,
+    enclave_has_session_key' = enclave_has_session_key,
+    enclave_consumed_ballots' = enclave_consumed_ballots,
+    enclave_computed_tally' = enclave_computed_tally,
+    ghost_ballots_at_end_at' = ghost_ballots_at_end_at,
+    ghost_ballots_at_end_at_captured' = ghost_ballots_at_end_at_captured,
+    create_election_just_fired' = false,
+    finalize_just_fired' = true,
+    ghost_registry_at_publish' = ghost_registry_at_publish,
+  }
+
+  // N2 (v0.3.10): admin discards a pending registry update.
+  action cancel_registry_update: bool = all {
+    pending_registry_update.present,
+    pending_registry_update' = EMPTY_PENDING_REGISTRY,
+    contract_ballots' = contract_ballots,
+    contract_tally_result' = contract_tally_result,
+    registry' = registry,
+    block_time' = block_time,
+    enclave_has_session_key' = enclave_has_session_key,
+    enclave_consumed_ballots' = enclave_consumed_ballots,
+    enclave_computed_tally' = enclave_computed_tally,
+    ghost_ballots_at_end_at' = ghost_ballots_at_end_at,
+    ghost_ballots_at_end_at_captured' = ghost_ballots_at_end_at_captured,
+    create_election_just_fired' = false,
+    finalize_just_fired' = false,
+    ghost_registry_at_publish' = ghost_registry_at_publish,
+  }
+
+  // v0.3.12 N17 first gate: `exec_create_election` refuses when
+  // `PENDING_REGISTRY` is `Some`. The model encodes this by disabling
+  // the action whenever `pending_registry_update.present` holds. The
+  // `create_election_just_fired` flag records that the most recent
+  // transition was this action; combined with the action guard, the
+  // attack join `(just_fired AND pending.present)` is unreachable
+  // (verified by `witness_n17_create_after_propose`).
+  //
+  // Modeling choice: the initial implicit election in the existing
+  // model represents an already-created election. This action models
+  // the *N17 attack window* — a *subsequent* admin attempt to fire
+  // `create_election` while a registry rotation is pending. We do not
+  // reset the existing election state (that would be a v0.3.10 N3
+  // archival modeling concern, out of scope for the N17 gates). The
+  // gate alone is what we want to verify.
+  action create_election_attempt: bool = all {
+    not(pending_registry_update.present),
+    pending_registry_update' = pending_registry_update,
+    contract_ballots' = contract_ballots,
+    contract_tally_result' = contract_tally_result,
+    registry' = registry,
+    block_time' = block_time,
+    enclave_has_session_key' = enclave_has_session_key,
+    enclave_consumed_ballots' = enclave_consumed_ballots,
+    enclave_computed_tally' = enclave_computed_tally,
+    ghost_ballots_at_end_at' = ghost_ballots_at_end_at,
+    ghost_ballots_at_end_at_captured' = ghost_ballots_at_end_at_captured,
+    create_election_just_fired' = true,
+    finalize_just_fired' = false,
+    ghost_registry_at_publish' = ghost_registry_at_publish,
   }
 
   // ============================================================
@@ -439,12 +648,23 @@ module rcv {
       if (tally_shape == "zero_round") t_zero_round
       else t_one_round
 
+    // Nondet timelock pick for `propose_registry_update`. Small set:
+    // 0 (immediate-finalize legal), and one positive delay that, given
+    // TICK_DELTAS, can be advanced past via a tick. The N17 trace
+    // `[propose, create_election_attempt]` should be UNSAT under the
+    // create-gate, regardless of timelock value.
+    nondet timelock = oneOf(Set(0, 100))
+
     any {
       tick(dt),
       submit_ballot(sender, ct),
       close_and_tally,
       enclave_tally(t),
       publish_result,
+      propose_registry_update(ROTATED_REGISTRY, timelock),
+      finalize_registry_update,
+      cancel_registry_update,
+      create_election_attempt,
     }
   }
 
@@ -493,11 +713,20 @@ module rcv {
   }
 
   // intent §3.2 B8 (classical-Prop shadow): publish_result only fires
-  // when the registry is honest. (The probabilistic content of B8/B9
-  // lives outside Quint; this checks the conditional-honesty preamble
-  // that B9's antecedent requires.)
+  // when the registry is honest *at the moment of firing*. The
+  // probabilistic content of B8/B9 lives outside Quint; this checks
+  // the conditional-honesty preamble that B9's antecedent requires.
+  //
+  // v0.3.10 N2 refinement: the live `registry` can be rotated AFTER
+  // publish (by `finalize_registry_update` firing in Resolved phase),
+  // so the invariant reads `ghost_registry_at_publish` — the
+  // snapshot captured at publish time — instead of the live registry.
+  // The B8 obligation is "registry honest *at publish*," not "honest
+  // forever." This was caught by the v0.3.12 N17 model extension when
+  // the unconditional invariant fired on a legitimate
+  // [publish, propose, tick, finalize] trace.
   val inv_b8_publish_implies_registry_honest: bool = {
-    if (contract_tally_result.present) image_registration_honest(registry)
+    if (contract_tally_result.present) image_registration_honest(ghost_registry_at_publish)
     else true
   }
 
@@ -525,6 +754,33 @@ module rcv {
   // residue is captured by `inv_ballot_keys_are_candidates` plus
   // the well-typedness of writes.
 
+  // v0.3.12 N17 first gate: `exec_create_election` refuses when
+  // `PENDING_REGISTRY` is `Some`. Encoded structurally by the action
+  // guard on `create_election_attempt` (`not(pending_registry_update.present)`).
+  // The safety residue is checked here: a state with
+  // `create_election_just_fired AND pending_registry_update.present`
+  // would be the N17 attack join — unreachable because the action
+  // only fires in the not-present branch, and the `just_fired` flag
+  // resets to false on every other action. The N17 trace
+  // `[propose, create_election_attempt]` is UNSAT under this gate.
+  val inv_no_create_election_while_pending: bool = {
+    not(create_election_just_fired and pending_registry_update.present)
+  }
+
+  // v0.3.12 N17 second gate: `exec_finalize_registry_update` refuses
+  // during Voting/Tallying as defense-in-depth (unreachable under
+  // gate 1 in normal flow, but still gated for any future code path).
+  // Encoded structurally by finalize's guard
+  // (`not(is_active_phase(derived_phase(...)))`). Safety residue:
+  // a state with `finalize_just_fired AND is_active_phase(derived_phase)`
+  // is unreachable. The N17 trace
+  // `[create_election, propose, tick into Voting, tick past unlock, finalize]`
+  // is UNSAT under this gate.
+  val inv_no_finalize_during_active_election: bool = {
+    not(finalize_just_fired
+        and is_active_phase(derived_phase(block_time, contract_tally_result)))
+  }
+
   // Composite — checked via `quint verify --invariant=all_invariants`.
   val all_invariants: bool = all {
     inv_ballot_keys_are_candidates,
@@ -533,6 +789,8 @@ module rcv {
     inv_b2_ballots_at_end_at_frozen,
     inv_b8_publish_implies_registry_honest,
     inv_b10_chain_side_projection,
+    inv_no_create_election_while_pending,
+    inv_no_finalize_during_active_election,
   }
 
   // ============================================================
@@ -556,4 +814,49 @@ module rcv {
 
   // Diagnostic: should fail if block_time ever reaches or passes END_AT.
   val witness_reaches_end_at: bool = block_time < END_AT
+
+  // v0.3.10 N2 / v0.3.12 N17 reachability witnesses. The first three
+  // SHOULD fail (their interim steps are reachable in isolation, so the
+  // model is non-vacuous). The fourth SHOULD HOLD on all traces (its
+  // negation, the N17 attack join state, is unreachable).
+
+  // Should fail: a state with a pending registry update is reachable
+  // (i.e., `propose_registry_update` can fire from init). Non-vacuity
+  // witness for the propose action.
+  val witness_propose_reachable: bool = not(pending_registry_update.present)
+
+  // Should fail: a state where registry differs from CANONICAL_REGISTRY
+  // is reachable (i.e., `finalize_registry_update` can fire and mutate
+  // the registry). Non-vacuity witness for the finalize action.
+  val witness_finalize_reachable: bool = registry == CANONICAL_REGISTRY
+
+  // Should fail: a state where `create_election_just_fired` is true
+  // is reachable. Non-vacuity witness for the create-attempt action.
+  val witness_create_attempt_reachable: bool = not(create_election_just_fired)
+
+  // Should fail: a state where `finalize_just_fired` is true is
+  // reachable. Non-vacuity witness for the finalize action.
+  val witness_finalize_just_fired_reachable: bool = not(finalize_just_fired)
+
+  // SHOULD HOLD on all traces (UNSAT attack join): the v0.3.12 N17
+  // first-gate forbidden state — `create_election_attempt` fires
+  // while pending registry update is present. Encoded as the safety
+  // residue of the attack trace `[propose, create_election_attempt]`.
+  // Apalache should find no counterexample. Synonym of
+  // `inv_no_create_election_while_pending`; kept as a standalone
+  // witness for direct invocation.
+  val witness_n17_create_after_propose: bool = {
+    not(create_election_just_fired and pending_registry_update.present)
+  }
+
+  // SHOULD HOLD on all traces (UNSAT attack join): the v0.3.12 N17
+  // second-gate forbidden state — `finalize_registry_update` fires
+  // while the derived phase is Voting or Tallying. Encoded as the
+  // safety residue of the attack trace
+  // `[create_election, propose, tick into Voting, tick past unlock, finalize]`.
+  // Synonym of `inv_no_finalize_during_active_election`.
+  val witness_n17_finalize_in_active_phase: bool = {
+    not(finalize_just_fired
+        and is_active_phase(derived_phase(block_time, contract_tally_result)))
+  }
 }

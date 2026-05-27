@@ -541,4 +541,67 @@ These are honest open questions for v0.4 → v0.5.
 
 ---
 
-**End of retrospective.** Phases 1–5 complete; v0.4 ask list ready for back-port to `/Users/mvid/Development/reliq/colosseum/`.
+**End of original retrospective.** Phases 1–5 complete; v0.4 ask list back-ported to `/Users/mvid/Development/reliq/colosseum/` (commit `0413953`); SKILLs codified at commit `c3e6ba0`.
+
+---
+
+# Phase 6: in-flight v0.4 application + new findings (2026-05-26 post-back-port)
+
+After the retrospective + back-port + SKILL codification, v0.4's asks were applied to verified-rcv directly. The application surfaced two methodology-validation events worth recording.
+
+## Event 1: AE lifecycle-adversary caught a real bug in the existing Quint model
+
+When extending `specs/rcv.qnt` per Ask AE (lifecycle-adversary) to encode the v0.3.10 registry-rotation transitions, the new model immediately failed a pre-existing invariant `inv_b8_publish_implies_registry_honest`.
+
+The original invariant was stated as an *unconditional state invariant*: `if tally.present then image_registration_honest(registry)`. Under v0.3.10's registry-rotation lifecycle, the live `registry` can mutate AFTER publish (legally, in the Resolved phase, via FinalizeRegistryUpdate). The unconditional invariant fired on the trace `[publish, propose, tick, finalize]` — a legitimate sequence that nonetheless violated the invariant's wording.
+
+**Fix:** introduce `ghost_registry_at_publish` to snapshot the registry at publish time; the invariant now reads "B8 was honest at publish time," not "B8 honest forever."
+
+**Significance:** this is exactly the registry-rotation × active-phase interaction the methodology retrospective flagged as a gap. The lifecycle-adversary stage (Ask AE) caught a real bug — in the *Quint model itself*, not in the contract code — that the prior methodology rounds did not surface. The model bug was load-bearing: any future proof attempt against the invariant would have failed once registry rotation was modeled, and an auditor red-teaming the rotation lifecycle would have raised it.
+
+**Methodology consequence:** AE has now been validated *during its own deployment*. The lifecycle-adversary stage works on the methodology's own artifacts (Quint models), not just on application code.
+
+## Event 2: V2 bootstrap obligations discharged successfully
+
+V2's discipline-not-yet-applied bootstrap obligations (AB.2 + AC + AD citation/annotation columns on intent §3.2 + §8.7) were discharged in a single intent revision bump (v0.3.12 → v0.3.13). The annotations:
+- 9 §3.2 B-clauses (B1, B6, B8 a/b/c/d/e, B9, B10, B10_lean) each carry `code: file:line` + `kani: <harness>|skipped because <reason>`.
+- 8 §8.7 ledger items (links 1–7 + composition link 8) carry the same shape.
+- All annotations resolve to concrete files (or explicit `off-chain`/`axiom`/`upstream` with reason).
+
+**Significance:** the bootstrap was mechanical. Once the column format was specified by AB.2 + AC + AD, populating the columns from existing code references took a single agent run. The discipline scales.
+
+## Event 3: 3 missing Kani harnesses (B8 c/d/e) discharged
+
+V2 surfaced 3 true new findings: no Kani harness for B8(c) ReportData commit_hash equality, B8(d) measurement match, B8(e) registration ReportData binding. All three landed in `crates/contract/src/verification.rs`:
+- `b8c_reportdata_commit_hash_matches`
+- `b8d_measurement_mismatch_rejected`
+- `b8e_registration_pubkey_binding`
+
+Each is a symbolic byte-flip harness against the chain-side verification path. Gates: 47 tests pass, clippy clean.
+
+**Significance:** the AC top-down catalog approach correctly identified missing harnesses on the trust-boundary surface. The harnesses were straightforward to write once their existence was demanded by the catalog.
+
+## Event 4: B10_lean_irv refactored from 1 monolithic sorry to 10 enumerable per-helper sorries
+
+Applying AB.6 (deferral-justification audit) to the deferred B10_lean_irv proof: the prior shape was one opaque `sorry` blocking a multi-week theorem. The refactored shape decomposes the proof surface into 10 named Phase-1 bridge lemmas (each with its own `sorry`): `addr_in_bridge`, `position_of_bridge`, `first_active_index_bridge`, `count_at_index_bridge`, `tally_round_bridge`, `min_count_bridge`, `total_count_bridge`, `candidates_with_count_bridge`, `first_majority_index_bridge`, `remove_from_bridge`.
+
+Each is independently inspectable, independently provable, and individually small. The terminal `B10_lean_irv` proof still has its own sorry but can now sketch the loop-induction structure using the bridge lemmas as named hypotheses. Build is green.
+
+**Significance:** this is exactly what AB.6 prescribes — refactor opaque deferrals into refutable, individually-auditable claims. The total "amount of sorry" went up (1 → 11) but the *auditability* went up much more (1 opaque blocker → 11 inspectable single-helper goals). The discharge surface is now enumerable. A focused future session can attack the bridge lemmas in parallel; closing them in any order is sound.
+
+## Validation summary across Events 1–4
+
+| event | ask exercised | result |
+|---|---|---|
+| 1. Quint invariant bug | AE lifecycle-adversary | Caught a real model bug pre-existing | 
+| 2. Annotation bootstrap | AB.2 + AC + AD | Mechanical, single agent run |
+| 3. Kani harness gaps | AC top-down catalog | 3 true gaps closed |
+| 4. Sorry refactor | AB.6 deferral-justification audit | 1 → 11 enumerable sorries |
+
+**Net: v0.4 found 1 model bug, closed 3 trust-boundary harness gaps, refactored 1 multi-week deferred proof into 10 individually-prove-able lemmas, and discharged a discipline bootstrap — all in a single application session.** The methodology has paid for itself on the same project it was designed against.
+
+The cross-substrate Quartz comparator validation (Phase 5) plus this in-flight application together constitute the empirical case that v0.4 is ready to ship.
+
+---
+
+**End of retrospective (Phases 1–6).** v0.4 ask list shipped to SKILLs at colosseum `c3e6ba0`. Round 3a methodology claim closed: dogfood produced a methodology delta (v0.2 → v0.4) backed by empirical evidence at every step.

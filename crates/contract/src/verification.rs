@@ -39,15 +39,17 @@
 #![allow(dead_code)]
 #![cfg(feature = "verification")]
 
-use cosmwasm_std::testing::{message_info, mock_env, MockApi, MockQuerier, MockStorage};
+use cosmwasm_std::testing::{
+    message_info, mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage,
+};
 use cosmwasm_std::{Addr, Empty, HexBinary, MessageInfo, OwnedDeps, Timestamp};
 
 use verified_rcv_enclave_core::{RoundCount, RoundCounts, TallyResult};
 
 use crate::contract::{
-    build_publish_report_data, build_synthetic_public_inputs, check_tally_well_formed,
-    compute_ballots_hash, compute_commit_hash, derive_phase, exec_publish_result,
-    exec_submit_ballot,
+    build_publish_report_data, build_registration_report_data, build_synthetic_public_inputs,
+    check_tally_well_formed, compute_ballots_hash, compute_commit_hash, derive_phase,
+    exec_publish_result, exec_submit_ballot, verify_publish_quote, verify_registration_quote,
 };
 use crate::error::ContractError;
 use crate::state::{
@@ -698,5 +700,208 @@ pub fn s9_reappearance_rejected() {
     } else {
         // C0 or C1 in slot 1 — no violation.
         assert!(res.is_ok());
+    }
+}
+
+// ====================================================================
+// B8 attestation-path harnesses (v0.4 backfill)
+// ====================================================================
+//
+// v0.3.9 added code-level B8 checks (commit-hash binding, measurement
+// equality, registration pubkey binding) with unit-test coverage; the
+// Kani harness layer never picked them up. These three harnesses close
+// that gap by symbolically perturbing exactly one byte of a known-good
+// `(proof, public_inputs)` pair and asserting `verify_*_quote` rejects.
+//
+// The byte offsets below MUST stay in lockstep with `contract.rs`
+// (FR_BYTES, ELEM_MRTD_START, ELEM_REPORTDATA_START). Kept private here
+// rather than promoted to `pub` so the production surface stays minimal;
+// any drift would be caught by the `quote_correct_binding_ok` unit tests.
+const FR_BYTES_LOCAL: usize = 32;
+const ELEM_MRTD_START_LOCAL: usize = 0;
+const ELEM_REPORTDATA_START_LOCAL: usize = 240;
+
+/// Synthesize a chain-acceptable publish-quote PI for the given tally,
+/// without touching any storage. Mirrors the structure of
+/// `fresh_publish_artifacts` but returns the raw bytes so a harness can
+/// perturb individual offsets before calling `verify_publish_quote`.
+fn known_good_publish_pi_bytes(
+    contract_addr: &str,
+    chain_id: &str,
+    election_id: u64,
+    tally: &TallyResult,
+) -> Vec<u8> {
+    let reg = fresh_registry();
+    let bh = compute_ballots_hash(&[], &[]);
+    let commit = compute_commit_hash(contract_addr, chain_id, election_id, &bh, tally);
+    let rd = build_publish_report_data(&commit);
+    let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
+    let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
+    let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
+    build_synthetic_public_inputs(&mrtd, &[0; 48], &r1, &r2, &[0; 48], &rd, 0, 1_700_000_000)
+}
+
+/// Synthesize a chain-acceptable registration-quote PI for the given
+/// `(pubkey, contract_addr, election_id)` triple. Mirror of the helper
+/// `synthetic_pi_for_pubkey_with_id` used in `contract.rs` unit tests.
+fn known_good_registration_pi_bytes(
+    enclave_pubkey: &[u8],
+    contract_addr: &str,
+    election_id: u64,
+) -> Vec<u8> {
+    let reg = fresh_registry();
+    let rd = build_registration_report_data(enclave_pubkey, contract_addr, election_id);
+    let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
+    let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
+    let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
+    build_synthetic_public_inputs(&mrtd, &[0; 48], &r1, &r2, &[0; 48], &rd, 0, 1_700_000_000)
+}
+
+// --------------------------------------------------------------------
+// Harness 11: B8(c) ReportData commit-hash binding enforced
+// --------------------------------------------------------------------
+//
+// Build a known-good publish-quote PI committing to a concrete tally,
+// then flip one symbolic byte of ReportData[0..32]. The verifier MUST
+// reject with `AttestationCommitMismatch`.
+
+#[cfg_attr(kani, kani::proof)]
+#[cfg_attr(kani, kani::unwind(8))]
+pub fn b8c_reportdata_commit_hash_matches() {
+    let reg = fresh_registry();
+    let tally = minimal_valid_tally();
+    let contract_addr = "cw1xxx";
+    let chain_id = "cosmos-testnet-14002";
+    let election_id: u64 = 1;
+    let mut pi_bytes =
+        known_good_publish_pi_bytes(contract_addr, chain_id, election_id, &tally);
+
+    // Symbolic byte index within ReportData[0..32] (the commit_hash slot).
+    let k: u8 = kani::any();
+    kani::assume(k < 32);
+    // Each ReportData byte sits at PI offset (240 + k) * 32 + 31.
+    let off = (ELEM_REPORTDATA_START_LOCAL + k as usize) * FR_BYTES_LOCAL + 31;
+    // Flip the byte (XOR with 0xFF) so it is guaranteed different.
+    pi_bytes[off] ^= 0xFF;
+
+    let bh = compute_ballots_hash(&[], &[]);
+    let expected_commit =
+        compute_commit_hash(contract_addr, chain_id, election_id, &bh, &tally);
+    let proof = HexBinary::from(vec![0xABu8; 192]);
+    let pi = HexBinary::from(pi_bytes);
+    let deps = mock_dependencies();
+    let res = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &proof, &pi);
+
+    // Post-condition: any single-byte flip in the commit_hash slot causes
+    // `AttestationCommitMismatch`. (Measurement + TCB pass: those slots
+    // were not touched.)
+    assert!(matches!(res, Err(ContractError::AttestationCommitMismatch)));
+}
+
+// --------------------------------------------------------------------
+// Harness 12: B8(d) MrTd measurement equality enforced
+// --------------------------------------------------------------------
+//
+// Build a known-good publish-quote PI matching `fresh_registry`'s
+// measurements, then flip one symbolic byte of the MrTd slot. The
+// verifier MUST reject with `AttestationMeasurementMismatch { field:
+// "mrtd" }` because `verify_measurements_match_registry` runs before
+// the commit-hash equality check.
+
+#[cfg_attr(kani, kani::proof)]
+#[cfg_attr(kani, kani::unwind(8))]
+pub fn b8d_measurement_mismatch_rejected() {
+    let reg = fresh_registry();
+    let tally = minimal_valid_tally();
+    let contract_addr = "cw1xxx";
+    let chain_id = "cosmos-testnet-14002";
+    let election_id: u64 = 1;
+    let mut pi_bytes =
+        known_good_publish_pi_bytes(contract_addr, chain_id, election_id, &tally);
+
+    // Symbolic byte index within MrTd[0..48].
+    let k: u8 = kani::any();
+    kani::assume(k < 48);
+    // Each MrTd byte sits at PI offset (0 + k) * 32 + 31.
+    let off = (ELEM_MRTD_START_LOCAL + k as usize) * FR_BYTES_LOCAL + 31;
+    pi_bytes[off] ^= 0xFF;
+
+    let bh = compute_ballots_hash(&[], &[]);
+    let expected_commit =
+        compute_commit_hash(contract_addr, chain_id, election_id, &bh, &tally);
+    let proof = HexBinary::from(vec![0xABu8; 192]);
+    let pi = HexBinary::from(pi_bytes);
+    let deps = mock_dependencies();
+    let res = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &proof, &pi);
+
+    // Post-condition: MrTd byte flip causes the measurement check to fail
+    // before any other check.
+    assert!(matches!(
+        res,
+        Err(ContractError::AttestationMeasurementMismatch { field: "mrtd" })
+    ));
+}
+
+// --------------------------------------------------------------------
+// Harness 13: B8(e) registration-quote pubkey+addr+id binding enforced
+// --------------------------------------------------------------------
+//
+// Build a known-good registration-quote PI binding pubkey+addr+id, then
+// symbolically perturb either ReportData[0..32] (the binding hash) or
+// ReportData[32..64] (the DST tag). The verifier MUST reject; the
+// specific error variant differs by region:
+//   - flip in [0..32]: `AttestationPubkeyBindingMismatch` (the perturbed
+//     hash will not coincide with `SHA-256(pubkey_only)`, so the
+//     `RegistrationQuoteWrongElection` branch does not fire).
+//   - flip in [32..64]: `AttestationDomainTagInvalid`.
+
+#[cfg_attr(kani, kani::proof)]
+#[cfg_attr(kani, kani::unwind(8))]
+pub fn b8e_registration_pubkey_binding() {
+    let reg = fresh_registry();
+    // Use the same compressed-secp256k1 shape as `fresh_election`.
+    let mut pk_bytes = vec![0u8; 33];
+    pk_bytes[0] = 0x02;
+    let pk = HexBinary::from(pk_bytes);
+    let contract_addr = "cw1xxx";
+    let election_id: u64 = 1;
+    let mut pi_bytes =
+        known_good_registration_pi_bytes(pk.as_slice(), contract_addr, election_id);
+
+    // Symbolic byte index across the full ReportData[0..64] range.
+    let k: u8 = kani::any();
+    kani::assume(k < 64);
+    let off = (ELEM_REPORTDATA_START_LOCAL + k as usize) * FR_BYTES_LOCAL + 31;
+    pi_bytes[off] ^= 0xFF;
+
+    let proof = HexBinary::from(vec![0xABu8; 192]);
+    let pi = HexBinary::from(pi_bytes);
+    let deps = mock_dependencies();
+    let res = verify_registration_quote(
+        deps.as_ref(),
+        &reg,
+        &pk,
+        contract_addr,
+        election_id,
+        &proof,
+        &pi,
+    );
+
+    // Post-condition: any single-byte flip in ReportData causes a
+    // rejection. The exact variant depends on which half was hit:
+    //   - k < 32: PubkeyBindingMismatch (the v0.3.12 N22 binding), OR
+    //             RegistrationQuoteWrongElection in the (concrete but
+    //             pubkey-dependent) corner case where the flipped value
+    //             happens to coincide with SHA-256(pubkey_only).
+    //   - k >= 32: AttestationDomainTagInvalid (the DST half).
+    // Both branches discharge B8(e); we assert rejection in either case.
+    if k < 32 {
+        assert!(matches!(
+            res,
+            Err(ContractError::AttestationPubkeyBindingMismatch)
+                | Err(ContractError::RegistrationQuoteWrongElection)
+        ));
+    } else {
+        assert!(matches!(res, Err(ContractError::AttestationDomainTagInvalid)));
     }
 }

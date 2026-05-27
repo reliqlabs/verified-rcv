@@ -72,6 +72,130 @@ def lift_irv_result
     eliminated_by_round := r.eliminated_by_round.v.map (fun v => v.v)
     ballots_tallied     := r.ballots_tallied.val }
 
+/-! ## Phase 1 bridge-lemma scaffolding
+
+Methodology-driven enumeration (v0.4 ask AB.6 deferral-justification audit
+applied to the prior monolithic `B10_lean_irv` sorry): each Phase 1 helper
+gets a dedicated bridge lemma statement with its own `sorry`. The
+discharge surface is now ten small inspectable per-helper goals plus the
+loop-induction terminal goal, rather than one opaque theorem-blocking
+sorry. Each lemma is independently provable by `progress` + induction over
+the loop combinator; closing them in any order is sound.
+
+Status: all sorry; closures queued for the focused Aeneas-bridge session.
+The terminal `B10_lean_irv` theorem uses these lemmas as named hypotheses
+so the loop-level proof can be sketched even while the helper proofs
+remain open. -/
+
+/-- Bridge for `addr_in`: extracted returns `Ok` iff the math containment
+holds. -/
+theorem addr_in_bridge
+    (xs : Aeneas.Std.alloc.vec.Vec String) (a : String) :
+    ∀ b,
+      verified_rcv_enclave_core.addr_in xs a = .ok b →
+      b = (a ∈ xs.v)
+    := by
+  sorry
+
+/-- Bridge for `position_of`: extracted index equals the math
+`position_of` result under `Usize.val`. -/
+theorem position_of_bridge
+    (a : String) (xs : Aeneas.Std.alloc.vec.Vec String) :
+    ∀ r,
+      verified_rcv_enclave_core.position_of a xs = .ok r →
+      r.map (·.val) = position_of a xs.v
+    := by
+  sorry
+
+/-- Bridge for `first_active_index`: returns the math first-active-index
+over lifted lists. -/
+theorem first_active_index_bridge
+    (ranking : Aeneas.Std.alloc.vec.Vec String)
+    (remaining : Aeneas.Std.alloc.vec.Vec String) :
+    ∀ r,
+      verified_rcv_enclave_core.first_active_index ranking remaining = .ok r →
+      r.map (·.val) = first_active_index ranking.v remaining.v
+    := by
+  sorry
+
+/-- Bridge for `count_at_index`: extracted count matches the math
+`count_at_index` under `U32 → Nat`. -/
+theorem count_at_index_bridge
+    (valid_slice : Aeneas.Std.Slice (String × verified_rcv_enclave_core.Ballot))
+    (remaining : Aeneas.Std.alloc.vec.Vec String)
+    (target_idx : Aeneas.Std.Usize) :
+    ∀ c,
+      verified_rcv_enclave_core.count_at_index valid_slice remaining target_idx = .ok c →
+      c.val = count_at_index remaining.v target_idx.val
+        (lift_valid_slice valid_slice) := by
+  sorry
+
+/-- Bridge for `tally_round`: produces math-equivalent RoundCounts. -/
+theorem tally_round_bridge
+    (valid_slice : Aeneas.Std.Slice (String × verified_rcv_enclave_core.Ballot))
+    (remaining : Aeneas.Std.alloc.vec.Vec String) :
+    ∀ rcs,
+      verified_rcv_enclave_core.tally_round valid_slice remaining = .ok rcs →
+      rcs.v.map liftRoundCount = tally_round (lift_valid_slice valid_slice) remaining.v
+    := by
+  sorry
+
+/-- Bridge for `min_count`: matches under `U32.val`. -/
+theorem min_count_bridge
+    (rcs : Aeneas.Std.alloc.vec.Vec verified_rcv_enclave_core.RoundCount) :
+    ∀ m,
+      verified_rcv_enclave_core.min_count rcs = .ok m →
+      m.val = min_count (rcs.v.map liftRoundCount)
+    := by
+  sorry
+
+/-- Bridge for `total_count`: matches under `U32.val`. -/
+theorem total_count_bridge
+    (rcs : Aeneas.Std.alloc.vec.Vec verified_rcv_enclave_core.RoundCount) :
+    ∀ t,
+      verified_rcv_enclave_core.total_count rcs = .ok t →
+      t.val = total_count (rcs.v.map liftRoundCount)
+    := by
+  sorry
+
+/-- Bridge for `candidates_with_count`: produces math-equivalent candidate
+list. Argument order matches the extracted signature `(rc, m)`. -/
+theorem candidates_with_count_bridge
+    (rcs : Aeneas.Std.alloc.vec.Vec verified_rcv_enclave_core.RoundCount)
+    (m : Aeneas.Std.U32) :
+    ∀ cs,
+      verified_rcv_enclave_core.candidates_with_count rcs m = .ok cs →
+      cs.v = candidates_with_count m.val (rcs.v.map liftRoundCount)
+    := by
+  sorry
+
+/-- Bridge for `first_majority_index`: extracted returns the index, math
+returns the candidate. The bridge states presence-equivalence plus the
+in-bounds property on any resolved index. The candidate-identity step
+("`rc[idx].candidate = math-result`") is left to the loop-level proof,
+which has the local context to discharge it under `idx.val < length`.
+Argument order matches the extracted signature `(rc, threshold)`. -/
+theorem first_majority_index_bridge
+    (rcs : Aeneas.Std.alloc.vec.Vec verified_rcv_enclave_core.RoundCount)
+    (threshold : Aeneas.Std.U32) :
+    ∀ r,
+      verified_rcv_enclave_core.first_majority_index rcs threshold = .ok r →
+      r.isSome = (first_majority_candidate threshold.val
+                    (rcs.v.map liftRoundCount)).isSome ∧
+      ∀ idx, r = some idx → idx.val < rcs.v.length
+    := by
+  sorry
+
+/-- Bridge for `remove_from`: vec-level identical algorithm to math. -/
+theorem remove_from_bridge
+    (to_remove : Aeneas.Std.alloc.vec.Vec String)
+    (xs : Aeneas.Std.alloc.vec.Vec String) :
+    ∀ r,
+      verified_rcv_enclave_core.remove_from to_remove xs = .ok r →
+      r.v = remove_from to_remove.v xs.v
+    := by
+  sorry
+
 /-! ## B10_lean_irv: extracted IRV matches math IRV
 
 The central Stage-2 obligation: the extracted enclave's `irv_spec`
