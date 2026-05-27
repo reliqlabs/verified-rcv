@@ -69,6 +69,16 @@ pub struct Election {
     /// (Stage 1 iteration discipline) and v0.3.4 A6 (round-count Vec
     /// ordering).
     pub candidates: Vec<Addr>,
+    /// v0.3.14: human-readable display names parallel-indexed to
+    /// `candidates`. Length equals `candidates.len()`. Each name is
+    /// validated at CreateElection time: byte-length 1..=64, no NUL byte,
+    /// byte-distinct from every other name in the same election. Names
+    /// are off-chain trust in the §6.4 sense (admin-supplied labels, not
+    /// a cryptographic binding to voter intent); the chain enforces
+    /// structural well-formedness + chain-side immutability (B11). The
+    /// `names_hash` field in `canonical_serialization` binds the value
+    /// the runtime sees at publish-time to the value stored here.
+    pub candidate_names: Vec<String>,
     pub start_at: Timestamp,
     pub end_at: Timestamp,
     pub ballot_count: u32,

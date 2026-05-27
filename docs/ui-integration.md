@@ -2,7 +2,7 @@
 
 This document specifies the frontend integration for verified-rcv. The UI is **orthogonal to the verification trust chain** — it presents and orchestrates, but contributes no trust-bearing computation. The trust chain ends at chain state + enclave attestation; the UI just renders both.
 
-**Spec version: aligned with intent v0.3.10 / commit `4cc50b0` (2026-05-26).** Major API breaks from the prior `DstackAttestation` envelope are flagged below.
+**Spec version: aligned with intent v0.3.14 (2026-05-27).** Major API breaks from the prior `DstackAttestation` envelope are flagged below. v0.3.14 added the `candidate_names` field (parallel-indexed to `candidates`) — see the "Candidate display names" section below for validation rules and the visual-confusability warning the UI surfaces client-side.
 
 ## What changed in v0.3.9 + v0.3.10
 
@@ -106,12 +106,18 @@ For **registration** quotes (CreateElection):
 
 ```
 admin UI → operator → enclave server's RegisterPubkey RPC
-  (NOT YET IMPLEMENTED — currently admin pre-fetches the pubkey from
-   dstack and the operator runs a separate registration tool; future
-   work to expose this via gRPC like Tally)
+  (gRPC call: RegisterPubkey({contract_addr, election_id: next_id})
+   where next_id = ELECTION_COUNTER + 1 from the contract query)
   → returns { enclave_pubkey, proof, public_inputs }
 admin UI builds CreateElection msg + signs
 ```
+
+The RPC handler dstack-derives the privkey for `(contract_addr,
+election_id)`, exports the SEC1-compressed pubkey via k256, and binds
+the registration ReportData to `SHA-256(enclave_pubkey ‖
+borsh_string(contract_addr) ‖ u64_LE(election_id))` per v0.3.12 N22.
+This blocks an admin replaying an old registration quote across
+elections.
 
 For **publish** quotes (PublishResult): the enclave runs this end-to-end after `CloseAndTally` fires. The UI typically does NOT call PublishResult directly — the operator's orchestrator does. UI's role is to display the resolved tally + extracted attestation facts.
 
@@ -173,6 +179,37 @@ Anyone can read the chain state. No wallet needed.
   - This is the load-bearing voter-detection window for N2 timelock.
 ```
 
+## Candidate display names (v0.3.14)
+
+`Election.candidate_names: string[]` is parallel-indexed to `candidates: string[]`. Names are admin-supplied at `CreateElection`, immutable thereafter (intent B11), and bound by the publish-quote `names_hash` so a host that swaps names mid-flight produces a rejected `AttestationCommitMismatch`.
+
+### Chain-enforced structural constraints
+
+The chain rejects `CreateElection` if any of these hold; the UI pre-validates client-side to fail fast (`src/lib/format.ts: validateCandidateNames`):
+
+- `candidate_names.length !== candidates.length`
+- any name has byte-length `0` or `> 64` (UTF-8)
+- any name contains a NUL byte (` `)
+- any name is not valid UTF-8 (unreachable from JS strings; symmetric with the contract enum)
+- any two names within an election are byte-equal (`BTreeSet<String>` discipline; case-sensitive)
+
+### Display discipline (intent §6.4)
+
+Names are **off-chain trust**. The chain provides byte-identity over time, NOT real-world identity correspondence. A malicious admin can list address `B` under the name "Alice" and address `A` under "Bob"; the chain accepts both. Therefore the UI MUST follow these rules everywhere candidates appear:
+
+- **Always show the address alongside the name**, never the name alone. The address is the canonical identity the ballot binds to.
+- Recommended pattern: "`Alice (xion1abc…xyz)`" on tally rows, ballot rows, and the candidate list.
+- The ballot's drag-and-drop confirmation step shows both name and full address so the user signs over the address they intend.
+
+### Visual-confusability warning
+
+Byte-equality is not visual equality. Cyrillic "Аlice" (U+0410) and Latin "Alice" (U+0041) are byte-distinct but visually identical; the chain accepts both. The UI surfaces a non-blocking client-side warning using `unicode-confusables` (`src/lib/confusables.ts`):
+
+- `nameIsConfusing(name)`: NFC-normalize, then check for homoglyphs, zero-width characters, RTL overrides, ASCII-confusables. Shows a `⚠` next to the row in the admin form.
+- `findConfusablePairs(names)`: detect byte-distinct pairs whose UTS #39 skeletons collide. Shows a row-pair warning under the candidates list.
+
+These warnings are **advisory only** — the admin can submit anyway, and the chain will accept. The methodology stance per intent §6.4 is that voters with stronger requirements verify out of band (signed declarations by named candidates, public commitments pre-instantiation). The chain-side `names_hash` only guarantees the names voters saw at vote time match those attested at publish time.
+
 ## Contract surface to wrap (v0.3.10)
 
 ### Query messages
@@ -190,6 +227,7 @@ type Election = {
   id: number;
   title: string;
   candidates: string[];
+  candidate_names: string[];                      // NEW v0.3.14 — parallel to candidates
   start_at: { nanos: string };
   end_at: { nanos: string };
   ballot_count: number;
@@ -250,6 +288,7 @@ type ExecuteMsg =
   | { create_election: {
         title: string;
         candidates: string[];
+        candidate_names: string[];                // NEW v0.3.14 — parallel to candidates
         start_at: { nanos: string };
         end_at: { nanos: string };
         enclave_pubkey: string;                   // hex
@@ -301,6 +340,12 @@ Wrap each as a typed mutation: `useCreateElection()`, `useSubmitBallot()`, `useC
 | `RegistryUpdateAlreadyPending` | "A registry update is already pending; cancel or finalize first" |
 | `NoPendingRegistryUpdate` | "Nothing to finalize" |
 | `RegistryUpdateTimelockNotExpired` | "Timelock has not expired yet" |
+| `CandidateNamesLengthMismatch` (v0.3.14) | "Candidate names list length does not match candidates list" |
+| `CandidateNameEmpty` (v0.3.14) | "A candidate name is empty (1..=64 bytes UTF-8 required)" |
+| `CandidateNameTooLong` (v0.3.14) | "A candidate name exceeds the 64-byte UTF-8 cap" |
+| `CandidateNameInvalidUtf8` (v0.3.14) | "A candidate name is not valid UTF-8" |
+| `CandidateNameContainsNul` (v0.3.14) | "A candidate name contains a NUL byte" |
+| `DuplicateCandidateName` (v0.3.14) | "Two candidate names are byte-equal in this election" |
 
 Map ContractError JSON to typed errors via a discriminator. Don't render raw strings.
 
@@ -357,8 +402,9 @@ verified-rcv/
         queries.ts                     # all useQuery wrappers
         mutations.ts                   # all useMutation wrappers
         encryption.ts                  # ECIES + Borsh
-        format.ts
-        types.ts                       # mirror of msg.rs types — UPDATE per v0.3.10
+        format.ts                      # includes validateCandidateName(s) (v0.3.14)
+        confusables.ts                 # v0.3.14 NFC + UTS #39 confusable warning
+        types.ts                       # mirror of msg.rs types — UPDATE per v0.3.14
       hooks/
         useEligibility.ts
     test/
@@ -393,6 +439,6 @@ A user who clicks "why should I trust this result?" should be able to walk from 
 
 ## Open questions to resolve before implementation
 
-1. The `RegisterPubkey` gRPC RPC for the enclave server does not exist yet — admin currently obtains the registration `(proof, public_inputs)` via a side-channel coordination with the operator. Decide whether to add this RPC or keep the side-channel.
+1. ~~The `RegisterPubkey` gRPC RPC for the enclave server does not exist yet~~ **RESOLVED 2026-05-26 (Track 3)** — the RPC ships in `crates/enclave/proto/tally.proto`; admin flow calls it directly per the "Phase A" section above.
 2. Should the UI surface a "stale ballot warning" if the user submits an old ranking after `PendingRegistry` has been proposed? (Their ballot remains valid; the pending registry only affects future elections.)
 3. `block.chain_id` is read on chain at PublishResult time; the UI must use the same `chain_id` when computing client-side commit hashes for display. Confirm the chain_id source.

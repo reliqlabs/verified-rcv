@@ -47,6 +47,14 @@ use crate::dstack::DstackError;
 pub const DST_TALLY: &[u8] = b"DST_VERIFIED_RCV_TALLY_V1";
 /// 32-byte domain-separation tag for registration quotes (zero-padded). 26 ASCII bytes.
 pub const DST_PUBKEY: &[u8] = b"DST_VERIFIED_RCV_PUBKEY_V1";
+/// v0.3.14 F2 DST prefix for `compute_ballots_hash` preimage. 23 ASCII
+/// bytes, no length prefix. MUST stay byte-identical to the contract's
+/// `contract::DST_BALLOTS`.
+pub const DST_BALLOTS: &[u8] = b"verified-rcv:ballots:v1";
+/// v0.3.14 F2 DST prefix for `compute_names_hash` preimage. 21 ASCII
+/// bytes, no length prefix. MUST stay byte-identical to the contract's
+/// `contract::DST_NAMES`.
+pub const DST_NAMES: &[u8] = b"verified-rcv:names:v1";
 
 /// Total `public_inputs` byte length (intent §2.5 gnark layout for the
 /// zkdcap reference DCAP circuit).
@@ -65,15 +73,17 @@ pub enum AttestationError {
 // ---------------------------------------------------------------------------
 
 /// Borsh-style canonical serialization of `(contract_addr ‖ chain_id ‖
-/// election_id ‖ ballots_hash ‖ tally_body)`. The `chain_id` field was
-/// added at v0.3.10 (N4) for cross-chain replay defense; the
+/// election_id ‖ ballots_hash ‖ names_hash ‖ tally_body)`. The `chain_id`
+/// field was added at v0.3.10 (N4) for cross-chain replay defense; the
 /// `ballots_hash` field was added at v0.3.11 (B6) to close §8.7 link 7
-/// (enclave_input_fidelity).
+/// (enclave_input_fidelity); the `names_hash` field was added at v0.3.14
+/// to bind admin-supplied candidate display names (B11).
 pub fn canonical_serialization(
     contract_addr: &str,
     chain_id: &str,
     election_id: u64,
     ballots_hash: &[u8; 32],
+    names_hash: &[u8; 32],
     tally: &TallyResult,
 ) -> Vec<u8> {
     let mut out = Vec::new();
@@ -81,8 +91,31 @@ pub fn canonical_serialization(
     write_borsh_string(&mut out, chain_id);
     out.extend_from_slice(&election_id.to_le_bytes());
     out.extend_from_slice(ballots_hash);
+    // v0.3.14: names_hash sits between ballots_hash and tally_body.
+    // 32 raw bytes (no length prefix, fixed size).
+    out.extend_from_slice(names_hash);
     write_tally_body(&mut out, tally);
     out
+}
+
+/// v0.3.14: compute `SHA-256(u32_LE(names.len()) ‖ for name in names: Borsh(name))`
+/// over the admin-supplied candidate display names in declaration order.
+///
+/// MUST stay byte-identical to the contract's
+/// `verified_rcv_contract::contract::compute_names_hash` — cross-tested in
+/// `crates/enclave/tests/cross_canonical.rs::compute_names_hash_contract_vs_runtime_byte_identical`.
+pub fn compute_names_hash(candidate_names: &[String]) -> [u8; 32] {
+    let mut preimage = Vec::new();
+    // v0.3.14 F2: DST prefix domain-separates the names-hash preimage
+    // from the ballots-hash preimage. 22 ASCII bytes, no length prefix.
+    preimage.extend_from_slice(DST_NAMES);
+    preimage.extend_from_slice(&(candidate_names.len() as u32).to_le_bytes());
+    for name in candidate_names {
+        write_borsh_string(&mut preimage, name);
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(&preimage);
+    hasher.finalize().into()
 }
 
 /// v0.3.11 B6 — compute SHA-256 over the enclave-side view of the
@@ -110,11 +143,13 @@ pub fn compute_ballots_hash(
             }
         }
     }
-    let mut canonical = Vec::new();
-    canonical.extend_from_slice(&included.to_le_bytes());
-    canonical.extend_from_slice(&body);
+    // v0.3.14 F2: DST prefix on the ballots-hash preimage. 23 ASCII bytes.
+    let mut preimage = Vec::with_capacity(DST_BALLOTS.len() + 4 + body.len());
+    preimage.extend_from_slice(DST_BALLOTS);
+    preimage.extend_from_slice(&included.to_le_bytes());
+    preimage.extend_from_slice(&body);
     let mut hasher = Sha256::new();
-    hasher.update(&canonical);
+    hasher.update(&preimage);
     hasher.finalize().into()
 }
 
@@ -178,16 +213,25 @@ fn write_tally_body(out: &mut Vec<u8>, t: &TallyResult) {
 
 /// 64-byte ReportData for a publish quote: lower 32 = commit_hash, upper
 /// 32 = DST_VERIFIED_RCV_TALLY_V1 zero-padded. v0.3.10 (N4) added
-/// `chain_id`; v0.3.11 (B6) added `ballots_hash` for input-fidelity binding.
+/// `chain_id`; v0.3.11 (B6) added `ballots_hash` for input-fidelity
+/// binding; v0.3.14 added `names_hash` for candidate-display-name
+/// binding (B11).
 pub fn build_publish_report_data(
     contract_addr: &str,
     chain_id: &str,
     election_id: u64,
     ballots_hash: &[u8; 32],
+    names_hash: &[u8; 32],
     tally: &TallyResult,
 ) -> [u8; 64] {
-    let canonical =
-        canonical_serialization(contract_addr, chain_id, election_id, ballots_hash, tally);
+    let canonical = canonical_serialization(
+        contract_addr,
+        chain_id,
+        election_id,
+        ballots_hash,
+        names_hash,
+        tally,
+    );
     let mut hasher = Sha256::new();
     hasher.update(&canonical);
     let commit = hasher.finalize();
@@ -201,20 +245,32 @@ pub fn build_publish_report_data(
 ///
 /// v0.3.11 form: `SHA-256(enclave_pubkey)` only.
 /// v0.3.12 (N22) form: `SHA-256(enclave_pubkey ‖ borsh_string(contract_addr) ‖ u64_LE(election_id))`.
+/// v0.3.14 (F1) form: `SHA-256(enclave_pubkey ‖ borsh_string(contract_addr) ‖ u64_LE(election_id) ‖ names_hash)`.
 /// The election_id binding blocks an admin replaying an old registration
-/// quote for a new election. Preimage layout must stay byte-identical to
-/// the contract's `verified_rcv_contract::contract::build_registration_report_data`
+/// quote for a new election; the names_hash binding (v0.3.14) blocks an
+/// admin from swapping candidate display names between CreateElection
+/// and PublishResult. Preimage layout must stay byte-identical to the
+/// contract's `verified_rcv_contract::contract::build_registration_report_data`
 /// — `tests/cross_canonical.rs::registration_report_data_dst_matches_contract_layout`
 /// is the load-bearing equality cross-test.
 pub fn build_registration_report_data(
     enclave_pubkey: &[u8],
     contract_addr: &str,
     election_id: u64,
+    names_hash: &[u8; 32],
 ) -> [u8; 64] {
-    let mut preimage = Vec::with_capacity(enclave_pubkey.len() + contract_addr.len() + 16);
+    // v0.3.14 F1 form: ReportData[0..32] = SHA-256(enclave_pubkey ‖
+    // borsh_string(contract_addr) ‖ u64_LE(election_id) ‖ names_hash).
+    // Names binding extends N22's election binding so registration-time
+    // name tampering is also detectable. The chain verifies against THIS
+    // form; a pubkey-only-hash quote is detected and surfaced as
+    // RegistrationQuoteWrongElection.
+    let mut preimage =
+        Vec::with_capacity(enclave_pubkey.len() + contract_addr.len() + 16 + 32);
     preimage.extend_from_slice(enclave_pubkey);
     write_borsh_string(&mut preimage, contract_addr);
     preimage.extend_from_slice(&election_id.to_le_bytes());
+    preimage.extend_from_slice(names_hash);
     let mut hasher = Sha256::new();
     hasher.update(&preimage);
     let h = hasher.finalize();
@@ -309,6 +365,7 @@ pub struct EnclaveIdentity {
 /// unused (the chain's `mock-attestation` build skips cryptographic
 /// verify). Real build (`--features real-zkdcap`): drives the zkdcap
 /// gnark prover via unix socket and binds a dstack-signed TDX quote.
+#[allow(clippy::too_many_arguments)]
 pub async fn produce_publish_artifacts(
     dstack: &dyn crate::dstack::DstackClient,
     identity: &EnclaveIdentity,
@@ -316,13 +373,20 @@ pub async fn produce_publish_artifacts(
     chain_id: &str,
     election_id: u64,
     ballots_hash: &[u8; 32],
+    candidate_names: &[String],
     tally: &TallyResult,
 ) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
+    // v0.3.14: compute names_hash from the runtime-received candidate_names
+    // list. If the host substitutes names mid-flight, the resulting hash
+    // diverges from the chain's stored Election.candidate_names and the
+    // publish attestation rejects with AttestationCommitMismatch.
+    let names_hash = compute_names_hash(candidate_names);
     let report_data = build_publish_report_data(
         contract_addr,
         chain_id,
         election_id,
         ballots_hash,
+        &names_hash,
         tally,
     );
     produce_artifacts_inner(dstack, identity, &report_data).await
@@ -331,14 +395,21 @@ pub async fn produce_publish_artifacts(
 /// Synthesize a registration-quote `(proof, public_inputs)` pair.
 /// v0.3.12 N22: binds `(contract_addr, election_id)` so an admin can't
 /// replay an old registration quote for a new election.
+/// v0.3.14 F1: also binds `names_hash` (computed internally from
+/// `candidate_names`) so registration-time name tampering is detectable.
+/// The runtime computes `names_hash` here so callers do not need to
+/// import the helper themselves.
 pub async fn produce_registration_artifacts(
     dstack: &dyn crate::dstack::DstackClient,
     identity: &EnclaveIdentity,
     enclave_pubkey: &[u8],
     contract_addr: &str,
     election_id: u64,
+    candidate_names: &[String],
 ) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
-    let report_data = build_registration_report_data(enclave_pubkey, contract_addr, election_id);
+    let names_hash = compute_names_hash(candidate_names);
+    let report_data =
+        build_registration_report_data(enclave_pubkey, contract_addr, election_id, &names_hash);
     produce_artifacts_inner(dstack, identity, &report_data).await
 }
 
@@ -401,11 +472,12 @@ async fn produce_artifacts_inner(
         .map_err(|e| AttestationError::ZkProver(format!("parse prove response: {e}")))?;
 
     // 3. Public inputs: built locally from the (identity, report_data)
-    //    tuple. The gnark server's `public_signals` SHOULD produce the
-    //    same bytewise blob; we use the local build to avoid parser
-    //    risk and keep the chain-side verifier's input deterministic
-    //    relative to our state. A future hardening pass can extract
-    //    `public_signals` and assert equality.
+    //    tuple in the canonical 9792-byte layout (306 fr-elements x 32 BE
+    //    bytes). The contract's `verify_gnark_proof_via_xion` prepends the
+    //    12-byte gnark witness header before forwarding to chain — we keep
+    //    the bare canonical layout on the wire so the contract's
+    //    measurement-extraction (mrtd / rtmr* / report_data offsets) stays
+    //    framing-free.
     let public_inputs = build_public_inputs(
         &identity.mrtd,
         &identity.rtmr0,
@@ -417,23 +489,22 @@ async fn produce_artifacts_inner(
         identity.timestamp,
     );
 
-    // 4. Proof bytes for the chain's `xion.zk.v1.Query/ProofVerifyGnark`.
-    //    The gnark server's JSON is the canonical proof object (per
-    //    verify-remote/main.go reconstruction); the chain's verifier
-    //    accepts either gnark-native binary or JSON depending on the
-    //    xion zk module's decoder. We forward the raw response bytes so
-    //    the verifier sees byte-identical input to what `verify-remote`
-    //    accepts off-chain. If xion's decoder rejects JSON and requires
-    //    gnark-native binary, the conversion belongs here (see TODO).
-    //
-    //    TODO(real-zkdcap N23): when xion's gnark verifier serialization
-    //    is pinned, replace this passthrough with the canonical encoder.
-    //    Reconstruct `*groth16_bn254.Proof` from `proof_json.{pi_a,
-    //    pi_b, pi_c, commitments, commitment_pok}` (matches
-    //    verify-remote/main.go::reconstructProof) and emit gnark-native
-    //    bytes (320 + N*64 for N commitments).
-    let proof = response_bytes;
-    let _ = proof_json; // Parsed for future use; not directly consumed today.
+    // 4. Pull binary proof from the prover's JSON response. Xion's
+    //    `xion.zk.v1.Query/ProofVerifyGnark` uses gnark native binary
+    //    (groth16.Proof.ReadFrom), NOT the JSON shape that off-chain
+    //    `verify-remote` accepts. The prover emits both: JSON for tooling,
+    //    `proof_binary` (base64) for chain.
+    use base64::Engine as _;
+    let proof_bin_b64 = proof_json
+        .get("proof_binary")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| AttestationError::ZkProver(
+            "prove response missing `proof_binary` (rebuild gnark prover with binary-output patch)"
+                .into(),
+        ))?;
+    let proof = base64::engine::general_purpose::STANDARD
+        .decode(proof_bin_b64)
+        .map_err(|e| AttestationError::ZkProver(format!("decode proof_binary: {e}")))?;
 
     Ok((proof, public_inputs))
 }
@@ -586,12 +657,18 @@ mod tests {
         compute_ballots_hash(&[], &[])
     }
 
+    /// v0.3.14: empty names_hash (zero-length names list).
+    fn empty_nh() -> [u8; 32] {
+        compute_names_hash(&[])
+    }
+
     #[test]
     fn publish_report_data_layout() {
         let tally = sample_tally();
         let bh = empty_bh();
-        let rd = build_publish_report_data("xion1contract", "xion-1", 7, &bh, &tally);
-        let canonical = canonical_serialization("xion1contract", "xion-1", 7, &bh, &tally);
+        let nh = empty_nh();
+        let rd = build_publish_report_data("xion1contract", "xion-1", 7, &bh, &nh, &tally);
+        let canonical = canonical_serialization("xion1contract", "xion-1", 7, &bh, &nh, &tally);
         let expect = Sha256::digest(&canonical);
         assert_eq!(&rd[..32], &expect[..]);
         assert_eq!(&rd[32..32 + DST_TALLY.len()], DST_TALLY);
@@ -602,8 +679,9 @@ mod tests {
     fn chain_id_affects_canonical_serialization_bytes() {
         let tally = sample_tally();
         let bh = empty_bh();
-        let a = canonical_serialization("xion1c", "xion-1", 7, &bh, &tally);
-        let b = canonical_serialization("xion1c", "xion-2", 7, &bh, &tally);
+        let nh = empty_nh();
+        let a = canonical_serialization("xion1c", "xion-1", 7, &bh, &nh, &tally);
+        let b = canonical_serialization("xion1c", "xion-2", 7, &bh, &nh, &tally);
         assert_ne!(a, b, "chain_id must affect canonical_serialization bytes (N4)");
     }
 
@@ -620,9 +698,41 @@ mod tests {
             &["alice".to_string()],
             &[("alice".to_string(), vec![0xFFu8; 4])],
         );
-        let a = canonical_serialization("xion1c", "xion-1", 7, &bh_a, &tally);
-        let b = canonical_serialization("xion1c", "xion-1", 7, &bh_b, &tally);
+        let nh = empty_nh();
+        let a = canonical_serialization("xion1c", "xion-1", 7, &bh_a, &nh, &tally);
+        let b = canonical_serialization("xion1c", "xion-1", 7, &bh_b, &nh, &tally);
         assert_ne!(a, b, "ballots_hash must affect canonical_serialization bytes (B6)");
+    }
+
+    #[test]
+    fn names_hash_affects_canonical_serialization_bytes() {
+        // v0.3.14: different candidate_names produce different commit hashes.
+        let tally = sample_tally();
+        let bh = empty_bh();
+        let nh_a = compute_names_hash(&["Alice".to_string(), "Bob".to_string()]);
+        let nh_b = compute_names_hash(&["Carol".to_string(), "Dan".to_string()]);
+        let a = canonical_serialization("xion1c", "xion-1", 7, &bh, &nh_a, &tally);
+        let b = canonical_serialization("xion1c", "xion-1", 7, &bh, &nh_b, &tally);
+        assert_ne!(a, b, "names_hash must affect canonical_serialization bytes (v0.3.14)");
+    }
+
+    #[test]
+    fn compute_names_hash_order_sensitive() {
+        // v0.3.14: name declaration order is load-bearing — reordering
+        // names produces a different hash even when the set of names is
+        // identical. Mirrors compute_ballots_hash's declaration-order pin.
+        let a = compute_names_hash(&["Alice".to_string(), "Bob".to_string()]);
+        let b = compute_names_hash(&["Bob".to_string(), "Alice".to_string()]);
+        assert_ne!(a, b, "name order must affect names_hash");
+    }
+
+    #[test]
+    fn compute_names_hash_empty_stable() {
+        // Empty names list -> well-defined hash (SHA-256 of just the
+        // u32_LE(0) length prefix).
+        let a = compute_names_hash(&[]);
+        let b = compute_names_hash(&[]);
+        assert_eq!(a, b);
     }
 
     #[test]
@@ -656,11 +766,13 @@ mod tests {
     #[test]
     fn registration_report_data_layout() {
         let pk = vec![0x02u8; 33];
-        let rd = build_registration_report_data(&pk, "xion1addr", 7);
+        let nh = compute_names_hash(&["Alice".to_string(), "Bob".to_string()]);
+        let rd = build_registration_report_data(&pk, "xion1addr", 7, &nh);
         let mut preimage = Vec::new();
         preimage.extend_from_slice(&pk);
         write_borsh_string(&mut preimage, "xion1addr");
         preimage.extend_from_slice(&7u64.to_le_bytes());
+        preimage.extend_from_slice(&nh);
         let expect = Sha256::digest(&preimage);
         assert_eq!(&rd[..32], &expect[..]);
         assert_eq!(&rd[32..32 + DST_PUBKEY.len()], DST_PUBKEY);
@@ -672,17 +784,33 @@ mod tests {
         // N22 (v0.3.12): election_id MUST affect the registration ReportData
         // bytes so old quotes can't replay across elections.
         let pk = vec![0x03u8; 33];
-        let a = build_registration_report_data(&pk, "xion1addr", 1);
-        let b = build_registration_report_data(&pk, "xion1addr", 2);
+        let nh = [0u8; 32];
+        let a = build_registration_report_data(&pk, "xion1addr", 1, &nh);
+        let b = build_registration_report_data(&pk, "xion1addr", 2, &nh);
         assert_ne!(a[..32], b[..32], "election_id must affect registration ReportData");
     }
 
     #[test]
     fn registration_report_data_contract_addr_binds_n22() {
         let pk = vec![0x03u8; 33];
-        let a = build_registration_report_data(&pk, "xion1A", 7);
-        let b = build_registration_report_data(&pk, "xion1B", 7);
+        let nh = [0u8; 32];
+        let a = build_registration_report_data(&pk, "xion1A", 7, &nh);
+        let b = build_registration_report_data(&pk, "xion1B", 7, &nh);
         assert_ne!(a[..32], b[..32], "contract_addr must affect registration ReportData");
+    }
+
+    /// v0.3.14 F1: names_hash MUST affect the registration ReportData bytes
+    /// so an admin can't swap candidate display names between CreateElection
+    /// and PublishResult without re-running registration.
+    #[test]
+    fn registration_report_data_names_hash_binds_f1() {
+        let pk = vec![0x03u8; 33];
+        let nh_a = compute_names_hash(&["Alice".to_string()]);
+        let nh_b = compute_names_hash(&["Bob".to_string()]);
+        assert_ne!(nh_a, nh_b, "compute_names_hash distinguishes inputs");
+        let a = build_registration_report_data(&pk, "xion1addr", 7, &nh_a);
+        let b = build_registration_report_data(&pk, "xion1addr", 7, &nh_b);
+        assert_ne!(a[..32], b[..32], "names_hash must affect registration ReportData");
     }
 
     #[test]
@@ -734,7 +862,11 @@ mod tests {
         // the input). We use a fixed all-zero buffer to keep the byte-pin
         // stable across tests.
         let bh = [0u8; 32];
-        let bytes = canonical_serialization("xc", "cid", 7, &bh, &tally);
+        // v0.3.14: names_hash 32 raw bytes between ballots_hash and
+        // tally_body. Use a distinct all-FF buffer so any byte-position
+        // drift surfaces immediately.
+        let nh = [0xFFu8; 32];
+        let bytes = canonical_serialization("xc", "cid", 7, &bh, &nh, &tally);
         let mut expect = Vec::new();
         expect.extend_from_slice(&2u32.to_le_bytes());
         expect.extend_from_slice(b"xc");
@@ -742,8 +874,10 @@ mod tests {
         expect.extend_from_slice(&3u32.to_le_bytes());
         expect.extend_from_slice(b"cid");
         expect.extend_from_slice(&7u64.to_le_bytes());
-        // B6 (v0.3.11): ballots_hash 32 raw bytes between election_id and tally_body.
+        // B6 (v0.3.11): ballots_hash 32 raw bytes between election_id and names_hash.
         expect.extend_from_slice(&bh);
+        // v0.3.14: names_hash 32 raw bytes between ballots_hash and tally_body.
+        expect.extend_from_slice(&nh);
         expect.extend_from_slice(&1u32.to_le_bytes());
         expect.extend_from_slice(&1u32.to_le_bytes());
         expect.extend_from_slice(b"a");

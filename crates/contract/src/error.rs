@@ -170,4 +170,39 @@ pub enum ContractError {
     /// quote's ReportData hashes a different election_id.
     #[error("registration quote bound to wrong election_id (replay attempt)")]
     RegistrationQuoteWrongElection,
+
+    // v0.3.14 candidate_names validation.
+
+    /// v0.3.14: `candidate_names.len()` does not equal `candidates.len()`.
+    #[error("candidate_names length {actual} != candidates length {expected}")]
+    CandidateNamesLengthMismatch { expected: usize, actual: usize },
+
+    /// v0.3.14: a candidate name at the given index is empty (byte-length
+    /// zero is rejected — every candidate must carry a non-empty label).
+    #[error("candidate_names[{index}] is empty (byte-length must be >= 1)")]
+    CandidateNameEmpty { index: usize },
+
+    /// v0.3.14: a candidate name exceeds the 64-byte UTF-8 cap.
+    #[error("candidate_names[{index}] byte-length {len} exceeds cap of {max}")]
+    CandidateNameTooLong { index: usize, len: usize, max: usize },
+
+    /// v0.3.14: a candidate name failed UTF-8 validation. `Vec<String>` is
+    /// type-system-guaranteed valid UTF-8 in the cw_serde JSON path, so
+    /// this variant is unreachable today; reserved for a future Borsh
+    /// bytes path that could carry pre-validated raw bytes.
+    #[allow(dead_code)]
+    #[error("candidate_names[{index}] is not valid UTF-8")]
+    CandidateNameInvalidUtf8 { index: usize },
+
+    /// v0.3.14: a candidate name contains an embedded NUL (0x00) byte.
+    /// NUL is rejected to keep names safe for C-string-style consumers
+    /// (UIs, logs) without per-consumer escaping.
+    #[error("candidate_names[{index}] contains an embedded NUL byte")]
+    CandidateNameContainsNul { index: usize },
+
+    /// v0.3.14: two candidate names are byte-equal. The chain enforces
+    /// byte-distinctness (case-sensitive); visual-confusability is
+    /// out-of-scope per intent §6.4 off-chain responsibility note.
+    #[error("candidate_names[{index}] is byte-equal to candidate_names[{duplicate_of}]")]
+    DuplicateCandidateName { index: usize, duplicate_of: usize },
 }

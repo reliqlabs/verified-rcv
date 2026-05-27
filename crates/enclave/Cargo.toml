@@ -49,6 +49,9 @@ k256 = { version = "0.13", default-features = false, features = ["ecdsa", "alloc
 # canonical_serialization per intent §2.5.
 borsh = { version = "1.5", features = ["std", "derive"] }
 clap = { version = "4", features = ["derive"] }
+# Used to decode the prover's binary proof + public-witness fields out of
+# its JSON response (base64-encoded by the Go server).
+base64 = "0.22"
 
 # gRPC server stack (Phase 1 per docs/runtime-integration.md).
 tonic = "0.12"

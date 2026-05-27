@@ -46,8 +46,6 @@ use cosmwasm_std::{
 };
 
 #[cfg(not(any(feature = "mock-attestation", test)))]
-use cosmwasm_std::{GrpcQuery, QueryRequest};
-#[cfg(not(any(feature = "mock-attestation", test)))]
 use prost::Message;
 
 use verified_rcv_enclave_core::TallyResult;
@@ -77,6 +75,17 @@ const DST_TALLY_LITERAL: &[u8] = b"DST_VERIFIED_RCV_TALLY_V1";
 const DST_PUBKEY_LITERAL: &[u8] = b"DST_VERIFIED_RCV_PUBKEY_V1";
 const DST_TAG_LEN: usize = 32;
 
+/// v0.3.14 F2 DST prefix for `compute_ballots_hash` preimage. Prepended
+/// to the SHA-256 input so the ballots-hash preimage can never collide
+/// with the names-hash preimage on the leading bytes. 23 ASCII bytes,
+/// no length prefix on the DST itself (it occupies a fixed-byte preamble
+/// that is structurally inseparable from the rest of the preimage). MUST
+/// stay byte-identical to the runtime's `attestation::DST_BALLOTS`.
+pub const DST_BALLOTS: &[u8] = b"verified-rcv:ballots:v1";
+/// v0.3.14 F2 DST prefix for `compute_names_hash` preimage. 21 ASCII
+/// bytes. MUST stay byte-identical to the runtime's `attestation::DST_NAMES`.
+pub const DST_NAMES: &[u8] = b"verified-rcv:names:v1";
+
 /// TDX MRTD measurement length (SHA-384 over initial VM image).
 const MRTD_LEN: usize = 48;
 /// TDX RTMR measurement length (SHA-384 over runtime extensions).
@@ -86,6 +95,10 @@ const RTMR_LEN: usize = 48;
 const SECP256K1_COMPRESSED_LEN: usize = 33;
 /// secp256k1 uncompressed pubkey: 1 byte (0x04) + 32 bytes X + 32 bytes Y.
 const SECP256K1_UNCOMPRESSED_LEN: usize = 65;
+
+/// v0.3.14: maximum byte-length of a candidate display name (UTF-8).
+/// Names with byte-length > 64 are rejected at CreateElection time.
+pub const CANDIDATE_NAME_MAX_BYTES: usize = 64;
 
 // ----- Gnark public_inputs byte layout (intent §2.5, v0.3.9 N1) ----------
 
@@ -178,6 +191,7 @@ pub fn execute(
         ExecuteMsg::CreateElection {
             title,
             candidates,
+            candidate_names,
             start_at,
             end_at,
             enclave_pubkey,
@@ -189,6 +203,7 @@ pub fn execute(
             info,
             title,
             candidates,
+            candidate_names,
             start_at,
             end_at,
             enclave_pubkey,
@@ -248,6 +263,7 @@ fn exec_create_election(
     info: MessageInfo,
     title: String,
     candidates: Vec<Addr>,
+    candidate_names: Vec<String>,
     start_at: Timestamp,
     end_at: Timestamp,
     enclave_pubkey: HexBinary,
@@ -300,6 +316,10 @@ fn exec_create_election(
             }
         }
     }
+
+    // v0.3.14: candidate_names parallel-validation.
+    validate_candidate_names(&candidates, &candidate_names)?;
+
     if start_at >= end_at {
         return Err(ContractError::InvalidVotingWindow);
     }
@@ -320,15 +340,21 @@ fn exec_create_election(
     // contract_addr, election_id_about_to_be_created) so an admin can't
     // replay an old quote for a new election. election_id = counter + 1
     // (matches the assignment below).
+    // v0.3.14 F1: the registration quote MUST also bind `names_hash` over
+    // the just-validated `candidate_names`. The Election is saved AFTER
+    // verification, so we compute `names_hash` from the input (the source
+    // of truth at this point) rather than reading storage.
     let registry = REGISTRY.load(deps.storage)?;
     let next_id = ELECTION_COUNTER.load(deps.storage)? + 1;
     let contract_addr = env.contract.address.as_str();
+    let names_hash = compute_names_hash(&candidate_names);
     verify_registration_quote(
         deps.as_ref(),
         &registry,
         &enclave_pubkey,
         contract_addr,
         next_id,
+        &names_hash,
         &proof,
         &public_inputs,
     )?;
@@ -352,6 +378,7 @@ fn exec_create_election(
             id: next_id,
             title,
             candidates,
+            candidate_names,
             start_at,
             end_at,
             ballot_count: 0,
@@ -435,11 +462,16 @@ pub(crate) fn exec_publish_result(
         .range(deps.storage, None, None, Order::Ascending)
         .collect::<StdResult<Vec<_>>>()?;
     let ballots_hash = compute_ballots_hash(&election.candidates, &ballots_view);
+    // v0.3.14: bind candidate_names into the publish commit so a host that
+    // tampers with display names mid-flight diverges from the chain's
+    // stored value and the publish attestation rejects.
+    let names_hash = compute_names_hash(&election.candidate_names);
     let expected_commit = compute_commit_hash(
         contract_addr,
         chain_id,
         election.id,
         &ballots_hash,
+        &names_hash,
         &tally,
     );
     verify_publish_quote(
@@ -848,9 +880,21 @@ fn verify_gnark_proof_via_xion(
     public_inputs: &[u8],
     vkey_name: &str,
 ) -> Result<(), ContractError> {
+    // xion.zk.v1.Query/ProofVerifyGnark calls gnark's witness.UnmarshalBinary,
+    // which expects a 12-byte header (nbPublic | nbSecret | vec_len, each
+    // uint32 BE) prepended to the fr-element vector. Our canonical
+    // public_inputs is the bare 9792-byte vector (306 elements x 32 bytes);
+    // synthesize the header here so neither the enclave nor the on-wire
+    // measurement-extraction layout has to know about gnark's framing.
+    let mut witness_bytes = Vec::with_capacity(12 + public_inputs.len());
+    witness_bytes.extend_from_slice(&(GNARK_PUBLIC_INPUTS_ELEMS as u32).to_be_bytes()); // nbPublic
+    witness_bytes.extend_from_slice(&0u32.to_be_bytes());                                 // nbSecret
+    witness_bytes.extend_from_slice(&(GNARK_PUBLIC_INPUTS_ELEMS as u32).to_be_bytes()); // vec_len
+    witness_bytes.extend_from_slice(public_inputs);
+
     let req = QueryVerifyGnarkRequest {
         proof: proof.to_vec(),
-        public_inputs: public_inputs.to_vec(),
+        public_inputs: witness_bytes,
         vkey_name: vkey_name.to_string(),
         vkey_id: 0,
     };
@@ -858,12 +902,15 @@ fn verify_gnark_proof_via_xion(
     req.encode(&mut req_bytes)
         .map_err(|e| ContractError::AttestationFailure(format!("encode QueryVerifyGnarkRequest: {e}")))?;
 
+    // Must use query_grpc (raw bytes) — querier.query() JSON-decodes the
+    // response, which would fail with "expected value at line 1 column 1" on
+    // a successful gRPC response (proto bytes are not JSON).
     let resp_bin: Binary = deps
         .querier
-        .query(&QueryRequest::Grpc(GrpcQuery {
-            path: "/xion.zk.v1.Query/ProofVerifyGnark".to_string(),
-            data: Binary::from(req_bytes),
-        }))
+        .query_grpc(
+            "/xion.zk.v1.Query/ProofVerifyGnark".to_string(),
+            Binary::from(req_bytes),
+        )
         .map_err(|e| {
             ContractError::AttestationFailure(format!("ProofVerifyGnark gRPC: {e}"))
         })?;
@@ -917,13 +964,21 @@ pub fn verify_publish_quote(
 /// Verify a *registration* TDX quote against the registry + pubkey binding.
 /// Discharges B8(e) at v0.3.9; N22 (v0.3.12) extends the binding to also
 /// cover `(contract_addr, election_id)` so an old quote can't be replayed
-/// across elections.
+/// across elections; v0.3.14 F1 extends it further to bind `names_hash`
+/// so an admin that swaps candidate display names between CreateElection
+/// and PublishResult is detectable at CreateElection-time.
+///
+/// `names_hash` is the chain-supplied hash of `candidate_names` (computed
+/// from the just-validated CreateElection input, NOT yet read from
+/// storage — the Election is saved AFTER this call).
+#[allow(clippy::too_many_arguments)]
 pub fn verify_registration_quote(
     deps: Deps,
     registry: &EnclaveImageRegistry,
     enclave_pubkey: &HexBinary,
     contract_addr: &str,
     election_id: u64,
+    names_hash: &[u8; 32],
     proof: &HexBinary,
     public_inputs: &HexBinary,
 ) -> Result<(), ContractError> {
@@ -933,13 +988,15 @@ pub fn verify_registration_quote(
     verify_tcb_status_accepted(pi, registry)?;
 
     let rd = extract_report_data(pi)?;
-    // N22 (v0.3.12): ReportData[0..32] = SHA-256(enclave_pubkey ‖
-    // contract_addr_borsh ‖ u64_LE(election_id)). The election_id binding
-    // prevents replay across elections.
+    // v0.3.14 F1: ReportData[0..32] = SHA-256(enclave_pubkey ‖
+    // contract_addr_borsh ‖ u64_LE(election_id) ‖ names_hash). The
+    // names_hash binding prevents an admin from swapping display names
+    // mid-flight without re-running registration.
     let expected_rd = build_registration_report_data(
         enclave_pubkey.as_slice(),
         contract_addr,
         election_id,
+        names_hash,
     );
     if rd[..32] != expected_rd[..32] {
         // Two distinct error variants for diagnostics:
@@ -972,28 +1029,37 @@ pub fn verify_registration_quote(
 // Commit hash + canonical_serialization (intent §2.5)
 // ============================================================
 
-/// Compute the canonical commit hash per intent §2.5 (v0.3.11 form):
-/// `SHA-256(canonical_serialization(contract_addr ‖ chain_id ‖ election_id ‖ ballots_hash ‖ tally_body))`.
+/// Compute the canonical commit hash per intent §2.5 (v0.3.14 form):
+/// `SHA-256(canonical_serialization(contract_addr ‖ chain_id ‖ election_id ‖ ballots_hash ‖ names_hash ‖ tally_body))`.
 /// Pinned at v0.3.9 to bind ReportData[0..32] of the publish quote;
 /// `chain_id` added at v0.3.10 (N4) for cross-chain replay defense;
 /// `ballots_hash` added at v0.3.11 (B6) to close §8.7 link 7
-/// (enclave_input_fidelity).
+/// (enclave_input_fidelity); `names_hash` added at v0.3.14 to bind the
+/// admin-supplied display names into the publish attestation (B11).
 pub fn compute_commit_hash(
     contract_addr: &str,
     chain_id: &str,
     election_id: u64,
     ballots_hash: &[u8; 32],
+    names_hash: &[u8; 32],
     tally: &TallyResult,
 ) -> [u8; 32] {
-    let canonical =
-        canonical_serialization(contract_addr, chain_id, election_id, ballots_hash, tally);
+    let canonical = canonical_serialization(
+        contract_addr,
+        chain_id,
+        election_id,
+        ballots_hash,
+        names_hash,
+        tally,
+    );
     let mut hasher = Sha256::new();
     hasher.update(&canonical);
     hasher.finalize().into()
 }
 
 /// Hand-rolled canonical serialization per intent §2.5 v0.3.1 T7
-/// (chain_id added v0.3.10 N4; ballots_hash added v0.3.11 B6).
+/// (chain_id added v0.3.10 N4; ballots_hash added v0.3.11 B6;
+/// names_hash added v0.3.14).
 /// MUST stay byte-identical to the runtime's
 /// `verified_rcv_enclave::attestation::canonical_serialization`.
 pub fn canonical_serialization(
@@ -1001,6 +1067,7 @@ pub fn canonical_serialization(
     chain_id: &str,
     election_id: u64,
     ballots_hash: &[u8; 32],
+    names_hash: &[u8; 32],
     tally: &TallyResult,
 ) -> Vec<u8> {
     let mut out = Vec::new();
@@ -1011,8 +1078,91 @@ pub fn canonical_serialization(
     // the commit preimage, closing §8.7 link 7 (enclave_input_fidelity).
     // 32 raw bytes (no length prefix — fixed size).
     out.extend_from_slice(ballots_hash);
+    // v0.3.14: names_hash binds the admin-supplied candidate display names
+    // into the commit preimage so a host substituting names mid-flight
+    // diverges from the chain's stored Election.candidate_names and the
+    // publish attestation rejects with AttestationCommitMismatch.
+    // 32 raw bytes (no length prefix — fixed size). Sits between
+    // ballots_hash and tally_body.
+    out.extend_from_slice(names_hash);
     write_tally_body(&mut out, tally);
     out
+}
+
+/// v0.3.14: compute `SHA-256(u32_LE(names.len()) ‖ for name in names: Borsh(name))`
+/// over the admin-supplied candidate display names in declaration order.
+///
+/// MUST stay byte-identical to the runtime's
+/// `verified_rcv_enclave::attestation::compute_names_hash` so the publish
+/// attestation's commit_hash matches under chain-side verification.
+/// Cross-tested in `crates/enclave/tests/cross_canonical.rs`.
+pub fn compute_names_hash(candidate_names: &[String]) -> [u8; 32] {
+    let mut preimage = Vec::new();
+    // v0.3.14 F2: DST prefix domain-separates the names-hash preimage
+    // from the ballots-hash preimage so they can never collide on the
+    // leading bytes. 21 ASCII bytes, no length prefix.
+    preimage.extend_from_slice(DST_NAMES);
+    preimage.extend_from_slice(&(candidate_names.len() as u32).to_le_bytes());
+    for name in candidate_names {
+        write_borsh_string(&mut preimage, name);
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(&preimage);
+    hasher.finalize().into()
+}
+
+/// v0.3.14: parallel-validate `candidate_names` against `candidates`.
+/// - length match
+/// - each name byte-length in 1..=CANDIDATE_NAME_MAX_BYTES
+/// - no embedded NUL byte
+/// - all names byte-distinct (case-sensitive)
+///
+/// Duplicate detection uses an O(n^2) scan deliberately: macOS-hosted
+/// Kani symbolic execution stalls on `HashSet` (see project CLAUDE memo
+/// `feedback_kani_state_space`). N is small (typical elections have
+/// O(10) candidates), so quadratic behavior is acceptable.
+pub fn validate_candidate_names(
+    candidates: &[Addr],
+    candidate_names: &[String],
+) -> Result<(), ContractError> {
+    if candidate_names.len() != candidates.len() {
+        return Err(ContractError::CandidateNamesLengthMismatch {
+            expected: candidates.len(),
+            actual: candidate_names.len(),
+        });
+    }
+    for (i, name) in candidate_names.iter().enumerate() {
+        let bytes = name.as_bytes();
+        if bytes.is_empty() {
+            return Err(ContractError::CandidateNameEmpty { index: i });
+        }
+        if bytes.len() > CANDIDATE_NAME_MAX_BYTES {
+            return Err(ContractError::CandidateNameTooLong {
+                index: i,
+                len: bytes.len(),
+                max: CANDIDATE_NAME_MAX_BYTES,
+            });
+        }
+        // Embedded NUL check. `Vec<String>` is already valid UTF-8 by
+        // type construction; we don't need a Utf8 re-check here.
+        for &b in bytes {
+            if b == 0 {
+                return Err(ContractError::CandidateNameContainsNul { index: i });
+            }
+        }
+    }
+    // O(n^2) duplicate-name scan — Kani-friendly per macOS HashSet caveat.
+    for i in 0..candidate_names.len() {
+        for j in (i + 1)..candidate_names.len() {
+            if candidate_names[i] == candidate_names[j] {
+                return Err(ContractError::DuplicateCandidateName {
+                    index: j,
+                    duplicate_of: i,
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 /// v0.3.11 B6: compute SHA-256 over the chain-side snapshot of the
@@ -1035,7 +1185,6 @@ pub fn compute_ballots_hash(
     // Build a lookup from voter address to ciphertext slice for O(N) chain-side
     // iteration. `ballots_view` is assumed to come from `BALLOTS.range(...)`
     // (lexicographic by address) — we re-project to candidate-declaration order.
-    let mut canonical = Vec::new();
     let mut included: u32 = 0;
     let mut body = Vec::new();
     for cand in candidates {
@@ -1050,10 +1199,15 @@ pub fn compute_ballots_hash(
             }
         }
     }
-    canonical.extend_from_slice(&included.to_le_bytes());
-    canonical.extend_from_slice(&body);
+    // v0.3.14 F2: DST prefix on the ballots-hash preimage domain-separates
+    // it from the names-hash preimage so they can never collide on the
+    // leading bytes. 23 ASCII bytes, no length prefix.
+    let mut preimage = Vec::with_capacity(DST_BALLOTS.len() + 4 + body.len());
+    preimage.extend_from_slice(DST_BALLOTS);
+    preimage.extend_from_slice(&included.to_le_bytes());
+    preimage.extend_from_slice(&body);
     let mut hasher = Sha256::new();
-    hasher.update(&canonical);
+    hasher.update(&preimage);
     hasher.finalize().into()
 }
 
@@ -1292,19 +1446,27 @@ pub fn build_publish_report_data(commit_hash: &[u8; 32]) -> [u8; 64] {
 }
 
 /// Build a registration-purpose ReportData: lower 32 = SHA-256(
-/// enclave_pubkey ‖ Borsh(contract_addr) ‖ u64_LE(election_id)),
-/// upper 32 = DST_VERIFIED_RCV_PUBKEY_V1 zero-padded.
-/// v0.3.12 N22: election_id added to the hash preimage to block
-/// replay across elections.
+/// enclave_pubkey ‖ Borsh(contract_addr) ‖ u64_LE(election_id) ‖
+/// names_hash), upper 32 = DST_VERIFIED_RCV_PUBKEY_V1 zero-padded.
+/// v0.3.12 N22 added (contract_addr, election_id) to block replay
+/// across elections; v0.3.14 F1 added `names_hash` so registration-time
+/// tampering of candidate display names is detectable at CreateElection
+/// time (defense-in-depth alongside the publish-time names_hash check).
 pub fn build_registration_report_data(
     enclave_pubkey: &[u8],
     contract_addr: &str,
     election_id: u64,
+    names_hash: &[u8; 32],
 ) -> [u8; 64] {
-    let mut preimage = Vec::with_capacity(enclave_pubkey.len() + contract_addr.len() + 16);
+    let mut preimage =
+        Vec::with_capacity(enclave_pubkey.len() + contract_addr.len() + 16 + 32);
     preimage.extend_from_slice(enclave_pubkey);
     write_borsh_string(&mut preimage, contract_addr);
     preimage.extend_from_slice(&election_id.to_le_bytes());
+    // v0.3.14 F1: bind names_hash into the registration ReportData so a
+    // host that tampers with candidate names between CreateElection and
+    // PublishResult is detectable at CreateElection-time as well.
+    preimage.extend_from_slice(names_hash);
     let mut hasher = Sha256::new();
     hasher.update(&preimage);
     let h = hasher.finalize();
@@ -1370,12 +1532,33 @@ mod tests {
         contract_addr: &str,
         election_id: u64,
     ) -> HexBinary {
+        synthetic_pi_for_pubkey_with_id_and_names(
+            pk,
+            reg,
+            contract_addr,
+            election_id,
+            &three_names_hash(),
+        )
+    }
+
+    fn synthetic_pi_for_pubkey_with_id_and_names(
+        pk: &HexBinary,
+        reg: &EnclaveImageRegistry,
+        contract_addr: &str,
+        election_id: u64,
+        names_hash: &[u8; 32],
+    ) -> HexBinary {
         let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
         let r0 = reg.rtmr0.clone().unwrap_or_else(|| vec![0u8; 48]);
         let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
         let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
         let r3 = reg.rtmr3.clone().unwrap_or_else(|| vec![0u8; 48]);
-        let rd = build_registration_report_data(pk.as_slice(), contract_addr, election_id);
+        let rd = build_registration_report_data(
+            pk.as_slice(),
+            contract_addr,
+            election_id,
+            names_hash,
+        );
         let pi = build_synthetic_public_inputs(
             &mrtd,
             &r0.try_into().unwrap(),
@@ -1409,6 +1592,20 @@ mod tests {
         compute_ballots_hash(&[], &[])
     }
 
+    /// v0.3.14: candidate_names parallel to `three_cands()` used by unit
+    /// tests that exercise the CreateElection end-to-end flow. Three
+    /// byte-distinct UTF-8 labels within the 64-byte cap.
+    fn three_names() -> Vec<String> {
+        vec!["Alice".to_string(), "Bob".to_string(), "Carol".to_string()]
+    }
+
+    /// v0.3.14: names_hash matching `three_names()`. Used as the default
+    /// for synthetic publish PIs in tests where the chain-stored election
+    /// was created with `three_names()`.
+    fn three_names_hash() -> [u8; 32] {
+        compute_names_hash(&three_names())
+    }
+
     fn synthetic_pi_for_tally(
         contract_addr: &str,
         election_id: u64,
@@ -1421,8 +1618,9 @@ mod tests {
         let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
         let r3 = reg.rtmr3.clone().unwrap_or_else(|| vec![0u8; 48]);
         let bh = empty_ballots_hash();
+        let nh = three_names_hash();
         let commit =
-            compute_commit_hash(contract_addr, MOCK_CHAIN_ID, election_id, &bh, tally);
+            compute_commit_hash(contract_addr, MOCK_CHAIN_ID, election_id, &bh, &nh, tally);
         let rd = build_publish_report_data(&commit);
         let pi = build_synthetic_public_inputs(
             &mrtd,
@@ -1701,7 +1899,7 @@ mod tests {
     fn publish_quote_wrong_dst_rejected() {
         let reg = good_registry();
         let tally = minimal_valid_tally();
-        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &tally);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
         let mut rd = [0u8; 64];
         rd[..32].copy_from_slice(&commit);
         // Wrong DST in upper 32 — leave as zeros (no DST_VERIFIED_RCV_TALLY_V1).
@@ -1721,7 +1919,7 @@ mod tests {
         // PI committing to a DIFFERENT election_id
         let pi = synthetic_pi_for_tally("cw1xxx", 999, &tally, &reg);
         // Expected commit for the REAL election_id
-        let expected_commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &tally);
+        let expected_commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
         let deps = mock_dependencies();
         let err = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &dummy_proof(), &pi)
             .unwrap_err();
@@ -1733,7 +1931,7 @@ mod tests {
         let mut reg = good_registry();
         let tally = minimal_valid_tally();
         let pi = synthetic_pi_for_tally("cw1xxx", 1, &tally, &reg);
-        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &tally);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
         // Mutate registry to expect a DIFFERENT mrtd.
         reg.mrtd = vec![0xFF; 48];
         let deps = mock_dependencies();
@@ -1750,7 +1948,7 @@ mod tests {
         let reg = good_registry();
         let tally = minimal_valid_tally();
         let pi = synthetic_pi_for_tally("cw1xxx", 1, &tally, &reg);
-        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &tally);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
         let deps = mock_dependencies();
         verify_publish_quote(deps.as_ref(), &reg, &commit, &dummy_proof(), &pi).unwrap();
     }
@@ -1763,13 +1961,15 @@ mod tests {
     fn registration_quote_wrong_dst_rejected() {
         let reg = good_registry();
         let pk = good_pubkey();
-        // Build ReportData with correct preimage (pubkey + addr + election_id)
-        // but a WRONG DST tag in the upper 32 bytes (TALLY tag = cross-purpose
-        // replay attempt).
+        // Build ReportData with correct preimage (pubkey + addr + election_id +
+        // names_hash) but a WRONG DST tag in the upper 32 bytes (TALLY tag =
+        // cross-purpose replay attempt).
+        let nh = three_names_hash();
         let expected = build_registration_report_data(
             pk.as_slice(),
             &mock_contract_addr(),
             MOCK_NEXT_ELECTION_ID,
+            &nh,
         );
         let mut rd = [0u8; 64];
         rd[..32].copy_from_slice(&expected[..32]);
@@ -1784,6 +1984,7 @@ mod tests {
             &pk,
             &mock_contract_addr(),
             MOCK_NEXT_ELECTION_ID,
+            &nh,
             &dummy_proof(),
             &pi,
         )
@@ -1799,7 +2000,7 @@ mod tests {
         pk_b_bytes[0] = 0x03;
         pk_b_bytes[1] = 0x01;
         let pk_b = HexBinary::from(pk_b_bytes);
-        // PI commits to pk_a; chain expects pk_b binding (same addr+id).
+        // PI commits to pk_a; chain expects pk_b binding (same addr+id+names).
         let pi = synthetic_pi_for_pubkey(&pk_a, &reg);
         let deps = mock_dependencies();
         let err = verify_registration_quote(
@@ -1808,6 +2009,7 @@ mod tests {
             &pk_b,
             &mock_contract_addr(),
             MOCK_NEXT_ELECTION_ID,
+            &three_names_hash(),
             &dummy_proof(),
             &pi,
         )
@@ -1829,6 +2031,7 @@ mod tests {
             &pk,
             &mock_contract_addr(),
             2, // chain expects election_id=2
+            &three_names_hash(),
             &dummy_proof(),
             &pi,
         )
@@ -1865,11 +2068,44 @@ mod tests {
             &pk,
             &mock_contract_addr(),
             MOCK_NEXT_ELECTION_ID,
+            &three_names_hash(),
             &dummy_proof(),
             &pi,
         )
         .unwrap_err();
         assert!(matches!(err, ContractError::RegistrationQuoteWrongElection));
+    }
+
+    /// v0.3.14 F1: a quote bound to the canonical `three_names_hash` cannot
+    /// be replayed when the chain expects a different names_hash. Defense-in-
+    /// depth: tamper detection moves from publish-only to publish+registration.
+    #[test]
+    fn registration_quote_wrong_names_hash_rejected() {
+        let reg = good_registry();
+        let pk = good_pubkey();
+        let nh_a = three_names_hash();
+        let mut nh_b = nh_a;
+        nh_b[0] ^= 0xFF;
+        let pi = synthetic_pi_for_pubkey_with_id_and_names(
+            &pk,
+            &reg,
+            &mock_contract_addr(),
+            MOCK_NEXT_ELECTION_ID,
+            &nh_a,
+        );
+        let deps = mock_dependencies();
+        let err = verify_registration_quote(
+            deps.as_ref(),
+            &reg,
+            &pk,
+            &mock_contract_addr(),
+            MOCK_NEXT_ELECTION_ID,
+            &nh_b, // chain expects a different names_hash
+            &dummy_proof(),
+            &pi,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::AttestationPubkeyBindingMismatch));
     }
 
     #[test]
@@ -1884,6 +2120,7 @@ mod tests {
             &pk,
             &mock_contract_addr(),
             MOCK_NEXT_ELECTION_ID,
+            &three_names_hash(),
             &dummy_proof(),
             &pi,
         )
@@ -1914,6 +2151,7 @@ mod tests {
             id: 1,
             title: "t".into(),
             candidates: three_cands(),
+            candidate_names: three_names(),
             start_at: Timestamp::from_seconds(0),
             end_at: Timestamp::from_seconds(100),
             ballot_count: 3,
@@ -1969,6 +2207,7 @@ mod tests {
             info.clone(),
             "first".into(),
             three_cands(),
+            three_names(),
             env.block.time.plus_seconds(10),
             env.block.time.plus_seconds(1000),
             pk.clone(),
@@ -1990,6 +2229,7 @@ mod tests {
             info,
             "second".into(),
             three_cands(),
+            three_names(),
             env.block.time.plus_seconds(2000),
             env.block.time.plus_seconds(3000),
             pk,
@@ -2025,6 +2265,7 @@ mod tests {
             info,
             "first".into(),
             three_cands(),
+            three_names(),
             env.block.time.plus_seconds(10),
             env.block.time.plus_seconds(1000),
             pk,
@@ -2063,6 +2304,7 @@ mod tests {
             info.clone(),
             "first".into(),
             three_cands(),
+            three_names(),
             env.block.time.plus_seconds(10),
             env.block.time.plus_seconds(1000),
             pk.clone(),
@@ -2098,6 +2340,7 @@ mod tests {
             info,
             "second".into(),
             three_cands(),
+            three_names(),
             env.block.time.plus_seconds(3000),
             env.block.time.plus_seconds(4000),
             pk,
@@ -2142,6 +2385,7 @@ mod tests {
             info,
             "e".into(),
             three_cands(),
+            three_names(),
             env.block.time.plus_seconds(10),
             env.block.time.plus_seconds(1000),
             pk_chain,
@@ -2207,6 +2451,7 @@ mod tests {
             info.clone(),
             "e".into(),
             three_cands(),
+            three_names(),
             env.block.time.plus_seconds(10),
             env.block.time.plus_seconds(1000),
             pk,

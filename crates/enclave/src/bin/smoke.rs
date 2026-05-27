@@ -80,12 +80,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         },
     ];
 
+    // v0.3.14: candidate_names parallel to `candidates`. The smoke binary
+    // uses the candidate address strings as display names since smoke
+    // doesn't care about UI presentation; the chain only checks that
+    // names_hash matches its stored value.
+    let candidate_names: Vec<String> = candidates.to_vec();
     let tally_req = TallyRequest {
         contract_addr: args.contract_addr.clone(),
         election_id: args.election_id,
         candidates: candidates.clone(),
         raw_ballots,
         chain_id: args.chain_id.clone(),
+        candidate_names,
     };
 
     let mut req = Request::new(tally_req);

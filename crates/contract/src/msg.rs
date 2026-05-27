@@ -69,6 +69,11 @@ pub enum ExecuteMsg {
     CreateElection {
         title: String,
         candidates: Vec<Addr>,
+        /// v0.3.14: human-readable display names parallel-indexed to
+        /// `candidates`. The chain validates length match, byte-length
+        /// 1..=64, no NUL byte, and byte-distinctness; admin-supplied
+        /// labels are off-chain trust per intent §6.4.
+        candidate_names: Vec<String>,
         start_at: Timestamp,
         end_at: Timestamp,
         enclave_pubkey: HexBinary,

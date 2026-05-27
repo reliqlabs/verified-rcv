@@ -41,6 +41,14 @@ message TallyRequest {
   // contract reads this from `env.block.chain_id` at PublishResult
   // time and checks bytewise equality.
   string chain_id = 5;
+
+  // v0.3.14: human-readable candidate display names parallel-indexed to
+  // `candidates`. The runtime computes `names_hash` from this list and
+  // binds it into the publish attestation's commit hash so a host that
+  // substitutes display names mid-flight diverges from the chain's
+  // stored `Election.candidate_names` and the publish attestation
+  // rejects with `AttestationCommitMismatch`.
+  repeated string candidate_names = 6;
 }
 
 message RawBallot {
@@ -73,6 +81,12 @@ message RegisterPubkeyRequest {
   string contract_addr = 1;
   // Election ID the admin is about to use at CreateElection.
   uint64 election_id = 2;
+  // v0.3.14 F1: candidate display names the admin will pass at
+  // CreateElection. Bound into the registration quote's ReportData so
+  // tampering with names between CreateElection and PublishResult is
+  // detectable at CreateElection-time (defense-in-depth alongside the
+  // publish-time names_hash check).
+  repeated string candidate_names = 3;
 }
 
 message RegisterPubkeyResponse {

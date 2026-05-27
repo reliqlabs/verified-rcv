@@ -51,6 +51,17 @@ module rcv {
   const START_AT: int
   const END_AT: int
 
+  // v0.3.14 B11: human-readable display names parallel-indexed to
+  // CANDIDATES. Length must equal CANDIDATES.length(); entries must be
+  // non-empty and byte-distinct. Bound here as a `const` because the
+  // intent specifies names are admin-supplied at CreateElection and
+  // immutable thereafter — the existing model treats `init` as
+  // post-CreateElection state, so a static `const` matches the
+  // operational discipline (no handler ever writes the field after
+  // CreateElection; structural immutability is the chain-side
+  // enforcement). A concrete instantiation lives in main.qnt.
+  const CANDIDATE_NAMES: List[str]
+
   // Sample ciphertext universe and time-tick set, used by `step`.
   // Bounded so the model checker terminates.
   const CIPHERTEXTS: Set[str]
@@ -176,6 +187,19 @@ module rcv {
   // `(finalize_just_fired AND derived_phase ∈ {Voting, Tallying})`;
   // unreachable under finalize's guard.
   var finalize_just_fired: bool
+
+  // v0.3.14 B11: state-resident copy of the admin-supplied display
+  // names. Written once at `init` (representing CreateElection
+  // completion) from the `CANDIDATE_NAMES` const; every subsequent
+  // action carries `candidate_names' = candidate_names`. The
+  // companion `candidate_names_set` flag flips true at init and
+  // stays true forever, giving `inv_names_immutable` a temporal
+  // anchor. Modeled as a regular state field (not a ghost) because
+  // the field is observable on-chain in the real contract
+  // (`ELECTION.candidate_names`); the immutability discipline is
+  // structurally enforced by every action's frame condition.
+  var candidate_names: List[str]
+  var candidate_names_set: bool
 
   // Ghost variable: snapshot of `registry` at the moment
   // `publish_result` fires. Anchors B8 ("publish only when registry
@@ -333,6 +357,10 @@ module rcv {
     create_election_just_fired' = false,
     finalize_just_fired' = false,
     ghost_registry_at_publish' = CANONICAL_REGISTRY,
+    // v0.3.14 B11: init models post-CreateElection. Names are loaded
+    // from the const, and the set-flag flips true forever.
+    candidate_names' = CANDIDATE_NAMES,
+    candidate_names_set' = true,
   }
 
   // ============================================================
@@ -362,6 +390,9 @@ module rcv {
     create_election_just_fired' = false,
     finalize_just_fired' = false,
     ghost_registry_at_publish' = ghost_registry_at_publish,
+    // v0.3.14 B11: candidate_names is immutable post-CreateElection.
+    candidate_names' = candidate_names,
+    candidate_names_set' = candidate_names_set,
   }
 
   // intent §2.5 Block 3 — submit_ballot. Requires the sender to be a
@@ -387,6 +418,9 @@ module rcv {
     create_election_just_fired' = false,
     finalize_just_fired' = false,
     ghost_registry_at_publish' = ghost_registry_at_publish,
+    // v0.3.14 B11: candidate_names is immutable post-CreateElection.
+    candidate_names' = candidate_names,
+    candidate_names_set' = candidate_names_set,
   }
 
   // intent §2.5 Block 5 — close_and_tally. Idempotent event-only;
@@ -406,6 +440,9 @@ module rcv {
     create_election_just_fired' = false,
     finalize_just_fired' = false,
     ghost_registry_at_publish' = ghost_registry_at_publish,
+    // v0.3.14 B11: candidate_names is immutable post-CreateElection.
+    candidate_names' = candidate_names,
+    candidate_names_set' = candidate_names_set,
   }
 
   // intent §2.5 Block E1 — enclave computes Tally_spec over the
@@ -433,6 +470,9 @@ module rcv {
     create_election_just_fired' = false,
     finalize_just_fired' = false,
     ghost_registry_at_publish' = ghost_registry_at_publish,
+    // v0.3.14 B11: candidate_names is immutable post-CreateElection.
+    candidate_names' = candidate_names,
+    candidate_names_set' = candidate_names_set,
   }
 
   // intent §2.5 Block 6 — publish_result. Requires Tallying phase,
@@ -464,6 +504,9 @@ module rcv {
     // publish") then reads `ghost_registry_at_publish`, which the
     // v0.3.10 N2 registry rotation cannot mutate.
     ghost_registry_at_publish' = registry,
+    // v0.3.14 B11: candidate_names is immutable post-CreateElection.
+    candidate_names' = candidate_names,
+    candidate_names_set' = candidate_names_set,
   }
 
   // ============================================================
@@ -515,6 +558,9 @@ module rcv {
     create_election_just_fired' = false,
     finalize_just_fired' = false,
     ghost_registry_at_publish' = ghost_registry_at_publish,
+    // v0.3.14 B11: candidate_names is immutable post-CreateElection.
+    candidate_names' = candidate_names,
+    candidate_names_set' = candidate_names_set,
   }
 
   // N2 (v0.3.10): permissionless finalize after the timelock expires.
@@ -539,6 +585,9 @@ module rcv {
     create_election_just_fired' = false,
     finalize_just_fired' = true,
     ghost_registry_at_publish' = ghost_registry_at_publish,
+    // v0.3.14 B11: candidate_names is immutable post-CreateElection.
+    candidate_names' = candidate_names,
+    candidate_names_set' = candidate_names_set,
   }
 
   // N2 (v0.3.10): admin discards a pending registry update.
@@ -557,6 +606,9 @@ module rcv {
     create_election_just_fired' = false,
     finalize_just_fired' = false,
     ghost_registry_at_publish' = ghost_registry_at_publish,
+    // v0.3.14 B11: candidate_names is immutable post-CreateElection.
+    candidate_names' = candidate_names,
+    candidate_names_set' = candidate_names_set,
   }
 
   // v0.3.12 N17 first gate: `exec_create_election` refuses when
@@ -589,6 +641,9 @@ module rcv {
     create_election_just_fired' = true,
     finalize_just_fired' = false,
     ghost_registry_at_publish' = ghost_registry_at_publish,
+    // v0.3.14 B11: candidate_names is immutable post-CreateElection.
+    candidate_names' = candidate_names,
+    candidate_names_set' = candidate_names_set,
   }
 
   // ============================================================
@@ -781,6 +836,32 @@ module rcv {
         and is_active_phase(derived_phase(block_time, contract_tally_result)))
   }
 
+  // v0.3.14 B11: candidate_names immutable post-CreateElection.
+  // Encoded as a per-state invariant: once `candidate_names_set` is
+  // true (which `init` flips and no action clears), the names list
+  // (a) equals the admin-supplied `CANDIDATE_NAMES` const value,
+  // (b) is length-matched to `CANDIDATES`,
+  // (c) contains only non-empty entries, and
+  // (d) has no two byte-equal entries (distinctness).
+  // The temporal "never changes" claim is structurally enforced by
+  // every action's `candidate_names' = candidate_names` frame; this
+  // invariant pins the *value* the field always equals, which gives
+  // the model checker a falsifiable witness if any action were ever
+  // to mutate it. Together (structural frame + value invariant)
+  // discharge the B11 obligation at the Quint layer.
+  val inv_names_immutable: bool = {
+    if (candidate_names_set)
+      and {
+        candidate_names == CANDIDATE_NAMES,
+        candidate_names.length() == CANDIDATES.length(),
+        candidate_names.indices().forall(i => candidate_names[i] != ""),
+        // Byte-distinctness via fold-into-set cardinality.
+        candidate_names.foldl(Set(), (acc, n) => acc.union(Set(n))).size()
+          == candidate_names.length(),
+      }
+    else true
+  }
+
   // Composite — checked via `quint verify --invariant=all_invariants`.
   val all_invariants: bool = all {
     inv_ballot_keys_are_candidates,
@@ -791,6 +872,7 @@ module rcv {
     inv_b10_chain_side_projection,
     inv_no_create_election_while_pending,
     inv_no_finalize_during_active_election,
+    inv_names_immutable,
   }
 
   // ============================================================
@@ -858,5 +940,17 @@ module rcv {
   val witness_n17_finalize_in_active_phase: bool = {
     not(finalize_just_fired
         and is_active_phase(derived_phase(block_time, contract_tally_result)))
+  }
+
+  // v0.3.14 B11 non-vacuity witness. Should fail: the names field is
+  // populated and the set-flag is true at every reachable state
+  // (init writes them; no action clears). Confirms the immutability
+  // invariant is non-vacuously satisfied — names actually exist in
+  // the reachable state space, not merely "the antecedent never
+  // fires." Negation: "no reachable state has names_set true with a
+  // non-empty list." Apalache must find a counterexample (init
+  // itself, where the list is the CANDIDATE_NAMES const value).
+  val witness_names_set_after_create: bool = {
+    not(candidate_names_set and candidate_names.length() > 0)
   }
 }

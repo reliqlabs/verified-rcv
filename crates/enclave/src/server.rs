@@ -79,6 +79,7 @@ impl TallyService for TallyServiceImpl {
             candidates,
             raw_ballots,
             chain_id,
+            candidate_names,
         } = req.into_inner();
 
         // 1. KMS handshake. Privkey MUST come from dstack KMS per
@@ -117,6 +118,7 @@ impl TallyService for TallyServiceImpl {
             &chain_id,
             election_id,
             &ballots_hash,
+            &candidate_names,
             &tally,
         )
         .await
@@ -164,7 +166,11 @@ impl TallyService for TallyServiceImpl {
         &self,
         req: Request<RegisterPubkeyRequest>,
     ) -> Result<Response<RegisterPubkeyResponse>, Status> {
-        let RegisterPubkeyRequest { contract_addr, election_id } = req.into_inner();
+        let RegisterPubkeyRequest {
+            contract_addr,
+            election_id,
+            candidate_names,
+        } = req.into_inner();
 
         // 1. Same KMS derivation context the Tally path uses
         //    (verified-rcv-v1:{contract_addr}:{election_id}) — so the
@@ -184,18 +190,22 @@ impl TallyService for TallyServiceImpl {
         let pubkey_point = signing.verifying_key().to_encoded_point(true);
         let enclave_pubkey: Vec<u8> = pubkey_point.as_bytes().to_vec();
 
-        // 3. Registration artifacts. v0.3.12 N22: ReportData[0..32] =
+        // 3. Registration artifacts. v0.3.14 F1: ReportData[0..32] =
         //    SHA-256(enclave_pubkey ‖ borsh_string(contract_addr) ‖
-        //    u64_LE(election_id)); ReportData[32..58] =
-        //    DST_VERIFIED_RCV_PUBKEY_V1. The (contract_addr, election_id)
-        //    binding blocks an admin replaying an old registration quote
-        //    across elections.
+        //    u64_LE(election_id) ‖ names_hash); ReportData[32..58] =
+        //    DST_VERIFIED_RCV_PUBKEY_V1. The (contract_addr, election_id,
+        //    names_hash) triple binding blocks an admin replaying an old
+        //    registration quote across elections AND blocks an admin
+        //    swapping candidate display names between CreateElection and
+        //    PublishResult (defense-in-depth alongside the publish-time
+        //    names_hash check).
         let (proof, public_inputs) = produce_registration_artifacts(
             self.dstack.as_ref(),
             &self.identity,
             &enclave_pubkey,
             &contract_addr,
             election_id,
+            &candidate_names,
         )
         .await
         .map_err(|e| Status::internal(format!("registration artifacts: {e}")))?;
@@ -208,7 +218,15 @@ impl TallyService for TallyServiceImpl {
     }
 }
 
-#[cfg(test)]
+// The simulator-backed server tests below exercise the synthetic
+// `produce_artifacts_inner` stub under default features. Under
+// `--features real-zkdcap`, `produce_artifacts_inner` calls
+// `dcap_qvl::collateral::get_collateral_from_pcs` on the simulator's
+// mock quote, which fails as "Unsupported quote version" (the mock
+// isn't a real TDX quote). The integration test in
+// `crates/enclave/tests/real_zkdcap.rs` covers the real path against a
+// real dstack quote + a live prover socket.
+#[cfg(all(test, not(feature = "real-zkdcap")))]
 mod tests {
     use super::proto::tally_service_client::TallyServiceClient;
     use super::proto::tally_service_server::TallyServiceServer;
@@ -280,6 +298,7 @@ mod tests {
         let mut client = TallyServiceClient::connect(format!("http://{addr}"))
             .await
             .expect("client connect");
+        let names = vec!["Ada".to_string(), "Bea".to_string(), "Cyd".to_string()];
         let resp = client
             .tally(Request::new(TallyRequest {
                 contract_addr: "xion1contract".to_string(),
@@ -287,6 +306,7 @@ mod tests {
                 candidates: cands.clone(),
                 raw_ballots,
                 chain_id: "xion-test-1".to_string(),
+                candidate_names: names.clone(),
             }))
             .await
             .expect("tally rpc")
@@ -325,11 +345,13 @@ mod tests {
             ("B".to_string(), ct_b),
         ];
         let bh = crate::attestation::compute_ballots_hash(&cands_str, &ballots_for_hash);
+        let nh = crate::attestation::compute_names_hash(&names);
         let expected_rd = crate::attestation::build_publish_report_data(
             "xion1contract",
             "xion-test-1",
             42,
             &bh,
+            &nh,
             &tally,
         );
         assert_eq!(rd_low, expected_rd[..32], "ReportData[0..32] = commit_hash");
@@ -364,10 +386,12 @@ mod tests {
         let mut client = TallyServiceClient::connect(format!("http://{addr}"))
             .await
             .expect("client connect");
+        let reg_names = vec!["Ada".to_string(), "Bea".to_string(), "Cyd".to_string()];
         let resp = client
             .register_pubkey(Request::new(proto::RegisterPubkeyRequest {
                 contract_addr: "xion1contract".to_string(),
                 election_id: 7,
+                candidate_names: reg_names.clone(),
             }))
             .await
             .expect("register_pubkey rpc")
@@ -400,12 +424,14 @@ mod tests {
         for i in 0..32 {
             rd_low[i] = pi[(240 + i) * 32 + 31];
         }
+        let expected_nh = crate::attestation::compute_names_hash(&reg_names);
         let expected_rd = crate::attestation::build_registration_report_data(
             &resp.enclave_pubkey,
             "xion1contract",
             7,
+            &expected_nh,
         );
-        assert_eq!(rd_low, expected_rd[..32], "ReportData[0..32] = N22 preimage hash");
+        assert_eq!(rd_low, expected_rd[..32], "ReportData[0..32] = F1 preimage hash");
         let _ = Sha256::new(); // keep sha2 import warm for future tests
 
         // (d) ReportData[32..58] = DST_VERIFIED_RCV_PUBKEY_V1.
@@ -523,6 +549,7 @@ mod tests {
         let mk = || proto::RegisterPubkeyRequest {
             contract_addr: "xion1abc".to_string(),
             election_id: 99,
+            candidate_names: vec!["Ada".to_string(), "Bea".to_string()],
         };
         let a = client.register_pubkey(Request::new(mk())).await.unwrap().into_inner();
         let b = client.register_pubkey(Request::new(mk())).await.unwrap().into_inner();

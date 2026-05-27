@@ -48,8 +48,9 @@ use verified_rcv_enclave_core::{RoundCount, RoundCounts, TallyResult};
 
 use crate::contract::{
     build_publish_report_data, build_registration_report_data, build_synthetic_public_inputs,
-    check_tally_well_formed, compute_ballots_hash, compute_commit_hash, derive_phase,
-    exec_publish_result, exec_submit_ballot, verify_publish_quote, verify_registration_quote,
+    check_tally_well_formed, compute_ballots_hash, compute_commit_hash, compute_names_hash,
+    derive_phase, exec_publish_result, exec_submit_ballot, verify_publish_quote,
+    verify_registration_quote,
 };
 use crate::error::ContractError;
 use crate::state::{
@@ -99,11 +100,18 @@ fn candidates() -> Vec<Addr> {
     ]
 }
 
+/// v0.3.14: candidate_names parallel to `candidates()`. Three byte-distinct
+/// UTF-8 labels within the 64-byte cap.
+fn candidate_names() -> Vec<String> {
+    vec!["Alice".to_string(), "Bob".to_string(), "Carol".to_string()]
+}
+
 fn fresh_election() -> Election {
     Election {
         id: 1,
         title: "t".to_string(),
         candidates: candidates(),
+        candidate_names: candidate_names(),
         start_at: Timestamp::from_nanos(START_AT_NS),
         end_at: Timestamp::from_nanos(END_AT_NS),
         ballot_count: 0,
@@ -152,7 +160,7 @@ fn fresh_publish_artifacts(
     // selectively and the publish flow walks BALLOTS at PublishResult
     // time. For the harness's chain-side commit, hash the empty view.
     let bh = compute_ballots_hash(&[], &[]);
-    let commit = compute_commit_hash(contract_addr, chain_id, election_id, &bh, tally);
+    let commit = compute_commit_hash(contract_addr, chain_id, election_id, &bh, &compute_names_hash(&candidate_names()), tally);
     let rd = build_publish_report_data(&commit);
     let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
     let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
@@ -482,6 +490,7 @@ pub fn derive_phase_total_and_partitioned() {
         id: 1,
         title: "t".to_string(),
         candidates: candidates(),
+        candidate_names: candidate_names(),
         start_at: Timestamp::from_nanos(start_ns),
         end_at: Timestamp::from_nanos(end_ns),
         ballot_count: 0,
@@ -733,7 +742,7 @@ fn known_good_publish_pi_bytes(
 ) -> Vec<u8> {
     let reg = fresh_registry();
     let bh = compute_ballots_hash(&[], &[]);
-    let commit = compute_commit_hash(contract_addr, chain_id, election_id, &bh, tally);
+    let commit = compute_commit_hash(contract_addr, chain_id, election_id, &bh, &compute_names_hash(&candidate_names()), tally);
     let rd = build_publish_report_data(&commit);
     let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
     let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
@@ -748,9 +757,11 @@ fn known_good_registration_pi_bytes(
     enclave_pubkey: &[u8],
     contract_addr: &str,
     election_id: u64,
+    names_hash: &[u8; 32],
 ) -> Vec<u8> {
     let reg = fresh_registry();
-    let rd = build_registration_report_data(enclave_pubkey, contract_addr, election_id);
+    let rd =
+        build_registration_report_data(enclave_pubkey, contract_addr, election_id, names_hash);
     let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
     let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
     let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
@@ -786,7 +797,7 @@ pub fn b8c_reportdata_commit_hash_matches() {
 
     let bh = compute_ballots_hash(&[], &[]);
     let expected_commit =
-        compute_commit_hash(contract_addr, chain_id, election_id, &bh, &tally);
+        compute_commit_hash(contract_addr, chain_id, election_id, &bh, &compute_names_hash(&candidate_names()), &tally);
     let proof = HexBinary::from(vec![0xABu8; 192]);
     let pi = HexBinary::from(pi_bytes);
     let deps = mock_dependencies();
@@ -828,7 +839,7 @@ pub fn b8d_measurement_mismatch_rejected() {
 
     let bh = compute_ballots_hash(&[], &[]);
     let expected_commit =
-        compute_commit_hash(contract_addr, chain_id, election_id, &bh, &tally);
+        compute_commit_hash(contract_addr, chain_id, election_id, &bh, &compute_names_hash(&candidate_names()), &tally);
     let proof = HexBinary::from(vec![0xABu8; 192]);
     let pi = HexBinary::from(pi_bytes);
     let deps = mock_dependencies();
@@ -865,8 +876,13 @@ pub fn b8e_registration_pubkey_binding() {
     let pk = HexBinary::from(pk_bytes);
     let contract_addr = "cw1xxx";
     let election_id: u64 = 1;
-    let mut pi_bytes =
-        known_good_registration_pi_bytes(pk.as_slice(), contract_addr, election_id);
+    let names_hash = compute_names_hash(&candidate_names());
+    let mut pi_bytes = known_good_registration_pi_bytes(
+        pk.as_slice(),
+        contract_addr,
+        election_id,
+        &names_hash,
+    );
 
     // Symbolic byte index across the full ReportData[0..64] range.
     let k: u8 = kani::any();
@@ -883,6 +899,7 @@ pub fn b8e_registration_pubkey_binding() {
         &pk,
         contract_addr,
         election_id,
+        &names_hash,
         &proof,
         &pi,
     );
@@ -904,4 +921,74 @@ pub fn b8e_registration_pubkey_binding() {
     } else {
         assert!(matches!(res, Err(ContractError::AttestationDomainTagInvalid)));
     }
+}
+
+// --------------------------------------------------------------------
+// Harness 14: B11 names_hash divergence rejected (v0.3.14)
+// --------------------------------------------------------------------
+//
+// §8.7 link 7 (`enclave_input_fidelity`) v0.3.14 extension: the
+// commit_hash preimage binds `names_hash` (alongside `ballots_hash`) so a
+// host that substitutes `candidate_names` between vote-time and publish
+// produces a runtime-side `names_hash` diverging from the chain's
+// `compute_names_hash(&election.candidate_names)`. The chain's
+// `verify_publish_quote` then fails `AttestationCommitMismatch`.
+//
+// The harness witnesses that property symbolically. The attestation PI is
+// built with the canonical `candidate_names()` (so the attacker's claimed
+// `commit_hash_attacker` commits to the canonical names_hash). The
+// chain-side `expected_commit` is recomputed with a *perturbed* names_hash
+// (XOR-flip of one symbolic byte index `k < 32`). The two commits differ
+// deterministically; the verifier MUST reject with
+// `AttestationCommitMismatch` because the measurement + TCB slots in the
+// PI are untouched and pass first.
+//
+// This sits parallel to `b8c_reportdata_commit_hash_matches` (which flips
+// the commit_hash byte in PI directly) but isolates the *names_hash* leg
+// of the preimage so the failure mode is attributable to names tamper
+// rather than ballots or tally tamper.
+
+#[cfg_attr(kani, kani::proof)]
+#[cfg_attr(kani, kani::unwind(8))]
+pub fn names_mismatch_rejected() {
+    let reg = fresh_registry();
+    let tally = minimal_valid_tally();
+    let contract_addr = "cw1xxx";
+    let chain_id = "cosmos-testnet-14002";
+    let election_id: u64 = 1;
+    // Attestation PI commits to the canonical names_hash (attacker's view).
+    let pi_bytes =
+        known_good_publish_pi_bytes(contract_addr, chain_id, election_id, &tally);
+
+    // Chain-side recomputation with a perturbed names_hash: XOR-flip one
+    // symbolic byte index k < 32 of the names_hash that feeds into
+    // `compute_commit_hash`. Mirrors the b8c PI-byte-flip pattern at the
+    // names_hash slot of the canonical_serialization preimage (rather than
+    // at the PI ReportData slot).
+    let k: u8 = kani::any();
+    kani::assume(k < 32);
+    let canonical_names_hash = compute_names_hash(&candidate_names());
+    let mut perturbed_names_hash = canonical_names_hash;
+    perturbed_names_hash[k as usize] ^= 0xFF;
+
+    let bh = compute_ballots_hash(&[], &[]);
+    let expected_commit = compute_commit_hash(
+        contract_addr,
+        chain_id,
+        election_id,
+        &bh,
+        &perturbed_names_hash,
+        &tally,
+    );
+    let proof = HexBinary::from(vec![0xABu8; 192]);
+    let pi = HexBinary::from(pi_bytes);
+    let deps = mock_dependencies();
+    let res = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &proof, &pi);
+
+    // Post-condition: any single-byte flip in the names_hash leg of the
+    // commit_hash preimage causes the chain-recomputed commit to differ
+    // from the attestation's commit_hash slot, so `verify_publish_quote`
+    // rejects with `AttestationCommitMismatch`. Measurements + TCB pass
+    // unchanged (those slots in PI were not touched).
+    assert!(matches!(res, Err(ContractError::AttestationCommitMismatch)));
 }
