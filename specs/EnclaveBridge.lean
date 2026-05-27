@@ -311,4 +311,67 @@ axiom B10_lean_decrypt
       verified_rcv_enclave_core.decrypt_and_validate raw candidates privkey = .ok d →
       True
 
+/-! ## Round 3f composition: B10 cross-layer assembly
+
+Assembles the 5-link discharge (§8.7) for B10 into a single named theorem.
+The shape makes each link's trust dependency explicit:
+
+| link | what | discharge |
+|---|---|---|
+| 1 | `B10_lean_decrypt` (Stage 1) | axiom (line 306); gated on runtime crate Aeneas extraction |
+| 2 | `B10_lean_irv` (Stage 2) | theorem with sorry (line 287); decomposes into 10 bridge sorries |
+| 4 | `image_identity_binding` | axiom (below); operational, gated on reproducible-build pipeline |
+| 5 | `B8` chain-witness | discharged on-chain via `verify_publish_quote` (contract.rs:893) |
+| 6 | `dstack_kms_trust` | operational assumption (intent §6.3) |
+| 7 | `enclave_input_fidelity` | discharged on-chain via `ballots_hash` (contract.rs:437) |
+
+Links 5, 6, 7 are not Lean-discharged; they are chain-side or operational.
+Links 1, 2, 4 are the Lean-discharged ingredients of `B10_lean`. -/
+
+/-- **Link 4: image-identity-binding** (operational, off-chain).
+
+States that the `EnclaveImage` symbol (`RcvSpec.lean:1485`) equals
+`Tally_spec` on its math inputs. The binding is discharged operationally
+by the reproducible-build pipeline: the wasm or TDX image's MRTD+RTMR
+registered on-chain matches the hash of the binary that Aeneas extracted
+from. Without a reproducible-build pipeline, this axiom is the load-bearing
+trust gap.
+
+v0.3.13 packaging: the axiom replaces v0.3.0's implicit "EnclaveImage
+corresponds to extracted model" assumption with an explicit, refutable
+claim. AB.6 deferral-justification audit: the deferral is justified by
+named infrastructure (reproducible build) whose discharge plan is
+recorded in intent §8.7 link 4. -/
+axiom image_identity_binding
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    EnclaveImage raw cs pk = Tally_spec raw cs pk
+
+/-- **B10_composition** (Round 3f).
+
+Assembles links 1+2+4 into the math statement `B10_lean`. Currently the
+composition collapses to a single application of `image_identity_binding`
+because `B10_lean_decrypt` and `B10_lean_irv` operate on Aeneas types and
+do not directly compose with the math `Tally_spec` statement without
+intermediate lifts. The structured form makes future strengthening direct:
+
+1. When `B10_lean_decrypt` graduates from `axiom (… → True)` to a real
+   refinement claim (link 1 discharged via runtime crate Aeneas
+   extraction), it weakens the trust load on `image_identity_binding`.
+2. When `B10_lean_irv`'s 10 bridge sorries close (link 2 discharged), it
+   weakens the trust load further.
+3. When the reproducible-build pipeline lands (link 4 discharged), the
+   only remaining trust dependencies are links 5/6/7 — and 5/7 are
+   chain-witnessed, 6 is the `dstack_kms_trust` operational assumption.
+
+In the current v0.3.13 state, `B10_composition` and `B10_lean` are
+"true modulo `image_identity_binding`" — the entire Lean discharge
+collapses to one named operational axiom. The audit reading is: B10
+holds for the verified-rcv deployment when the chain's registered
+MRTD/RTMR identifies a binary extracted by Aeneas from the documented
+source tree. -/
+theorem B10_composition
+    (raw : RawBallots) (cs : CandidateSet) (pk : PrivKey) :
+    EnclaveImage raw cs pk = Tally_spec raw cs pk := by
+  exact image_identity_binding raw cs pk
+
 end VerifiedRcv
