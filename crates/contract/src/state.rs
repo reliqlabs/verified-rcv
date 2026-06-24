@@ -136,6 +136,14 @@ pub struct EnclaveImageRegistry {
     /// least one severity); 6 is rejected at validation (Revoked is
     /// circuit-hard-rejected anyway).
     pub accepted_tcb_statuses: Vec<u8>,
+    /// Monotonic TCB-recency floor. The 20-field dcap-noir circuit emits
+    /// `tcb_eval_num = min(tcbEvaluationDataNumber)` over the signed TCB-Info
+    /// + QE-Identity but has no counter of its own, so the chain rejects any
+    /// quote whose `tcb_eval_num` is below this floor. Governance raises it
+    /// (via the timelocked registry-update flow) as Intel publishes newer TCB
+    /// evaluation data; default 0 accepts any. Never lower it in practice.
+    #[serde(default)]
+    pub min_tcb_eval_num: u64,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

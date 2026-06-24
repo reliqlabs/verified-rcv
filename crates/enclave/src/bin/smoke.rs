@@ -3,7 +3,7 @@
 //! Drives a single Tally RPC against the deployed server with a
 //! synthetic 3-candidate fixture, then asserts the returned
 //! (tally_json, proof, public_inputs) is well-shaped per the packed
-//! dcap-noir UltraHonk layout — public_inputs length is 544 bytes and the
+//! dcap-noir UltraHonk layout — public_inputs length is 640 bytes and the
 //! ReportData[0..32] half matches `SHA-256(canonical_serialization(...))`.
 //!
 //! Used by `ops/smoke-phala.sh` against a Phala-deployed enclave-server.

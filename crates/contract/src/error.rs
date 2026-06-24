@@ -86,8 +86,8 @@ pub enum ContractError {
     // N1 audit re-review remediations (v0.3.9 — direct xion.zk proof verify).
 
     /// N1: `public_inputs` blob does not have the expected length per the
-    /// dcap-noir packed UltraHonk layout (17 BN254 fields × 32 BE bytes =
-    /// 544 bytes for the verified-rcv DCAP circuit).
+    /// dcap-noir packed UltraHonk layout (20 BN254 fields × 32 BE bytes =
+    /// 640 bytes for the verified-rcv DCAP circuit).
     #[error("public_inputs length: expected {expected}, got {got}")]
     PublicInputsLength { got: usize, expected: usize },
 
@@ -119,6 +119,25 @@ pub enum ContractError {
     /// circuit-hard-rejected by the dcap-noir prover.
     #[error("attestation TcbStatus={status} not in accepted set")]
     AttestationTcbStatusUnaccepted { status: u8 },
+
+    // 20-field dcap-noir circuit: mandatory recency/validity-window checks.
+
+    /// Chain time (`unix_to_packed_datetime(env.block.time)`) falls outside
+    /// the circuit-proven `[valid_from, valid_until]` collateral validity
+    /// window. The window is the signed-collateral freshness bound; the
+    /// host-chosen Timestamp is not trusted for freshness.
+    #[error("attestation validity window: chain time {now} not in [{valid_from}, {valid_until}]")]
+    AttestationValidityWindow {
+        now: u64,
+        valid_from: u64,
+        valid_until: u64,
+    },
+
+    /// `tcb_eval_num` (min tcbEvaluationDataNumber the circuit proved) is
+    /// below the registry's monotonic recency floor `min_tcb_eval_num`.
+    /// Closes stale-TCB selection; the circuit has no counter.
+    #[error("attestation tcb_eval_num {got} below floor {floor}")]
+    AttestationTcbEvalNumTooLow { got: u64, floor: u64 },
 
     // N2 audit re-review remediations (v0.3.10 — timelocked registry update).
 

@@ -279,8 +279,10 @@ fn synthetic_public_inputs_round_trip_contract_extraction() {
     for (i, b) in rd.iter_mut().enumerate() {
         *b = (i as u8).wrapping_add(0xA0);
     }
-    let pi = runtime_impl::build_public_inputs(
-        &mrtd, &[0; 48], &rtmr1, &[0; 48], &[0; 48], &rd, 3, 1_700_000_000,
+    // _full builder sets the recency/validity scalars (fields 17-19) so the
+    // cross-test pins them too. Field 14 timestamp = 1_700_000_000.
+    let pi = runtime_impl::build_public_inputs_full(
+        &mrtd, &[0; 48], &rtmr1, &[0; 48], &[0; 48], &rd, 3, 1_700_000_000, 42, 111, 222,
     );
     // Packed dcap-noir field indices — see contract.rs F_* constants.
     // mr_td starts at field 0; rtmr1 at field 4 (2 limbs per register).
@@ -290,4 +292,8 @@ fn synthetic_public_inputs_round_trip_contract_extraction() {
     assert_eq!(extracted_rtmr1, rtmr1);
     let extracted_rd = contract_impl::extract_report_data(&pi).unwrap();
     assert_eq!(extracted_rd, rd);
+    // 20-field circuit: the new scalar fields (17-19) round-trip across crates.
+    assert_eq!(contract_impl::extract_tcb_eval_num(&pi).unwrap(), 42);
+    assert_eq!(contract_impl::extract_valid_from(&pi).unwrap(), 111);
+    assert_eq!(contract_impl::extract_valid_until(&pi).unwrap(), 222);
 }

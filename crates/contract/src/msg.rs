@@ -15,7 +15,7 @@
 //! - `DstackEnvelope` / `AttestationEnvelope` removed.
 //! - `PublishResult` and `CreateElection` now carry `proof: HexBinary` and
 //!   `public_inputs: HexBinary` (the UltraHonk proof bytes and the
-//!   544-byte packed `public_inputs` blob per the dcap-noir layout).
+//!   640-byte packed `public_inputs` blob per the dcap-noir layout).
 //! - Verification routes through `/xion.zk.v1.Query/ProofVerifyUltraHonk`
 //!   directly from the contract (see `contract::verify_ultrahonk_proof_via_xion`).
 
@@ -79,7 +79,7 @@ pub enum ExecuteMsg {
         enclave_pubkey: HexBinary,
         /// UltraHonk proof bytes (registration quote).
         proof: HexBinary,
-        /// 544-byte packed `public_inputs` blob per the dcap-noir layout.
+        /// 640-byte packed `public_inputs` blob per the dcap-noir layout.
         /// Carries MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖ Timestamp ‖
         /// cert_serial ‖ fmspc packed into 17 BE BN254 fields.
         public_inputs: HexBinary,
@@ -114,7 +114,7 @@ pub enum ExecuteMsg {
         tally: TallyResult,
         /// UltraHonk proof bytes (publish quote).
         proof: HexBinary,
-        /// 544-byte packed `public_inputs` blob per the dcap-noir layout.
+        /// 640-byte packed `public_inputs` blob per the dcap-noir layout.
         public_inputs: HexBinary,
     },
 

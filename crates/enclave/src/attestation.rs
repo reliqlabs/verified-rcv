@@ -6,12 +6,14 @@
 //! `/xion.zk.v1.Query/ProofVerifyUltraHonk` from `verified-rcv`'s contract:
 //!
 //! - `proof: Vec<u8>` — UltraHonk (bb) proof bytes.
-//! - `public_inputs: Vec<u8>` — 544-byte packed blob per the dcap-noir
-//!   layout (17 BN254 fields × 32 bytes).
+//! - `public_inputs: Vec<u8>` — 640-byte packed blob per the dcap-noir
+//!   layout (20 BN254 fields × 32 bytes).
 //!
 //! `public_inputs` carries `MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖
-//! Timestamp ‖ cert_serial ‖ fmspc`, packed limb-wise (the circuit's
-//! pack_be output). `ReportData` is 64 bytes, split into two purpose-tagged
+//! Timestamp ‖ cert_serial ‖ fmspc ‖ tcb_eval_num ‖ valid_from ‖ valid_until`,
+//! packed limb-wise (the circuit's pack_be output). The last three fields are
+//! the circuit's recency/freshness outputs the chain range-checks against its
+//! clock + floor. `ReportData` is 64 bytes, split into two purpose-tagged
 //! halves per the §2.5 ReportData layout:
 //!
 //! - Publish quote: `SHA-256(canonical_serialization(contract_addr ‖
@@ -61,8 +63,8 @@ pub const DST_BALLOTS: &[u8] = b"verified-rcv:ballots:v1";
 pub const DST_NAMES: &[u8] = b"verified-rcv:names:v1";
 
 /// Total `public_inputs` byte length (dcap-noir packed UltraHonk layout:
-/// 17 BN254 fields × 32 bytes).
-pub const ULTRAHONK_PUBLIC_INPUTS_LEN: usize = 17 * 32;
+/// 20 BN254 fields × 32 bytes).
+pub const ULTRAHONK_PUBLIC_INPUTS_LEN: usize = 20 * 32;
 
 #[derive(Debug, Error)]
 pub enum AttestationError {
@@ -288,12 +290,13 @@ pub fn build_registration_report_data(
 // public_inputs construction (dcap-noir packed UltraHonk layout)
 // ---------------------------------------------------------------------------
 //
-// 17 BN254 fields x 32 BE bytes = 544 bytes. The Noir circuit packs K (<=31)
+// 20 BN254 fields x 32 BE bytes = 640 bytes. The Noir circuit packs K (<=31)
 // bytes into one field via pack_be, so a K-byte limb occupies the LOW K bytes
 // of its 32-byte field. Field order mirrors the contract's `contract.rs`:
 //   0-1 mr_td; 2-3 rtmr0; 4-5 rtmr1; 6-7 rtmr2; 8-9 rtmr3 (each 31 + 17);
 //   10-12 report_data (31 + 31 + 2); 13 tcb_status (low byte); 14 timestamp
-//   (low 8 bytes u64 BE); 15 cert_serial (20B); 16 fmspc (6B).
+//   (low 8 bytes u64 BE); 15 cert_serial (20B); 16 fmspc (6B);
+//   17 tcb_eval_num; 18 valid_from; 19 valid_until (each low 8 bytes u64 BE).
 
 const FR_BYTES: usize = 32;
 const F_MRTD: usize = 0;
@@ -304,6 +307,9 @@ const F_RTMR3: usize = 8;
 const F_REPORTDATA: usize = 10;
 const F_TCBSTATUS: usize = 13;
 const F_TIMESTAMP: usize = 14;
+const F_TCB_EVAL: usize = 17;
+const F_VALID_FROM: usize = 18;
+const F_VALID_UNTIL: usize = 19;
 
 /// Write a big-endian limb into field `f` (low `bytes.len()` bytes; high
 /// 32-len(bytes) stay zero). Mirror of the dcap-noir pack_be output.
@@ -323,18 +329,19 @@ fn read_limb(pi: &[u8], f: usize, k: usize) -> Option<&[u8]> {
     Some(&fb[FR_BYTES - k..])
 }
 
-/// Build a 544-byte packed `public_inputs` blob in the dcap-noir layout.
+/// Build a 640-byte packed `public_inputs` blob in the dcap-noir layout.
 /// Each measurement register packs into 2 limbs (31 + 17); report_data into
 /// 3 limbs (31 + 31 + 2); tcb_status rides the low byte of field 13;
-/// timestamp the low 8 bytes (u64 BE) of field 14. cert_serial + fmspc are
-/// left zero (verified-rcv does not gate on them).
+/// timestamp, tcb_eval_num, valid_from, valid_until ride the low 8 bytes
+/// (u64 BE) of fields 14/17/18/19. cert_serial + fmspc are left zero
+/// (verified-rcv does not gate on them).
 ///
 /// Under `default` features this synthesizes a chain-acceptable payload
 /// without invoking the prover. Under `real-zkdcap`, `public_inputs` comes
 /// straight from `bb` instead (the circuit emits the same packed layout);
 /// this helper is the synthetic/default builder and the cross-test companion.
 #[allow(clippy::too_many_arguments)]
-pub fn build_public_inputs(
+pub fn build_public_inputs_full(
     mrtd: &[u8; 48],
     rtmr0: &[u8; 48],
     rtmr1: &[u8; 48],
@@ -343,6 +350,9 @@ pub fn build_public_inputs(
     report_data: &[u8; 64],
     tcb_status: u8,
     timestamp: u64,
+    tcb_eval_num: u64,
+    valid_from: u64,
+    valid_until: u64,
 ) -> Vec<u8> {
     let mut out = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
     for (reg, m) in [
@@ -360,7 +370,30 @@ pub fn build_public_inputs(
     put_limb(&mut out, F_REPORTDATA + 2, &report_data[62..64]);
     out[F_TCBSTATUS * FR_BYTES + FR_BYTES - 1] = tcb_status;
     put_limb(&mut out, F_TIMESTAMP, &timestamp.to_be_bytes());
+    put_limb(&mut out, F_TCB_EVAL, &tcb_eval_num.to_be_bytes());
+    put_limb(&mut out, F_VALID_FROM, &valid_from.to_be_bytes());
+    put_limb(&mut out, F_VALID_UNTIL, &valid_until.to_be_bytes());
     out
+}
+
+/// Permissive convenience wrapper over [`build_public_inputs_full`] for the
+/// default / mock path: the recency/validity fields default to always-pass —
+/// `tcb_eval_num = 0`, `valid_from = 0`, `valid_until = u64::MAX`. The chain's
+/// contract recomputes/enforces these; this synthetic blob just has to parse.
+#[allow(clippy::too_many_arguments)]
+pub fn build_public_inputs(
+    mrtd: &[u8; 48],
+    rtmr0: &[u8; 48],
+    rtmr1: &[u8; 48],
+    rtmr2: &[u8; 48],
+    rtmr3: &[u8; 48],
+    report_data: &[u8; 64],
+    tcb_status: u8,
+    timestamp: u64,
+) -> Vec<u8> {
+    build_public_inputs_full(
+        mrtd, rtmr0, rtmr1, rtmr2, rtmr3, report_data, tcb_status, timestamp, 0, 0, u64::MAX,
+    )
 }
 
 /// Extract the 64-byte ReportData from a packed `public_inputs` (fields
@@ -378,14 +411,35 @@ pub fn extract_report_data(pi: &[u8]) -> Option<[u8; 64]> {
     Some(rd)
 }
 
-/// Quote timestamp (u64 BE in the low 8 bytes of field 14). `None` on a
-/// malformed blob.
-pub fn extract_timestamp(pi: &[u8]) -> Option<u64> {
+/// Read a scalar u64 field (value packed in the low 8 bytes of field `f`).
+fn scalar_u64(pi: &[u8], f: usize) -> Option<u64> {
     if pi.len() != ULTRAHONK_PUBLIC_INPUTS_LEN {
         return None;
     }
-    let limb = read_limb(pi, F_TIMESTAMP, 8)?;
+    let limb = read_limb(pi, f, 8)?;
     Some(u64::from_be_bytes(limb.try_into().ok()?))
+}
+
+/// In-circuit verification time (u64 BE in the low 8 bytes of field 14).
+/// `None` on a malformed blob.
+pub fn extract_timestamp(pi: &[u8]) -> Option<u64> {
+    scalar_u64(pi, F_TIMESTAMP)
+}
+
+/// TCB evaluation-data number (recency counter): min over the signed TCB-Info
+/// + QE-Identity. The chain rejects values below a monotonic config floor.
+pub fn extract_tcb_eval_num(pi: &[u8]) -> Option<u64> {
+    scalar_u64(pi, F_TCB_EVAL)
+}
+
+/// Lower bound of the circuit-proven validity window (packed YYYYMMDDhhmmss).
+pub fn extract_valid_from(pi: &[u8]) -> Option<u64> {
+    scalar_u64(pi, F_VALID_FROM)
+}
+
+/// Upper bound of the circuit-proven validity window (packed YYYYMMDDhhmmss).
+pub fn extract_valid_until(pi: &[u8]) -> Option<u64> {
+    scalar_u64(pi, F_VALID_UNTIL)
 }
 
 // ---------------------------------------------------------------------------
@@ -816,7 +870,7 @@ mod tests {
             &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0, 0,
         );
         assert_eq!(pi.len(), ULTRAHONK_PUBLIC_INPUTS_LEN);
-        assert_eq!(pi.len(), 544);
+        assert_eq!(pi.len(), 640);
     }
 
     #[test]
@@ -852,11 +906,26 @@ mod tests {
         for (i, b) in rd.iter_mut().enumerate() {
             *b = (i as u8).wrapping_add(0xA0);
         }
+        // Permissive wrapper -> tcb_eval_num 0, valid_from 0, valid_until MAX.
         let pi = build_public_inputs(
             &mrtd, &[0; 48], &[0; 48], &[0; 48], &[0; 48], &rd, 3, 1_700_000_000,
         );
         assert_eq!(extract_report_data(&pi), Some(rd));
         assert_eq!(extract_timestamp(&pi), Some(1_700_000_000));
+        assert_eq!(extract_tcb_eval_num(&pi), Some(0));
+        assert_eq!(extract_valid_from(&pi), Some(0));
+        assert_eq!(extract_valid_until(&pi), Some(u64::MAX));
+    }
+
+    #[test]
+    fn public_inputs_full_scalar_fields_round_trip() {
+        let pi = build_public_inputs_full(
+            &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0, 99, 42, 111, 222,
+        );
+        assert_eq!(extract_timestamp(&pi), Some(99));
+        assert_eq!(extract_tcb_eval_num(&pi), Some(42));
+        assert_eq!(extract_valid_from(&pi), Some(111));
+        assert_eq!(extract_valid_until(&pi), Some(222));
     }
 
     #[test]

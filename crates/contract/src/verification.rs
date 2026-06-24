@@ -141,6 +141,7 @@ fn fresh_registry() -> EnclaveImageRegistry {
         rtmr0: None,
         rtmr3: None,
         accepted_tcb_statuses: vec![0, 1, 2, 3],
+        min_tcb_eval_num: 0,
     }
 }
 
@@ -725,7 +726,7 @@ pub fn s9_reappearance_rejected() {
 // The offset helpers below MUST stay in lockstep with `contract.rs`'s
 // packed dcap-noir layout (put_limb / read_limb). They map a *logical*
 // byte index (within a measurement register or within ReportData) to the
-// byte offset of that byte inside the 544-byte packed `public_inputs`.
+// byte offset of that byte inside the 640-byte packed `public_inputs`.
 // Kept private here so the production surface stays minimal; any drift is
 // caught by the `*_correct_binding_ok` unit tests.
 const FR_BYTES_LOCAL: usize = 32;
@@ -828,7 +829,7 @@ pub fn b8c_reportdata_commit_hash_matches() {
     let proof = HexBinary::from(vec![0xABu8; 192]);
     let pi = HexBinary::from(pi_bytes);
     let deps = mock_dependencies();
-    let res = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &proof, &pi);
+    let res = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &proof, &pi, 0, 0);
 
     // Post-condition: any single-byte flip in the commit_hash slot causes
     // `AttestationCommitMismatch`. (Measurement + TCB pass: those slots
@@ -870,7 +871,7 @@ pub fn b8d_measurement_mismatch_rejected() {
     let proof = HexBinary::from(vec![0xABu8; 192]);
     let pi = HexBinary::from(pi_bytes);
     let deps = mock_dependencies();
-    let res = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &proof, &pi);
+    let res = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &proof, &pi, 0, 0);
 
     // Post-condition: MrTd byte flip causes the measurement check to fail
     // before any other check.
@@ -929,6 +930,8 @@ pub fn b8e_registration_pubkey_binding() {
         &names_hash,
         &proof,
         &pi,
+        0,
+        0,
     );
 
     // Post-condition: any single-byte flip in ReportData causes a
@@ -1010,7 +1013,7 @@ pub fn names_mismatch_rejected() {
     let proof = HexBinary::from(vec![0xABu8; 192]);
     let pi = HexBinary::from(pi_bytes);
     let deps = mock_dependencies();
-    let res = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &proof, &pi);
+    let res = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &proof, &pi, 0, 0);
 
     // Post-condition: any single-byte flip in the names_hash leg of the
     // commit_hash preimage causes the chain-recomputed commit to differ

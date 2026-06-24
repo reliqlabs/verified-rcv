@@ -34,8 +34,9 @@
 //! - Cryptographic verification routes via `/xion.zk.v1.Query/ProofVerifyUltraHonk`
 //!   directly from the contract.
 //! - Extraction parser enforces the dcap-noir pack_be high-byte invariant per
-//!   limb; layout pinned at the dcap-noir packed UltraHonk public_inputs (17
-//!   BN254 fields x 32 bytes = 544 bytes).
+//!   limb; layout pinned at the dcap-noir packed UltraHonk public_inputs (20
+//!   BN254 fields x 32 bytes = 640 bytes), including the mandatory
+//!   validity-window + tcb-recency checks the circuit cannot make itself.
 
 use sha2::{Digest, Sha256};
 
@@ -103,11 +104,11 @@ pub const CANDIDATE_NAME_MAX_BYTES: usize = 64;
 
 // ----- UltraHonk public_inputs layout (dcap-noir circuit, PACKED) --------
 //
-// 17 BN254 field elements, each a 32-byte BIG-ENDIAN element. The Noir
+// 20 BN254 field elements, each a 32-byte BIG-ENDIAN element. The Noir
 // circuit packs K (<=31) bytes into one element via pack_be (value =
 // sum b[i]*256^(K-1-i)), so a K-byte limb occupies the LOW K bytes of its
 // 32-byte element and the high 32-K bytes are zero. Field order mirrors the
-// dcap-noir circuit's returned [Field; 17] (the SAME circuit dossier
+// dcap-noir circuit's returned [Field; 20] (the SAME circuit dossier
 // verifies — report_data is a public input, not baked into the circuit):
 //   0-1   mr_td        ([0..31],[31..48])
 //   2-3   rtmr0        ([0..31],[31..48])
@@ -116,12 +117,19 @@ pub const CANDIDATE_NAME_MAX_BYTES: usize = 64;
 //   8-9   rtmr3
 //   10-12 report_data  ([0..31],[31..62],[62..64])
 //   13    tcb_status   (low byte)
-//   14    timestamp    (low 8 bytes, u64 BE)
+//   14    timestamp    (low 8 bytes, u64 BE) -- the in-circuit verification time
 //   15    cert_serial  (20 bytes; not gated by verified-rcv)
 //   16    fmspc        (6 bytes; not gated by verified-rcv)
+//   17    tcb_eval_num min(tcbEvaluationDataNumber) over TCB-Info + QE-Identity
+//   18    valid_from   max of all signed validity lower bounds (packed date)
+//   19    valid_until  min of all signed validity upper bounds (packed date)
+// Fields 17-19 are the circuit's recency/freshness outputs: the circuit has no
+// clock/counter, so the consumer MUST range-check chain time against
+// [valid_from, valid_until] and reject tcb_eval_num below an on-chain floor.
+// The host-chosen timestamp (field 14) is NOT trusted for freshness.
 const FR_BYTES: usize = 32;
-const ULTRAHONK_PUBLIC_INPUTS_FIELDS: usize = 17;
-/// Total `public_inputs` byte length = 17 × 32 = 544.
+const ULTRAHONK_PUBLIC_INPUTS_FIELDS: usize = 20;
+/// Total `public_inputs` byte length = 20 × 32 = 640.
 pub const ULTRAHONK_PUBLIC_INPUTS_LEN: usize = ULTRAHONK_PUBLIC_INPUTS_FIELDS * FR_BYTES;
 
 /// Field index where each measurement register begins (2 limbs per
@@ -135,6 +143,9 @@ const F_RTMR3: usize = 8;
 const F_REPORTDATA: usize = 10;
 const F_TCBSTATUS: usize = 13;
 const F_TIMESTAMP: usize = 14;
+const F_TCB_EVAL: usize = 17;
+const F_VALID_FROM: usize = 18;
+const F_VALID_UNTIL: usize = 19;
 
 /// Write a big-endian limb into field `f` (low `bytes.len()` bytes; the
 /// high 32-len(bytes) stay zero). Mirror of the dcap-noir pack_be output.
@@ -380,6 +391,9 @@ fn exec_create_election(
     let next_id = ELECTION_COUNTER.load(deps.storage)? + 1;
     let contract_addr = env.contract.address.as_str();
     let names_hash = compute_names_hash(&candidate_names);
+    // 20-field circuit: chain time as packed YYYYMMDDhhmmss for the mandatory
+    // validity-window check; the recency floor rides on the registry.
+    let now_packed = unix_to_packed_datetime(env.block.time.seconds());
     verify_registration_quote(
         deps.as_ref(),
         &registry,
@@ -389,6 +403,8 @@ fn exec_create_election(
         &names_hash,
         &proof,
         &public_inputs,
+        now_packed,
+        registry.min_tcb_eval_num,
     )?;
 
     // Clear any stale ballots from a prior election.
@@ -506,12 +522,17 @@ pub(crate) fn exec_publish_result(
         &names_hash,
         &tally,
     );
+    // 20-field circuit: chain time as packed YYYYMMDDhhmmss for the mandatory
+    // validity-window check; the recency floor rides on the registry.
+    let now_packed = unix_to_packed_datetime(env.block.time.seconds());
     verify_publish_quote(
         deps.as_ref(),
         &registry,
         &expected_commit,
         &proof,
         &public_inputs,
+        now_packed,
+        registry.min_tcb_eval_num,
     )?;
 
     TALLY_RESULT.save(deps.storage, &tally)?;
@@ -810,6 +831,87 @@ fn extract_tcb_status(public_inputs: &[u8]) -> Result<u8, ContractError> {
     Ok(limb[0])
 }
 
+/// Read a scalar u64 field (value packed in the low 8 bytes of field `f`).
+fn extract_scalar_u64(public_inputs: &[u8], f: usize) -> Result<u64, ContractError> {
+    let limb =
+        read_limb(public_inputs, f, 8).ok_or(ContractError::PublicInputsMalformed { field: f })?;
+    let buf: [u8; 8] = limb
+        .try_into()
+        .map_err(|_| ContractError::PublicInputsMalformed { field: f })?;
+    Ok(u64::from_be_bytes(buf))
+}
+
+/// TCB evaluation-data number (recency counter): min over the signed TCB-Info
+/// + QE-Identity. The chain rejects values below a monotonic config floor.
+pub fn extract_tcb_eval_num(public_inputs: &[u8]) -> Result<u64, ContractError> {
+    extract_scalar_u64(public_inputs, F_TCB_EVAL)
+}
+
+/// Lower bound of the circuit-proven validity window (packed YYYYMMDDhhmmss):
+/// max of every signed validity lower bound.
+pub fn extract_valid_from(public_inputs: &[u8]) -> Result<u64, ContractError> {
+    extract_scalar_u64(public_inputs, F_VALID_FROM)
+}
+
+/// Upper bound of the circuit-proven validity window (packed YYYYMMDDhhmmss):
+/// min of every signed validity upper bound.
+pub fn extract_valid_until(public_inputs: &[u8]) -> Result<u64, ContractError> {
+    extract_scalar_u64(public_inputs, F_VALID_UNTIL)
+}
+
+/// Convert a unix timestamp (seconds, UTC) to the packed `YYYYMMDDhhmmss`
+/// integer the circuit emits for valid_from/valid_until, so the contract can
+/// range-check chain time (`env.block.time`) against the proven window.
+/// Proleptic Gregorian (Howard Hinnant's days-from-civil inverse).
+pub fn unix_to_packed_datetime(unix_secs: u64) -> u64 {
+    let days = (unix_secs / 86_400) as i64;
+    let secs = unix_secs % 86_400;
+    let z = days + 719_468;
+    let era = (if z >= 0 { z } else { z - 146_096 }) / 146_097;
+    let doe = z - era * 146_097; // [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u64; // [1, 31]
+    let m = (if mp < 10 { mp + 3 } else { mp - 9 }) as u64; // [1, 12]
+    let year = (y + if m <= 2 { 1 } else { 0 }) as u64;
+    let (hh, mm, ss) = (secs / 3600, (secs % 3600) / 60, secs % 60);
+    year * 10_000_000_000 + m * 100_000_000 + d * 1_000_000 + hh * 10_000 + mm * 100 + ss
+}
+
+/// The two recency/staleness checks the circuit cannot make itself: chain
+/// time inside the proven `[valid_from, valid_until]` collateral window, and
+/// `tcb_eval_num` at or above the monotonic config floor. Both are MANDATORY;
+/// a proof that omits the fields (wrong shape) fails closed.
+///
+/// `now_packed` is `unix_to_packed_datetime(env.block.time.seconds())`. The
+/// host-chosen Timestamp (field 14) is NOT trusted for freshness — the
+/// signed validity window replaces it.
+fn verify_window_recency(
+    public_inputs: &[u8],
+    now_packed: u64,
+    min_tcb_eval_num: u64,
+) -> Result<(), ContractError> {
+    let valid_from = extract_valid_from(public_inputs)?;
+    let valid_until = extract_valid_until(public_inputs)?;
+    if now_packed < valid_from || now_packed > valid_until {
+        return Err(ContractError::AttestationValidityWindow {
+            now: now_packed,
+            valid_from,
+            valid_until,
+        });
+    }
+    let tcb_eval_num = extract_tcb_eval_num(public_inputs)?;
+    if tcb_eval_num < min_tcb_eval_num {
+        return Err(ContractError::AttestationTcbEvalNumTooLow {
+            got: tcb_eval_num,
+            floor: min_tcb_eval_num,
+        });
+    }
+    Ok(())
+}
+
 /// Validate `public_inputs` shape: length only. Per-limb invariants are
 /// enforced lazily by `read_limb` during measurement / ReportData
 /// extraction. (Length check first → fail fast on truncated payloads.)
@@ -905,8 +1007,8 @@ fn verify_ultrahonk_proof_via_xion(
     public_inputs: &[u8],
     vkey_name: &str,
 ) -> Result<(), ContractError> {
-    // UltraHonk public_inputs go on the wire RAW: the bare 544-byte vector
-    // (17 fields x 32 BE bytes) that `bb prove` emits. No gnark
+    // UltraHonk public_inputs go on the wire RAW: the bare 640-byte vector
+    // (20 fields x 32 BE bytes) that `bb prove` emits. No gnark
     // nbPublic/nbSecret/vec_len witness header. The vkey is resolved by name
     // from the x/zk store (the deployed dcap-ultrahonk-v1 circuit).
     let req = QueryVerifyUltraHonkRequest {
@@ -954,12 +1056,21 @@ fn verify_ultrahonk_proof_via_xion(
 
 /// Verify a *publish* TDX quote against the registry + expected commit
 /// hash. Discharges B8(a)/(b)/(c)/(d) at v0.3.9.
+///
+/// `now_packed` is the chain time as packed `YYYYMMDDhhmmss`
+/// (`unix_to_packed_datetime(env.block.time.seconds())`) and
+/// `min_tcb_eval_num` the registry's monotonic TCB-recency floor: both feed
+/// the MANDATORY validity-window + recency checks the 20-field circuit
+/// requires (the circuit has no clock/counter, so the consumer decides).
+#[allow(clippy::too_many_arguments)]
 pub fn verify_publish_quote(
     deps: Deps,
     registry: &EnclaveImageRegistry,
     expected_commit: &[u8; 32],
     proof: &HexBinary,
     public_inputs: &HexBinary,
+    now_packed: u64,
+    min_tcb_eval_num: u64,
 ) -> Result<(), ContractError> {
     let pi = public_inputs.as_slice();
     validate_public_inputs_shape(pi)?;
@@ -973,6 +1084,10 @@ pub fn verify_publish_quote(
     }
     // ReportData[32..64] = DST_VERIFIED_RCV_TALLY_V1 (zero-padded)
     check_dst_tag(&rd, DST_TALLY_LITERAL)?;
+
+    // MANDATORY (20-field circuit): chain time inside the proven validity
+    // window + tcb_eval_num at/above the floor. Fail-closed.
+    verify_window_recency(pi, now_packed, min_tcb_eval_num)?;
 
     verify_ultrahonk_proof_via_xion(deps, proof.as_slice(), pi, &registry.vkey_name)?;
     Ok(())
@@ -998,6 +1113,8 @@ pub fn verify_registration_quote(
     names_hash: &[u8; 32],
     proof: &HexBinary,
     public_inputs: &HexBinary,
+    now_packed: u64,
+    min_tcb_eval_num: u64,
 ) -> Result<(), ContractError> {
     let pi = public_inputs.as_slice();
     validate_public_inputs_shape(pi)?;
@@ -1037,6 +1154,10 @@ pub fn verify_registration_quote(
     }
     // ReportData[32..64] = DST_VERIFIED_RCV_PUBKEY_V1 (zero-padded)
     check_dst_tag(&rd, DST_PUBKEY_LITERAL)?;
+
+    // MANDATORY (20-field circuit): chain time inside the proven validity
+    // window + tcb_eval_num at/above the floor. Fail-closed.
+    verify_window_recency(pi, now_packed, min_tcb_eval_num)?;
 
     verify_ultrahonk_proof_via_xion(deps, proof.as_slice(), pi, &registry.vkey_name)?;
     Ok(())
@@ -1406,11 +1527,12 @@ fn query_historical_election(
 // Synthetic-public-inputs helper (test-only utility, v0.3.9)
 // ============================================================
 
-/// Build a synthetic 544-byte packed UltraHonk `public_inputs` blob in the
+/// Build a synthetic 640-byte packed UltraHonk `public_inputs` blob in the
 /// dcap-noir layout (the [`extract_report_data`] / [`extract_measurement_48`]
 /// inverse). `mrtd`, `rtmr0..3` each pack into 2 limbs (31 + 17 bytes);
 /// `report_data` packs into 3 limbs (31 + 31 + 2); `tcb_status` rides the
-/// low byte of field 13; `timestamp` the low 8 bytes (u64 BE) of field 14.
+/// low byte of field 13; `timestamp`, `tcb_eval_num`, `valid_from`,
+/// `valid_until` ride the low 8 bytes (u64 BE) of fields 14/17/18/19.
 /// cert_serial (15) + fmspc (16) are left zero (verified-rcv does not gate
 /// on them).
 ///
@@ -1420,7 +1542,7 @@ fn query_historical_election(
 /// `bb` (the circuit emits the same packed layout). Exposed under `pub` so
 /// the runtime cross-test can call it.
 #[allow(clippy::too_many_arguments)]
-pub fn build_synthetic_public_inputs(
+pub fn build_synthetic_public_inputs_full(
     mrtd: &[u8; 48],
     rtmr0: &[u8; 48],
     rtmr1: &[u8; 48],
@@ -1429,6 +1551,9 @@ pub fn build_synthetic_public_inputs(
     report_data: &[u8; 64],
     tcb_status: u8,
     timestamp: u64,
+    tcb_eval_num: u64,
+    valid_from: u64,
+    valid_until: u64,
 ) -> Vec<u8> {
     let mut out = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
     // 5 measurement regs (48 bytes each) -> 2 limbs (31 + 17), fields 0..=9.
@@ -1446,10 +1571,34 @@ pub fn build_synthetic_public_inputs(
     put_limb(&mut out, F_REPORTDATA, &report_data[0..31]);
     put_limb(&mut out, F_REPORTDATA + 1, &report_data[31..62]);
     put_limb(&mut out, F_REPORTDATA + 2, &report_data[62..64]);
-    // tcb_status (low byte of field 13) + timestamp (low 8 bytes BE, field 14).
+    // scalar fields: tcb_status (low byte) + the u64 fields (low 8 bytes BE).
     out[F_TCBSTATUS * FR_BYTES + FR_BYTES - 1] = tcb_status;
     put_limb(&mut out, F_TIMESTAMP, &timestamp.to_be_bytes());
+    put_limb(&mut out, F_TCB_EVAL, &tcb_eval_num.to_be_bytes());
+    put_limb(&mut out, F_VALID_FROM, &valid_from.to_be_bytes());
+    put_limb(&mut out, F_VALID_UNTIL, &valid_until.to_be_bytes());
     out
+}
+
+/// Permissive convenience wrapper over [`build_synthetic_public_inputs_full`]
+/// for the common case (tests, mock-attestation): the recency/validity fields
+/// default to always-pass — `tcb_eval_num = 0`, `valid_from = 0`,
+/// `valid_until = u64::MAX`. Callers exercising the window/recency rejection
+/// paths use the `_full` builder with explicit values.
+#[allow(clippy::too_many_arguments)]
+pub fn build_synthetic_public_inputs(
+    mrtd: &[u8; 48],
+    rtmr0: &[u8; 48],
+    rtmr1: &[u8; 48],
+    rtmr2: &[u8; 48],
+    rtmr3: &[u8; 48],
+    report_data: &[u8; 64],
+    tcb_status: u8,
+    timestamp: u64,
+) -> Vec<u8> {
+    build_synthetic_public_inputs_full(
+        mrtd, rtmr0, rtmr1, rtmr2, rtmr3, report_data, tcb_status, timestamp, 0, 0, u64::MAX,
+    )
 }
 
 /// Build a publish-purpose ReportData: lower 32 = commit_hash, upper 32 =
@@ -1522,6 +1671,7 @@ mod tests {
             rtmr0: None,
             rtmr3: None,
             accepted_tcb_statuses: vec![0, 1, 2, 3],
+            min_tcb_eval_num: 0,
         }
     }
 
@@ -1932,7 +2082,7 @@ mod tests {
             &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 48], &rd, 0, 0,
         ));
         let deps = mock_dependencies();
-        let err = verify_publish_quote(deps.as_ref(), &reg, &commit, &dummy_proof(), &pi)
+        let err = verify_publish_quote(deps.as_ref(), &reg, &commit, &dummy_proof(), &pi, 0, 0)
             .unwrap_err();
         assert!(matches!(err, ContractError::AttestationDomainTagInvalid));
     }
@@ -1946,7 +2096,7 @@ mod tests {
         // Expected commit for the REAL election_id
         let expected_commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
         let deps = mock_dependencies();
-        let err = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &dummy_proof(), &pi)
+        let err = verify_publish_quote(deps.as_ref(), &reg, &expected_commit, &dummy_proof(), &pi, 0, 0)
             .unwrap_err();
         assert!(matches!(err, ContractError::AttestationCommitMismatch));
     }
@@ -1960,7 +2110,7 @@ mod tests {
         // Mutate registry to expect a DIFFERENT mrtd.
         reg.mrtd = vec![0xFF; 48];
         let deps = mock_dependencies();
-        let err = verify_publish_quote(deps.as_ref(), &reg, &commit, &dummy_proof(), &pi)
+        let err = verify_publish_quote(deps.as_ref(), &reg, &commit, &dummy_proof(), &pi, 0, 0)
             .unwrap_err();
         assert!(matches!(
             err,
@@ -1975,7 +2125,147 @@ mod tests {
         let pi = synthetic_pi_for_tally("cw1xxx", 1, &tally, &reg);
         let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
         let deps = mock_dependencies();
-        verify_publish_quote(deps.as_ref(), &reg, &commit, &dummy_proof(), &pi).unwrap();
+        verify_publish_quote(deps.as_ref(), &reg, &commit, &dummy_proof(), &pi, 0, 0).unwrap();
+    }
+
+    // ----------------------------------------------------------------
+    // 20-field circuit: mandatory validity-window + tcb-recency checks
+    // ----------------------------------------------------------------
+
+    /// Build a publish PI committing to `tally` with explicit recency/validity
+    /// fields, so the window/recency rejection paths can be exercised.
+    fn synthetic_publish_pi_full(
+        contract_addr: &str,
+        election_id: u64,
+        tally: &TallyResult,
+        reg: &EnclaveImageRegistry,
+        tcb_eval_num: u64,
+        valid_from: u64,
+        valid_until: u64,
+    ) -> HexBinary {
+        let mrtd: [u8; 48] = reg.mrtd.clone().try_into().unwrap();
+        let r1: [u8; 48] = reg.rtmr1.clone().try_into().unwrap();
+        let r2: [u8; 48] = reg.rtmr2.clone().try_into().unwrap();
+        let bh = empty_ballots_hash();
+        let nh = three_names_hash();
+        let commit =
+            compute_commit_hash(contract_addr, MOCK_CHAIN_ID, election_id, &bh, &nh, tally);
+        let rd = build_publish_report_data(&commit);
+        HexBinary::from(build_synthetic_public_inputs_full(
+            &mrtd, &[0; 48], &r1, &r2, &[0; 48], &rd, 0, 1_700_000_000, tcb_eval_num, valid_from,
+            valid_until,
+        ))
+    }
+
+    #[test]
+    fn unix_to_packed_datetime_known_values() {
+        // 1970-01-01T00:00:00Z
+        assert_eq!(unix_to_packed_datetime(0), 19_700_101_000_000);
+        // 2023-11-14T22:13:20Z (unix 1_700_000_000) -> YYYYMMDDhhmmss
+        assert_eq!(unix_to_packed_datetime(1_700_000_000), 20_231_114_221_320);
+        // 2000-01-01T00:00:00Z (unix 946_684_800) — leap-year boundary.
+        assert_eq!(unix_to_packed_datetime(946_684_800), 20_000_101_000_000);
+    }
+
+    #[test]
+    fn publish_quote_chain_time_before_window_rejected() {
+        let reg = good_registry();
+        let tally = minimal_valid_tally();
+        // window opens at packed 2030-01-01; chain time is well before.
+        let valid_from = 20_300_101_000_000u64;
+        let valid_until = 20_400_101_000_000u64;
+        let pi = synthetic_publish_pi_full("cw1xxx", 1, &tally, &reg, 0, valid_from, valid_until);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
+        let now_packed = unix_to_packed_datetime(1_700_000_000); // 2023
+        let deps = mock_dependencies();
+        let err = verify_publish_quote(
+            deps.as_ref(), &reg, &commit, &dummy_proof(), &pi, now_packed, 0,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::AttestationValidityWindow { .. }));
+    }
+
+    #[test]
+    fn publish_quote_chain_time_after_window_rejected() {
+        let reg = good_registry();
+        let tally = minimal_valid_tally();
+        let valid_from = 20_200_101_000_000u64;
+        let valid_until = 20_210_101_000_000u64; // window closed end of 2020
+        let pi = synthetic_publish_pi_full("cw1xxx", 1, &tally, &reg, 0, valid_from, valid_until);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
+        let now_packed = unix_to_packed_datetime(1_700_000_000); // 2023, past valid_until
+        let deps = mock_dependencies();
+        let err = verify_publish_quote(
+            deps.as_ref(), &reg, &commit, &dummy_proof(), &pi, now_packed, 0,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::AttestationValidityWindow { .. }));
+    }
+
+    #[test]
+    fn publish_quote_within_window_ok() {
+        let reg = good_registry();
+        let tally = minimal_valid_tally();
+        let valid_from = 20_200_101_000_000u64;
+        let valid_until = 20_300_101_000_000u64;
+        let pi = synthetic_publish_pi_full("cw1xxx", 1, &tally, &reg, 7, valid_from, valid_until);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
+        let now_packed = unix_to_packed_datetime(1_700_000_000); // 2023, inside window
+        let deps = mock_dependencies();
+        verify_publish_quote(
+            deps.as_ref(), &reg, &commit, &dummy_proof(), &pi, now_packed, 0,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn publish_quote_tcb_eval_num_below_floor_rejected() {
+        let mut reg = good_registry();
+        reg.min_tcb_eval_num = 18; // governance floor
+        let tally = minimal_valid_tally();
+        let valid_from = 20_200_101_000_000u64;
+        let valid_until = 20_300_101_000_000u64;
+        // Quote proves eval_num 17, below the floor of 18.
+        let pi = synthetic_publish_pi_full("cw1xxx", 1, &tally, &reg, 17, valid_from, valid_until);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
+        let now_packed = unix_to_packed_datetime(1_700_000_000);
+        let deps = mock_dependencies();
+        let err = verify_publish_quote(
+            deps.as_ref(), &reg, &commit, &dummy_proof(), &pi, now_packed, reg.min_tcb_eval_num,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            ContractError::AttestationTcbEvalNumTooLow { got: 17, floor: 18 }
+        ));
+    }
+
+    #[test]
+    fn publish_quote_tcb_eval_num_at_floor_ok() {
+        let mut reg = good_registry();
+        reg.min_tcb_eval_num = 18;
+        let tally = minimal_valid_tally();
+        let valid_from = 20_200_101_000_000u64;
+        let valid_until = 20_300_101_000_000u64;
+        let pi = synthetic_publish_pi_full("cw1xxx", 1, &tally, &reg, 18, valid_from, valid_until);
+        let commit = compute_commit_hash("cw1xxx", MOCK_CHAIN_ID, 1, &empty_ballots_hash(), &three_names_hash(), &tally);
+        let now_packed = unix_to_packed_datetime(1_700_000_000);
+        let deps = mock_dependencies();
+        verify_publish_quote(
+            deps.as_ref(), &reg, &commit, &dummy_proof(), &pi, now_packed, reg.min_tcb_eval_num,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn extract_scalar_fields_round_trip() {
+        let reg = good_registry();
+        let tally = minimal_valid_tally();
+        let pi = synthetic_publish_pi_full("cw1xxx", 1, &tally, &reg, 42, 111, 222);
+        let bytes = pi.as_slice();
+        assert_eq!(extract_tcb_eval_num(bytes).unwrap(), 42);
+        assert_eq!(extract_valid_from(bytes).unwrap(), 111);
+        assert_eq!(extract_valid_until(bytes).unwrap(), 222);
     }
 
     // ----------------------------------------------------------------
@@ -2012,6 +2302,8 @@ mod tests {
             &nh,
             &dummy_proof(),
             &pi,
+            0,
+            0,
         )
         .unwrap_err();
         assert!(matches!(err, ContractError::AttestationDomainTagInvalid));
@@ -2037,6 +2329,8 @@ mod tests {
             &three_names_hash(),
             &dummy_proof(),
             &pi,
+            0,
+            0,
         )
         .unwrap_err();
         assert!(matches!(err, ContractError::AttestationPubkeyBindingMismatch));
@@ -2059,6 +2353,8 @@ mod tests {
             &three_names_hash(),
             &dummy_proof(),
             &pi,
+            0,
+            0,
         )
         .unwrap_err();
         assert!(matches!(err, ContractError::AttestationPubkeyBindingMismatch));
@@ -2096,6 +2392,8 @@ mod tests {
             &three_names_hash(),
             &dummy_proof(),
             &pi,
+            0,
+            0,
         )
         .unwrap_err();
         assert!(matches!(err, ContractError::RegistrationQuoteWrongElection));
@@ -2128,6 +2426,8 @@ mod tests {
             &nh_b, // chain expects a different names_hash
             &dummy_proof(),
             &pi,
+            0,
+            0,
         )
         .unwrap_err();
         assert!(matches!(err, ContractError::AttestationPubkeyBindingMismatch));
@@ -2148,6 +2448,8 @@ mod tests {
             &three_names_hash(),
             &dummy_proof(),
             &pi,
+            0,
+            0,
         )
         .unwrap();
     }
@@ -2433,6 +2735,7 @@ mod tests {
             rtmr0: None,
             rtmr3: None,
             accepted_tcb_statuses: vec![0, 1, 2, 3],
+            min_tcb_eval_num: 0,
         }
     }
 
