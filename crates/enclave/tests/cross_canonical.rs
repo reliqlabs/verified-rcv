@@ -282,10 +282,11 @@ fn synthetic_public_inputs_round_trip_contract_extraction() {
     let pi = runtime_impl::build_public_inputs(
         &mrtd, &[0; 48], &rtmr1, &[0; 48], &[0; 48], &rd, 3, 1_700_000_000,
     );
-    // Element offsets — see contract.rs ELEM_* constants.
+    // Packed dcap-noir field indices — see contract.rs F_* constants.
+    // mr_td starts at field 0; rtmr1 at field 4 (2 limbs per register).
     let extracted_mrtd = contract_impl::extract_measurement_48(&pi, 0).unwrap();
     assert_eq!(extracted_mrtd, mrtd);
-    let extracted_rtmr1 = contract_impl::extract_measurement_48(&pi, 96).unwrap();
+    let extracted_rtmr1 = contract_impl::extract_measurement_48(&pi, 4).unwrap();
     assert_eq!(extracted_rtmr1, rtmr1);
     let extracted_rd = contract_impl::extract_report_data(&pi).unwrap();
     assert_eq!(extracted_rd, rd);

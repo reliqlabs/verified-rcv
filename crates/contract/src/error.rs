@@ -83,30 +83,24 @@ pub enum ContractError {
     #[error("attestation domain tag mismatch")]
     AttestationDomainTagInvalid,
 
-    // N1 audit re-review remediations (v0.3.9 — gnark ProofVerifyGnark).
+    // N1 audit re-review remediations (v0.3.9 — direct xion.zk proof verify).
 
-    /// N1: `public_inputs` blob does not have the expected length per
-    /// the §2.5 gnark public_inputs byte layout (306 fr-elements ×
-    /// 32 BE bytes = 9_792 bytes for the verified-rcv DCAP circuit).
-    #[error("gnark public_inputs length: expected {expected}, got {got}")]
-    GnarkPublicInputsLength { got: usize, expected: usize },
+    /// N1: `public_inputs` blob does not have the expected length per the
+    /// dcap-noir packed UltraHonk layout (17 BN254 fields × 32 BE bytes =
+    /// 544 bytes for the verified-rcv DCAP circuit).
+    #[error("public_inputs length: expected {expected}, got {got}")]
+    PublicInputsLength { got: usize, expected: usize },
 
-    /// N1: a `uints.U8` field in the gnark `public_inputs` has a non-zero
-    /// high byte (the U8 invariant requires the high 31 bytes of each
-    /// 32-byte BE field element to be zero; only the last byte carries
-    /// the U8 value).
-    #[error("gnark public_inputs element {elem_idx} is not a valid uints.U8 (non-zero high byte)")]
-    GnarkPublicInputNotU8 { elem_idx: usize },
+    /// N1: a packed limb in `public_inputs` violates the pack_be
+    /// injectivity invariant — bytes above the limb's K low bytes are
+    /// non-zero. A canonical dcap-noir output never sets them; a violation
+    /// is malformed or adversarial input.
+    #[error("public_inputs field {field} is a non-canonical packed limb (non-zero high bytes)")]
+    PublicInputsMalformed { field: usize },
 
-    /// N1: a `frontend.Variable` field in the gnark `public_inputs`
-    /// exceeds u64 range (high 24 bytes of the 32-byte BE field element
-    /// must be zero for the values we expect: TcbStatus, Timestamp).
-    #[error("gnark public_inputs element {elem_idx} exceeds u64 range")]
-    GnarkPublicInputOutOfRange { elem_idx: usize },
-
-    /// N1: `xion.zk.v1.Query/ProofVerifyGnark` returned `verified=false`.
-    /// The Groth16 proof does not verify under the registered vkey.
-    #[error("gnark proof verification failed via xion.zk module")]
+    /// N1: `xion.zk.v1.Query/ProofVerifyUltraHonk` returned `verified=false`.
+    /// The UltraHonk proof does not verify under the registered vkey.
+    #[error("UltraHonk proof verification failed via xion.zk module")]
     ProofVerificationFailed,
 
     /// N1: extracted measurement (MrTd / Rtmr0 / Rtmr1 / Rtmr2 / Rtmr3)
@@ -122,7 +116,7 @@ pub enum ContractError {
 
     /// N1: extracted TcbStatus is not in the registry's
     /// `accepted_tcb_statuses` set. Severity 6 (Revoked) is also
-    /// circuit-hard-rejected by the gnark prover.
+    /// circuit-hard-rejected by the dcap-noir prover.
     #[error("attestation TcbStatus={status} not in accepted set")]
     AttestationTcbStatusUnaccepted { status: u8 },
 

@@ -2,8 +2,8 @@
 //!
 //! Drives a single Tally RPC against the deployed server with a
 //! synthetic 3-candidate fixture, then asserts the returned
-//! (tally_json, proof, public_inputs) is well-shaped per the v0.3.9 N1
-//! gnark layout — public_inputs length is 9_792 bytes and the
+//! (tally_json, proof, public_inputs) is well-shaped per the packed
+//! dcap-noir UltraHonk layout — public_inputs length is 544 bytes and the
 //! ReportData[0..32] half matches `SHA-256(canonical_serialization(...))`.
 //!
 //! Used by `ops/smoke-phala.sh` against a Phala-deployed enclave-server.
@@ -23,7 +23,7 @@ mod proto {
 use proto::tally_service_client::TallyServiceClient;
 use proto::{HealthRequest, RawBallot, TallyRequest};
 
-const GNARK_PUBLIC_INPUTS_LEN: usize = 306 * 32;
+use verified_rcv_enclave::attestation::{extract_report_data, ULTRAHONK_PUBLIC_INPUTS_LEN};
 
 #[derive(Parser)]
 #[command(name = "verified-rcv-smoke", about = "End-to-end smoke of a deployed enclave-server")]
@@ -113,11 +113,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if resp.proof.is_empty() {
         return Err("response.proof is empty".into());
     }
-    if resp.public_inputs.len() != GNARK_PUBLIC_INPUTS_LEN {
+    if resp.public_inputs.len() != ULTRAHONK_PUBLIC_INPUTS_LEN {
         return Err(format!(
-            "response.public_inputs length {} != {} (v0.3.9 §2.5 gnark layout)",
+            "response.public_inputs length {} != {} (packed dcap-noir layout)",
             resp.public_inputs.len(),
-            GNARK_PUBLIC_INPUTS_LEN
+            ULTRAHONK_PUBLIC_INPUTS_LEN
         )
         .into());
     }
@@ -133,18 +133,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // a partial schema above, so we trust the server's serialization round-trip
     // and compare only the byte layout of ReportData[0..32] against a fresh
     // hash. (Full byte-equality is enforced server-side by the chain.)
-    let pi = &resp.public_inputs;
-    let mut rd_low = [0u8; 32];
-    for i in 0..32 {
-        rd_low[i] = pi[(240 + i) * 32 + 31];
-    }
+    let rd = extract_report_data(&resp.public_inputs)
+        .ok_or("packed public_inputs failed to decode")?;
+    let rd_low = &rd[..32];
     println!("ReportData[0..32] (commit_hash) = {}", hex::encode(rd_low));
 
     // Also sanity-check the upper 32 bytes carry DST_VERIFIED_RCV_TALLY_V1.
-    let mut rd_high = [0u8; 32];
-    for i in 0..32 {
-        rd_high[i] = pi[(240 + 32 + i) * 32 + 31];
-    }
+    let rd_high = &rd[32..64];
     if &rd_high[..25] != b"DST_VERIFIED_RCV_TALLY_V1" {
         return Err(format!(
             "ReportData[32..57] != DST_VERIFIED_RCV_TALLY_V1 (got {})",

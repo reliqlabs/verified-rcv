@@ -1,6 +1,6 @@
 //! Contract storage schema (verified-rcv intent §2.5; v0.3.9 N1 update for
-//! gnark `ProofVerifyGnark` integration — `EnclaveImageRegistry` adopts the
-//! split RTMR + optional-slot + accepted-TCB shape).
+//! `xion.zk` `ProofVerifyUltraHonk` integration — `EnclaveImageRegistry`
+//! adopts the split RTMR + optional-slot + accepted-TCB shape).
 //!
 //! The derived `Phase` enum is **not stored** — it is computed at query time
 //! from `(block.time, start_at, end_at, tally_result.is_some())` per the
@@ -94,18 +94,18 @@ pub struct Election {
 ///
 /// The chain-side verification surface for B8 clauses (a) — (d):
 /// - `vkey_name` resolves an entry in Xion's on-chain `xion.zk` VKey store.
-///   verified-rcv's contract calls `/xion.zk.v1.Query/ProofVerifyGnark`
+///   verified-rcv's contract calls `/xion.zk.v1.Query/ProofVerifyUltraHonk`
 ///   referencing this name; the actual vkey bytes live in the zk module.
 /// - `mrtd`, `rtmr1`, `rtmr2` are 48-byte TDX SHA-384 measurements that
 ///   the chain bytewise compares to the corresponding fields extracted
-///   from the gnark proof's `public_inputs`.
+///   from the UltraHonk proof's `public_inputs`.
 /// - `rtmr0`, `rtmr3` are optional. `None` means "do not enforce" — the
-///   gnark circuit still binds them in the proof, but the chain skips the
-///   equality check. Mirrors zkdcap-verifier's `check_rtmr0` convention.
+///   dcap-noir circuit still binds them in the proof, but the chain skips
+///   the equality check. Mirrors zkdcap-verifier's `check_rtmr0` convention.
 /// - `accepted_tcb_statuses` lists the TCB severity values (0..=6) the
 ///   chain accepts. Default in `validate_registry` is `{0,1,2,3}` — the
 ///   "configuration / SW hardening" classes. Severity 6 (Revoked) is
-///   additionally hard-rejected by the gnark circuit itself.
+///   additionally hard-rejected by the dcap-noir circuit itself.
 ///
 /// `image_registration_honest(σ)` in the intent is the predicate that
 /// (i) verified-rcv's registry has the canonical values AND (ii) the
@@ -114,8 +114,8 @@ pub struct Election {
 /// only.
 #[cw_serde]
 pub struct EnclaveImageRegistry {
-    /// Name of the gnark vkey registered in Xion's on-chain `xion.zk`
-    /// VKey store. Used as `vkey_name` in `QueryVerifyGnarkRequest`.
+    /// Name of the UltraHonk vkey registered in Xion's on-chain `xion.zk`
+    /// VKey store. Used as `vkey_name` in `QueryVerifyUltraHonkRequest`.
     pub vkey_name: String,
     /// TDX MRTD (SHA-384, 48 bytes): the enclave image identity component.
     pub mrtd: Vec<u8>,

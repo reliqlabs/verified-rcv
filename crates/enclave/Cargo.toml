@@ -6,12 +6,14 @@ authors.workspace = true
 description = "Runtime wrapper for verified-rcv enclave — wires Tally_spec core to dstack TDX + Quartz attestation"
 
 [features]
-# Default: no real zkdcap gnark prover. The runtime produces synthetic
-# `(proof, public_inputs)` matching the v0.3.9 §2.5 byte layout — used by
-# tests + dev. When `real-zkdcap` is on, the runtime connects to the
-# zkdcap Go prover via unix socket (see /Users/mvid/Development/reliq/zkdcap/host/src/gnark.rs).
+# Default: no real zkdcap prover. The runtime produces synthetic
+# `(proof, public_inputs)` matching the packed dcap-noir UltraHonk layout —
+# used by tests + dev. When `real-zkdcap` is on, the runtime POSTs the TDX
+# quote + Intel PCS collateral to the noir/bb prove server over a unix
+# socket (default /run/noir/prove.sock, env ZKDCAP_PROVER_SOCKET) and
+# embeds the returned proof + the circuit's packed public_inputs.
 default = []
-real-zkdcap = ["dep:dcap-qvl", "dep:anyhow"]
+real-zkdcap = ["dep:dcap-qvl"]
 
 [lib]
 name = "verified_rcv_enclave"
@@ -68,10 +70,10 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 urlencoding = "2"
 
 # real-zkdcap-gated deps. dcap-qvl pins to the same reliqlabs/dcap-qvl
-# feat/cosmwasm branch zkdcap-host uses, so the pre_verified extract
-# semantics are byte-identical to oauth3's reference deployment.
+# feat/cosmwasm branch the prove server uses, so the collateral bundle the
+# noir witness generator consumes is byte-identical to the reference
+# deployment.
 dcap-qvl = { git = "https://github.com/reliqlabs/dcap-qvl", branch = "feat/cosmwasm", default-features = false, features = ["std", "report", "rustcrypto"], optional = true }
-anyhow = { version = "1", optional = true }
 
 [build-dependencies]
 tonic-build = "0.12"

@@ -147,7 +147,7 @@ fn fresh_registry() -> EnclaveImageRegistry {
 /// Synthesize a chain-acceptable publish-quote `(proof, public_inputs)`
 /// pair for `tally` under the fresh registry. The `mock-attestation`
 /// feature (transitively enabled by `verification`) makes
-/// `verify_gnark_proof_via_xion` a no-op, so the proof bytes themselves
+/// `verify_ultrahonk_proof_via_xion` a no-op, so the proof bytes themselves
 /// are irrelevant — only the layout + commit_hash + DST equality is checked.
 fn fresh_publish_artifacts(
     contract_addr: &str,
@@ -722,13 +722,40 @@ pub fn s9_reappearance_rejected() {
 // that gap by symbolically perturbing exactly one byte of a known-good
 // `(proof, public_inputs)` pair and asserting `verify_*_quote` rejects.
 //
-// The byte offsets below MUST stay in lockstep with `contract.rs`
-// (FR_BYTES, ELEM_MRTD_START, ELEM_REPORTDATA_START). Kept private here
-// rather than promoted to `pub` so the production surface stays minimal;
-// any drift would be caught by the `quote_correct_binding_ok` unit tests.
+// The offset helpers below MUST stay in lockstep with `contract.rs`'s
+// packed dcap-noir layout (put_limb / read_limb). They map a *logical*
+// byte index (within a measurement register or within ReportData) to the
+// byte offset of that byte inside the 544-byte packed `public_inputs`.
+// Kept private here so the production surface stays minimal; any drift is
+// caught by the `*_correct_binding_ok` unit tests.
 const FR_BYTES_LOCAL: usize = 32;
-const ELEM_MRTD_START_LOCAL: usize = 0;
-const ELEM_REPORTDATA_START_LOCAL: usize = 240;
+
+/// PI byte offset of measurement-register byte `k` (0..48) for the register
+/// whose first packed field is `field0`. Register packs as 2 limbs: bytes
+/// 0..31 in field0's low 31 bytes, bytes 31..48 in field0+1's low 17 bytes.
+fn measurement_byte_offset(field0: usize, k: usize) -> usize {
+    if k < 31 {
+        // low-31 limb: byte k sits at field0*32 + (32 - 31) + k.
+        field0 * FR_BYTES_LOCAL + (FR_BYTES_LOCAL - 31) + k
+    } else {
+        // low-17 limb: byte (k-31) sits at (field0+1)*32 + (32 - 17) + (k-31).
+        (field0 + 1) * FR_BYTES_LOCAL + (FR_BYTES_LOCAL - 17) + (k - 31)
+    }
+}
+
+/// PI byte offset of ReportData byte `k` (0..64). ReportData packs as 3
+/// limbs across fields 10..=12: bytes 0..31 in field 10's low 31, bytes
+/// 31..62 in field 11's low 31, bytes 62..64 in field 12's low 2.
+fn report_data_byte_offset(k: usize) -> usize {
+    const F_REPORTDATA: usize = 10;
+    if k < 31 {
+        F_REPORTDATA * FR_BYTES_LOCAL + (FR_BYTES_LOCAL - 31) + k
+    } else if k < 62 {
+        (F_REPORTDATA + 1) * FR_BYTES_LOCAL + (FR_BYTES_LOCAL - 31) + (k - 31)
+    } else {
+        (F_REPORTDATA + 2) * FR_BYTES_LOCAL + (FR_BYTES_LOCAL - 2) + (k - 62)
+    }
+}
 
 /// Synthesize a chain-acceptable publish-quote PI for the given tally,
 /// without touching any storage. Mirrors the structure of
@@ -790,8 +817,8 @@ pub fn b8c_reportdata_commit_hash_matches() {
     // Symbolic byte index within ReportData[0..32] (the commit_hash slot).
     let k: u8 = kani::any();
     kani::assume(k < 32);
-    // Each ReportData byte sits at PI offset (240 + k) * 32 + 31.
-    let off = (ELEM_REPORTDATA_START_LOCAL + k as usize) * FR_BYTES_LOCAL + 31;
+    // Each ReportData byte sits at its packed-limb PI offset.
+    let off = report_data_byte_offset(k as usize);
     // Flip the byte (XOR with 0xFF) so it is guaranteed different.
     pi_bytes[off] ^= 0xFF;
 
@@ -833,8 +860,8 @@ pub fn b8d_measurement_mismatch_rejected() {
     // Symbolic byte index within MrTd[0..48].
     let k: u8 = kani::any();
     kani::assume(k < 48);
-    // Each MrTd byte sits at PI offset (0 + k) * 32 + 31.
-    let off = (ELEM_MRTD_START_LOCAL + k as usize) * FR_BYTES_LOCAL + 31;
+    // Each MrTd byte sits at its packed-limb PI offset (fields 0..=1).
+    let off = measurement_byte_offset(0, k as usize);
     pi_bytes[off] ^= 0xFF;
 
     let bh = compute_ballots_hash(&[], &[]);
@@ -887,7 +914,7 @@ pub fn b8e_registration_pubkey_binding() {
     // Symbolic byte index across the full ReportData[0..64] range.
     let k: u8 = kani::any();
     kani::assume(k < 64);
-    let off = (ELEM_REPORTDATA_START_LOCAL + k as usize) * FR_BYTES_LOCAL + 31;
+    let off = report_data_byte_offset(k as usize);
     pi_bytes[off] ^= 0xFF;
 
     let proof = HexBinary::from(vec![0xABu8; 192]);

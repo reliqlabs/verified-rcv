@@ -4,15 +4,15 @@
 //! - C1 (mock attestation): the `AttestationEnvelope::Mock` variant existed
 //!   only when the `mock-attestation` Cargo feature was enabled. **Superseded
 //!   by v0.3.9 N1**: the envelope wrapper is gone; `mock-attestation` now
-//!   gates whether the contract actually calls `/xion.zk.v1.Query/ProofVerifyGnark`
+//!   gates whether the contract actually calls `/xion.zk.v1.Query/ProofVerifyUltraHonk`
 //!   on the chain (tests skip the chain call but still exercise every
 //!   extraction + bytewise equality path).
 //! - C2 (Dstack verification): superseded by N1 — verification is now
-//!   bytewise extraction from gnark `public_inputs` plus a single chain
-//!   call to `xion.zk`. The pre-v0.3.9 `user_data` shim is removed.
+//!   bytewise extraction from the UltraHonk `public_inputs` plus a single
+//!   chain call to `xion.zk`. The pre-v0.3.9 `user_data` shim is removed.
 //! - C3 (enclave_pubkey shape): unchanged — 33-byte compressed or 65-byte
 //!   uncompressed secp256k1. v0.3.9 additionally enforces B8(e) — the
-//!   pubkey is bound to a registration TDX quote via the gnark proof.
+//!   pubkey is bound to a registration TDX quote via the UltraHonk proof.
 //! - M1 (B1 multi-election): unchanged — `CreateElection` rejects in
 //!   Voting/Tallying.
 //! - M2 (election_id in commit hash): unchanged — `canonical_serialization`
@@ -31,10 +31,11 @@
 //!   quote whose `ReportData[0..32] = SHA-256(canonical_serialization(...))`
 //!   and `ReportData[32..64] = DST_VERIFIED_RCV_TALLY_V1_PADDED`. Bound to
 //!   `EnclaveImageRegistry` measurements. Discharges B8(a)/(b)/(c)/(d).
-//! - Cryptographic verification routes via `/xion.zk.v1.Query/ProofVerifyGnark`
+//! - Cryptographic verification routes via `/xion.zk.v1.Query/ProofVerifyUltraHonk`
 //!   directly from the contract.
-//! - Extraction parser enforces gnark `uints.U8` high-byte invariant per
-//!   element; layout pinned at intent §2.5 gnark public_inputs byte layout.
+//! - Extraction parser enforces the dcap-noir pack_be high-byte invariant per
+//!   limb; layout pinned at the dcap-noir packed UltraHonk public_inputs (17
+//!   BN254 fields x 32 bytes = 544 bytes).
 
 use sha2::{Digest, Sha256};
 
@@ -100,36 +101,67 @@ const SECP256K1_UNCOMPRESSED_LEN: usize = 65;
 /// Names with byte-length > 64 are rejected at CreateElection time.
 pub const CANDIDATE_NAME_MAX_BYTES: usize = 64;
 
-// ----- Gnark public_inputs byte layout (intent §2.5, v0.3.9 N1) ----------
-
-/// One BN254 fr-element serialized as big-endian bytes.
+// ----- UltraHonk public_inputs layout (dcap-noir circuit, PACKED) --------
+//
+// 17 BN254 field elements, each a 32-byte BIG-ENDIAN element. The Noir
+// circuit packs K (<=31) bytes into one element via pack_be (value =
+// sum b[i]*256^(K-1-i)), so a K-byte limb occupies the LOW K bytes of its
+// 32-byte element and the high 32-K bytes are zero. Field order mirrors the
+// dcap-noir circuit's returned [Field; 17] (the SAME circuit dossier
+// verifies — report_data is a public input, not baked into the circuit):
+//   0-1   mr_td        ([0..31],[31..48])
+//   2-3   rtmr0        ([0..31],[31..48])
+//   4-5   rtmr1
+//   6-7   rtmr2
+//   8-9   rtmr3
+//   10-12 report_data  ([0..31],[31..62],[62..64])
+//   13    tcb_status   (low byte)
+//   14    timestamp    (low 8 bytes, u64 BE)
+//   15    cert_serial  (20 bytes; not gated by verified-rcv)
+//   16    fmspc        (6 bytes; not gated by verified-rcv)
 const FR_BYTES: usize = 32;
-/// Element-index ranges (in fr-element units, declaration order in the
-/// zkdcap DCAP gnark circuit). Multiply by `FR_BYTES` for byte offsets.
-/// The `_LEN` constants document the per-field element counts; total =
-/// 48*5 + 64 + 2 = 306 elements (`GNARK_PUBLIC_INPUTS_ELEMS`).
-const ELEM_MRTD_START: usize = 0;
-const ELEM_RTMR0_START: usize = 48;
-const ELEM_RTMR1_START: usize = 96;
-const ELEM_RTMR2_START: usize = 144;
-const ELEM_RTMR3_START: usize = 192;
-const ELEM_REPORTDATA_START: usize = 240;
-const ELEM_TCBSTATUS: usize = 304;
-const ELEM_TIMESTAMP: usize = 305;
+const ULTRAHONK_PUBLIC_INPUTS_FIELDS: usize = 17;
+/// Total `public_inputs` byte length = 17 × 32 = 544.
+pub const ULTRAHONK_PUBLIC_INPUTS_LEN: usize = ULTRAHONK_PUBLIC_INPUTS_FIELDS * FR_BYTES;
 
-/// Total fr-element count = 48*5 + 64 + 2 = 306.
-const GNARK_PUBLIC_INPUTS_ELEMS: usize = 306;
-/// Total `public_inputs` byte length = 306 × 32 = 9_792.
-pub const GNARK_PUBLIC_INPUTS_LEN: usize = GNARK_PUBLIC_INPUTS_ELEMS * FR_BYTES;
+/// Field index where each measurement register begins (2 limbs per
+/// register: 31 + 17 bytes). Fields 0..=9 carry MRTD || RTMR0..3.
+const F_MRTD: usize = 0;
+const F_RTMR0: usize = 2;
+const F_RTMR1: usize = 4;
+const F_RTMR2: usize = 6;
+const F_RTMR3: usize = 8;
+/// report_data spans fields 10..=12 (3 limbs: 31 + 31 + 2).
+const F_REPORTDATA: usize = 10;
+const F_TCBSTATUS: usize = 13;
+const F_TIMESTAMP: usize = 14;
+
+/// Write a big-endian limb into field `f` (low `bytes.len()` bytes; the
+/// high 32-len(bytes) stay zero). Mirror of the dcap-noir pack_be output.
+fn put_limb(out: &mut [u8], f: usize, bytes: &[u8]) {
+    let end = f * FR_BYTES + FR_BYTES;
+    out[end - bytes.len()..end].copy_from_slice(bytes);
+}
+
+/// Low `k` bytes of field `f`, asserting the high 32-k bytes are zero (the
+/// pack_be injectivity invariant; a violation is malformed/adversarial
+/// input). `None` on a short blob or a non-canonical (high-byte-set) limb.
+fn read_limb(pi: &[u8], f: usize, k: usize) -> Option<&[u8]> {
+    let fb = pi.get(f * FR_BYTES..f * FR_BYTES + FR_BYTES)?;
+    if fb[..FR_BYTES - k].iter().any(|b| *b != 0) {
+        return None;
+    }
+    Some(&fb[FR_BYTES - k..])
+}
 
 // ============================================================
-// xion.zk.v1.Query/ProofVerifyGnark prost types
+// xion.zk.v1.Query/ProofVerifyUltraHonk prost types
 // (matches /Users/mvid/Development/burnt/xion/proto/xion/zk/v1/query.proto)
 // ============================================================
 
 #[cfg(not(any(feature = "mock-attestation", test)))]
 #[derive(Clone, PartialEq, prost::Message)]
-struct QueryVerifyGnarkRequest {
+struct QueryVerifyUltraHonkRequest {
     #[prost(bytes = "vec", tag = "1")]
     proof: Vec<u8>,
     #[prost(bytes = "vec", tag = "2")]
@@ -142,7 +174,7 @@ struct QueryVerifyGnarkRequest {
 
 #[cfg(not(any(feature = "mock-attestation", test)))]
 #[derive(Clone, PartialEq, prost::Message)]
-struct ProofVerifyGnarkResponse {
+struct ProofVerifyUltraHonkResponse {
     #[prost(bool, tag = "1")]
     verified: bool,
 }
@@ -331,11 +363,11 @@ fn exec_create_election(
     validate_enclave_pubkey(&enclave_pubkey)?;
 
     // N1 (v0.3.9) — registration-quote verification:
-    //   1. public_inputs has the expected layout (length + U8 invariants)
+    //   1. public_inputs has the expected layout (length + packed-limb invariants)
     //   2. extracted measurements match the registry
     //   3. extracted ReportData binds enclave_pubkey (B8(e))
     //   4. extracted TcbStatus is in the accepted set
-    //   5. gnark proof verifies via xion.zk (skipped under mock-attestation)
+    //   5. UltraHonk proof verifies via xion.zk (skipped under mock-attestation)
     // N22 (v0.3.12): the registration quote MUST bind (enclave_pubkey,
     // contract_addr, election_id_about_to_be_created) so an admin can't
     // replay an old quote for a new election. election_id = counter + 1
@@ -431,7 +463,7 @@ fn exec_close_and_tally(deps: DepsMut, env: Env) -> Result<Response, ContractErr
 
 /// Block 6: enclave publishes the attested tally. v0.3.9 N1 amendment:
 /// direct `(proof, public_inputs)` verification via
-/// `/xion.zk.v1.Query/ProofVerifyGnark` + bytewise measurement +
+/// `/xion.zk.v1.Query/ProofVerifyUltraHonk` + bytewise measurement +
 /// ReportData equality. The pre-v0.3.9 `AttestationEnvelope` wrapper is
 /// removed.
 pub(crate) fn exec_publish_result(
@@ -733,63 +765,59 @@ where
 }
 
 // ============================================================
-// N1 (v0.3.9): gnark public_inputs extraction
+// dcap-noir packed UltraHonk public_inputs extraction
 // ============================================================
 
-/// Decode a single `uints.U8` from the BE fr-element at `elem_idx`.
-/// Enforces the gnark `uints.U8` invariant: the high 31 bytes MUST be zero;
-/// only the last byte (offset `elem_idx*32 + 31`) carries the value.
-pub fn extract_u8_from_fr(public_inputs: &[u8], elem_idx: usize) -> Result<u8, ContractError> {
-    let start = elem_idx * FR_BYTES;
-    let chunk = &public_inputs[start..start + FR_BYTES];
-    if chunk[..31].iter().any(|&b| b != 0) {
-        return Err(ContractError::GnarkPublicInputNotU8 { elem_idx });
-    }
-    Ok(chunk[31])
-}
-
-/// Decode a `frontend.Variable` (BE fr-element) as u64. Asserts the high
-/// 24 bytes are zero (bounds check). Used for TcbStatus + Timestamp.
-pub fn extract_u64_from_fr(public_inputs: &[u8], elem_idx: usize) -> Result<u64, ContractError> {
-    let start = elem_idx * FR_BYTES;
-    let chunk = &public_inputs[start..start + FR_BYTES];
-    if chunk[..24].iter().any(|&b| b != 0) {
-        return Err(ContractError::GnarkPublicInputOutOfRange { elem_idx });
-    }
-    let mut buf = [0u8; 8];
-    buf.copy_from_slice(&chunk[24..32]);
-    Ok(u64::from_be_bytes(buf))
-}
-
-/// Extract a 48-byte measurement field (MrTd / Rtmr*) from `public_inputs`.
+/// Extract a 48-byte measurement register (MrTd / Rtmr*) from the two
+/// packed limbs (31 + 17 bytes) starting at field `f`.
 pub fn extract_measurement_48(
     public_inputs: &[u8],
-    start_elem: usize,
+    f: usize,
 ) -> Result<[u8; 48], ContractError> {
+    let hi = read_limb(public_inputs, f, 31)
+        .ok_or(ContractError::PublicInputsMalformed { field: f })?;
+    let lo = read_limb(public_inputs, f + 1, 17)
+        .ok_or(ContractError::PublicInputsMalformed { field: f + 1 })?;
     let mut out = [0u8; 48];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = extract_u8_from_fr(public_inputs, start_elem + i)?;
-    }
+    out[..31].copy_from_slice(hi);
+    out[31..].copy_from_slice(lo);
     Ok(out)
 }
 
-/// Extract the 64-byte ReportData from `public_inputs`.
+/// Extract the 64-byte ReportData from fields 10..=12 (packed limbs
+/// 31 + 31 + 2; enforces the high-bytes-zero invariant per limb).
 pub fn extract_report_data(public_inputs: &[u8]) -> Result<[u8; 64], ContractError> {
     let mut out = [0u8; 64];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = extract_u8_from_fr(public_inputs, ELEM_REPORTDATA_START + i)?;
-    }
+    out[0..31].copy_from_slice(
+        read_limb(public_inputs, F_REPORTDATA, 31)
+            .ok_or(ContractError::PublicInputsMalformed { field: F_REPORTDATA })?,
+    );
+    out[31..62].copy_from_slice(
+        read_limb(public_inputs, F_REPORTDATA + 1, 31)
+            .ok_or(ContractError::PublicInputsMalformed { field: F_REPORTDATA + 1 })?,
+    );
+    out[62..64].copy_from_slice(
+        read_limb(public_inputs, F_REPORTDATA + 2, 2)
+            .ok_or(ContractError::PublicInputsMalformed { field: F_REPORTDATA + 2 })?,
+    );
     Ok(out)
 }
 
-/// Validate `public_inputs` shape: length only. Per-element invariants are
-/// enforced lazily by `extract_*` during measurement / ReportData
+/// Extract TcbStatus from the low byte of field 13.
+fn extract_tcb_status(public_inputs: &[u8]) -> Result<u8, ContractError> {
+    let limb = read_limb(public_inputs, F_TCBSTATUS, 1)
+        .ok_or(ContractError::PublicInputsMalformed { field: F_TCBSTATUS })?;
+    Ok(limb[0])
+}
+
+/// Validate `public_inputs` shape: length only. Per-limb invariants are
+/// enforced lazily by `read_limb` during measurement / ReportData
 /// extraction. (Length check first → fail fast on truncated payloads.)
 fn validate_public_inputs_shape(public_inputs: &[u8]) -> Result<(), ContractError> {
-    if public_inputs.len() != GNARK_PUBLIC_INPUTS_LEN {
-        return Err(ContractError::GnarkPublicInputsLength {
+    if public_inputs.len() != ULTRAHONK_PUBLIC_INPUTS_LEN {
+        return Err(ContractError::PublicInputsLength {
             got: public_inputs.len(),
-            expected: GNARK_PUBLIC_INPUTS_LEN,
+            expected: ULTRAHONK_PUBLIC_INPUTS_LEN,
         });
     }
     Ok(())
@@ -802,26 +830,26 @@ fn verify_measurements_match_registry(
     public_inputs: &[u8],
     registry: &EnclaveImageRegistry,
 ) -> Result<(), ContractError> {
-    let mrtd = extract_measurement_48(public_inputs, ELEM_MRTD_START)?;
+    let mrtd = extract_measurement_48(public_inputs, F_MRTD)?;
     if mrtd.as_slice() != registry.mrtd.as_slice() {
         return Err(ContractError::AttestationMeasurementMismatch { field: "mrtd" });
     }
-    let rtmr1 = extract_measurement_48(public_inputs, ELEM_RTMR1_START)?;
+    let rtmr1 = extract_measurement_48(public_inputs, F_RTMR1)?;
     if rtmr1.as_slice() != registry.rtmr1.as_slice() {
         return Err(ContractError::AttestationMeasurementMismatch { field: "rtmr1" });
     }
-    let rtmr2 = extract_measurement_48(public_inputs, ELEM_RTMR2_START)?;
+    let rtmr2 = extract_measurement_48(public_inputs, F_RTMR2)?;
     if rtmr2.as_slice() != registry.rtmr2.as_slice() {
         return Err(ContractError::AttestationMeasurementMismatch { field: "rtmr2" });
     }
     if let Some(reg_rtmr0) = &registry.rtmr0 {
-        let rtmr0 = extract_measurement_48(public_inputs, ELEM_RTMR0_START)?;
+        let rtmr0 = extract_measurement_48(public_inputs, F_RTMR0)?;
         if rtmr0.as_slice() != reg_rtmr0.as_slice() {
             return Err(ContractError::AttestationMeasurementMismatch { field: "rtmr0" });
         }
     }
     if let Some(reg_rtmr3) = &registry.rtmr3 {
-        let rtmr3 = extract_measurement_48(public_inputs, ELEM_RTMR3_START)?;
+        let rtmr3 = extract_measurement_48(public_inputs, F_RTMR3)?;
         if rtmr3.as_slice() != reg_rtmr3.as_slice() {
             return Err(ContractError::AttestationMeasurementMismatch { field: "rtmr3" });
         }
@@ -829,20 +857,17 @@ fn verify_measurements_match_registry(
     Ok(())
 }
 
-/// Check TcbStatus is in the registry's accepted set. The gnark circuit
+/// Check TcbStatus is in the registry's accepted set. The dcap-noir circuit
 /// hard-rejects status 6 (Revoked) internally; this check is the operator's
 /// configurable policy.
 fn verify_tcb_status_accepted(
     public_inputs: &[u8],
     registry: &EnclaveImageRegistry,
 ) -> Result<(), ContractError> {
-    let status_u64 = extract_u64_from_fr(public_inputs, ELEM_TCBSTATUS)?;
-    if status_u64 > 6 {
-        return Err(ContractError::AttestationTcbStatusUnaccepted {
-            status: status_u64 as u8,
-        });
+    let status = extract_tcb_status(public_inputs)?;
+    if status > 6 {
+        return Err(ContractError::AttestationTcbStatusUnaccepted { status });
     }
-    let status = status_u64 as u8;
     if !registry.accepted_tcb_statuses.contains(&status) {
         return Err(ContractError::AttestationTcbStatusUnaccepted { status });
     }
@@ -866,7 +891,7 @@ fn check_dst_tag(report_data: &[u8; 64], expected_literal: &[u8]) -> Result<(), 
     Ok(())
 }
 
-/// Issue the chain-side gRPC verify. Returns Ok(()) if the gnark proof
+/// Issue the chain-side gRPC verify. Returns Ok(()) if the UltraHonk proof
 /// verifies under `vkey_name` against `public_inputs`.
 ///
 /// Under the `mock-attestation` cargo feature this is a no-op — tests that
@@ -874,33 +899,25 @@ fn check_dst_tag(report_data: &[u8; 64], expected_literal: &[u8]) -> Result<(), 
 /// / equality path, but the cryptographic verification itself is skipped.
 /// Production wasm always calls the chain.
 #[cfg(not(any(feature = "mock-attestation", test)))]
-fn verify_gnark_proof_via_xion(
+fn verify_ultrahonk_proof_via_xion(
     deps: Deps,
     proof: &[u8],
     public_inputs: &[u8],
     vkey_name: &str,
 ) -> Result<(), ContractError> {
-    // xion.zk.v1.Query/ProofVerifyGnark calls gnark's witness.UnmarshalBinary,
-    // which expects a 12-byte header (nbPublic | nbSecret | vec_len, each
-    // uint32 BE) prepended to the fr-element vector. Our canonical
-    // public_inputs is the bare 9792-byte vector (306 elements x 32 bytes);
-    // synthesize the header here so neither the enclave nor the on-wire
-    // measurement-extraction layout has to know about gnark's framing.
-    let mut witness_bytes = Vec::with_capacity(12 + public_inputs.len());
-    witness_bytes.extend_from_slice(&(GNARK_PUBLIC_INPUTS_ELEMS as u32).to_be_bytes()); // nbPublic
-    witness_bytes.extend_from_slice(&0u32.to_be_bytes());                                 // nbSecret
-    witness_bytes.extend_from_slice(&(GNARK_PUBLIC_INPUTS_ELEMS as u32).to_be_bytes()); // vec_len
-    witness_bytes.extend_from_slice(public_inputs);
-
-    let req = QueryVerifyGnarkRequest {
+    // UltraHonk public_inputs go on the wire RAW: the bare 544-byte vector
+    // (17 fields x 32 BE bytes) that `bb prove` emits. No gnark
+    // nbPublic/nbSecret/vec_len witness header. The vkey is resolved by name
+    // from the x/zk store (the deployed dcap-ultrahonk-v1 circuit).
+    let req = QueryVerifyUltraHonkRequest {
         proof: proof.to_vec(),
-        public_inputs: witness_bytes,
+        public_inputs: public_inputs.to_vec(),
         vkey_name: vkey_name.to_string(),
         vkey_id: 0,
     };
     let mut req_bytes = Vec::new();
     req.encode(&mut req_bytes)
-        .map_err(|e| ContractError::AttestationFailure(format!("encode QueryVerifyGnarkRequest: {e}")))?;
+        .map_err(|e| ContractError::AttestationFailure(format!("encode QueryVerifyUltraHonkRequest: {e}")))?;
 
     // Must use query_grpc (raw bytes) — querier.query() JSON-decodes the
     // response, which would fail with "expected value at line 1 column 1" on
@@ -908,15 +925,15 @@ fn verify_gnark_proof_via_xion(
     let resp_bin: Binary = deps
         .querier
         .query_grpc(
-            "/xion.zk.v1.Query/ProofVerifyGnark".to_string(),
+            "/xion.zk.v1.Query/ProofVerifyUltraHonk".to_string(),
             Binary::from(req_bytes),
         )
         .map_err(|e| {
-            ContractError::AttestationFailure(format!("ProofVerifyGnark gRPC: {e}"))
+            ContractError::AttestationFailure(format!("ProofVerifyUltraHonk gRPC: {e}"))
         })?;
 
-    let resp = ProofVerifyGnarkResponse::decode(resp_bin.as_slice())
-        .map_err(|e| ContractError::AttestationFailure(format!("decode ProofVerifyGnarkResponse: {e}")))?;
+    let resp = ProofVerifyUltraHonkResponse::decode(resp_bin.as_slice())
+        .map_err(|e| ContractError::AttestationFailure(format!("decode ProofVerifyUltraHonkResponse: {e}")))?;
     if !resp.verified {
         return Err(ContractError::ProofVerificationFailed);
     }
@@ -924,7 +941,7 @@ fn verify_gnark_proof_via_xion(
 }
 
 #[cfg(any(feature = "mock-attestation", test))]
-fn verify_gnark_proof_via_xion(
+fn verify_ultrahonk_proof_via_xion(
     _deps: Deps,
     _proof: &[u8],
     _public_inputs: &[u8],
@@ -957,7 +974,7 @@ pub fn verify_publish_quote(
     // ReportData[32..64] = DST_VERIFIED_RCV_TALLY_V1 (zero-padded)
     check_dst_tag(&rd, DST_TALLY_LITERAL)?;
 
-    verify_gnark_proof_via_xion(deps, proof.as_slice(), pi, &registry.vkey_name)?;
+    verify_ultrahonk_proof_via_xion(deps, proof.as_slice(), pi, &registry.vkey_name)?;
     Ok(())
 }
 
@@ -1021,7 +1038,7 @@ pub fn verify_registration_quote(
     // ReportData[32..64] = DST_VERIFIED_RCV_PUBKEY_V1 (zero-padded)
     check_dst_tag(&rd, DST_PUBKEY_LITERAL)?;
 
-    verify_gnark_proof_via_xion(deps, proof.as_slice(), pi, &registry.vkey_name)?;
+    verify_ultrahonk_proof_via_xion(deps, proof.as_slice(), pi, &registry.vkey_name)?;
     Ok(())
 }
 
@@ -1291,7 +1308,7 @@ fn validate_enclave_pubkey(pk: &HexBinary) -> Result<(), ContractError> {
 /// M3 + N1 (v0.3.9) registry shape validation: mrtd/rtmr1/rtmr2 must be
 /// 48 bytes (TDX SHA-384); rtmr0/rtmr3 if Some must be 48 bytes;
 /// vkey_name must be non-empty; accepted_tcb_statuses must be non-empty
-/// and not contain 6 (Revoked is gnark-rejected anyway).
+/// and not contain 6 (Revoked is circuit-rejected anyway).
 fn validate_registry(reg: &EnclaveImageRegistry) -> Result<(), ContractError> {
     if reg.mrtd.len() != MRTD_LEN {
         return Err(ContractError::InvalidRegistry(format!(
@@ -1389,15 +1406,19 @@ fn query_historical_election(
 // Synthetic-public-inputs helper (test-only utility, v0.3.9)
 // ============================================================
 
-/// Build a synthetic 9_792-byte `public_inputs` blob in the layout pinned
-/// at intent §2.5. `mrtd`, `rtmr1`, `rtmr2`, optional `rtmr0`/`rtmr3` are
-/// encoded as 48 fr-elements each. `ReportData` is encoded as 64
-/// fr-elements. `TcbStatus` and `Timestamp` as single fr-elements.
+/// Build a synthetic 544-byte packed UltraHonk `public_inputs` blob in the
+/// dcap-noir layout (the [`extract_report_data`] / [`extract_measurement_48`]
+/// inverse). `mrtd`, `rtmr0..3` each pack into 2 limbs (31 + 17 bytes);
+/// `report_data` packs into 3 limbs (31 + 31 + 2); `tcb_status` rides the
+/// low byte of field 13; `timestamp` the low 8 bytes (u64 BE) of field 14.
+/// cert_serial (15) + fmspc (16) are left zero (verified-rcv does not gate
+/// on them).
 ///
-/// This is the helper the runtime uses in `mock-attestation` builds to
-/// produce a chain-acceptable payload without standing up the gnark prover.
-/// Production callers use the real gnark prover, which produces the same
-/// layout. Exposed under `pub` so the runtime cross-test can call it.
+/// This is the helper the runtime uses in default / `mock-attestation`
+/// builds to produce a chain-acceptable payload without standing up the
+/// prover. The real `real-zkdcap` path takes `public_inputs` straight from
+/// `bb` (the circuit emits the same packed layout). Exposed under `pub` so
+/// the runtime cross-test can call it.
 #[allow(clippy::too_many_arguments)]
 pub fn build_synthetic_public_inputs(
     mrtd: &[u8; 48],
@@ -1409,30 +1430,25 @@ pub fn build_synthetic_public_inputs(
     tcb_status: u8,
     timestamp: u64,
 ) -> Vec<u8> {
-    let mut out = vec![0u8; GNARK_PUBLIC_INPUTS_LEN];
-    // Each U8 byte sits at offset elem*32 + 31; preceding 31 bytes stay 0.
-    for (i, &b) in mrtd.iter().enumerate() {
-        out[(ELEM_MRTD_START + i) * FR_BYTES + 31] = b;
+    let mut out = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
+    // 5 measurement regs (48 bytes each) -> 2 limbs (31 + 17), fields 0..=9.
+    for (reg, m) in [
+        (F_MRTD, mrtd),
+        (F_RTMR0, rtmr0),
+        (F_RTMR1, rtmr1),
+        (F_RTMR2, rtmr2),
+        (F_RTMR3, rtmr3),
+    ] {
+        put_limb(&mut out, reg, &m[..31]);
+        put_limb(&mut out, reg + 1, &m[31..48]);
     }
-    for (i, &b) in rtmr0.iter().enumerate() {
-        out[(ELEM_RTMR0_START + i) * FR_BYTES + 31] = b;
-    }
-    for (i, &b) in rtmr1.iter().enumerate() {
-        out[(ELEM_RTMR1_START + i) * FR_BYTES + 31] = b;
-    }
-    for (i, &b) in rtmr2.iter().enumerate() {
-        out[(ELEM_RTMR2_START + i) * FR_BYTES + 31] = b;
-    }
-    for (i, &b) in rtmr3.iter().enumerate() {
-        out[(ELEM_RTMR3_START + i) * FR_BYTES + 31] = b;
-    }
-    for (i, &b) in report_data.iter().enumerate() {
-        out[(ELEM_REPORTDATA_START + i) * FR_BYTES + 31] = b;
-    }
-    // TcbStatus + Timestamp encoded as u64 BE at offset elem*32 + 24..32.
-    out[ELEM_TCBSTATUS * FR_BYTES + 31] = tcb_status;
-    let ts = timestamp.to_be_bytes();
-    out[ELEM_TIMESTAMP * FR_BYTES + 24..ELEM_TIMESTAMP * FR_BYTES + 32].copy_from_slice(&ts);
+    // report_data (64 bytes) -> 3 limbs (31 + 31 + 2), fields 10..=12.
+    put_limb(&mut out, F_REPORTDATA, &report_data[0..31]);
+    put_limb(&mut out, F_REPORTDATA + 1, &report_data[31..62]);
+    put_limb(&mut out, F_REPORTDATA + 2, &report_data[62..64]);
+    // tcb_status (low byte of field 13) + timestamp (low 8 bytes BE, field 14).
+    out[F_TCBSTATUS * FR_BYTES + FR_BYTES - 1] = tcb_status;
+    put_limb(&mut out, F_TIMESTAMP, &timestamp.to_be_bytes());
     out
 }
 
@@ -1482,7 +1498,7 @@ pub fn build_registration_report_data(
 //
 // Negative-test discipline (v0.3.8 audit Ask AA): for every invariant
 // `Ok ⇒ P`, the suite also exercises `¬P ⇒ Err`. v0.3.9 N1 adds
-// coverage for the gnark public_inputs / ReportData / measurement paths.
+// coverage for the UltraHonk public_inputs / ReportData / measurement paths.
 
 #[cfg(test)]
 mod tests {
@@ -1737,43 +1753,52 @@ mod tests {
     }
 
     // ----------------------------------------------------------------
-    // N1: gnark public_inputs extraction
+    // dcap-noir packed UltraHonk public_inputs extraction
     // ----------------------------------------------------------------
 
     #[test]
     fn public_inputs_wrong_length_rejected() {
-        let bad = vec![0u8; GNARK_PUBLIC_INPUTS_LEN - 1];
+        let bad = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN - 1];
         let err = validate_public_inputs_shape(&bad).unwrap_err();
         assert!(matches!(
             err,
-            ContractError::GnarkPublicInputsLength { got, expected }
-                if got == GNARK_PUBLIC_INPUTS_LEN - 1 && expected == GNARK_PUBLIC_INPUTS_LEN
+            ContractError::PublicInputsLength { got, expected }
+                if got == ULTRAHONK_PUBLIC_INPUTS_LEN - 1 && expected == ULTRAHONK_PUBLIC_INPUTS_LEN
         ));
     }
 
     #[test]
-    fn u8_high_byte_nonzero_rejected() {
-        let mut pi = vec![0u8; GNARK_PUBLIC_INPUTS_LEN];
-        pi[0] = 1; // High byte non-zero at element 0
-        let err = extract_u8_from_fr(&pi, 0).unwrap_err();
-        assert!(matches!(err, ContractError::GnarkPublicInputNotU8 { elem_idx: 0 }));
-    }
-
-    #[test]
-    fn u8_low_byte_extracted_correctly() {
-        let mut pi = vec![0u8; GNARK_PUBLIC_INPUTS_LEN];
-        pi[31] = 0xAB; // U8 value at element 0
-        assert_eq!(extract_u8_from_fr(&pi, 0).unwrap(), 0xAB);
-    }
-
-    #[test]
-    fn u64_high_bytes_nonzero_rejected() {
-        let mut pi = vec![0u8; GNARK_PUBLIC_INPUTS_LEN];
-        pi[ELEM_TCBSTATUS * FR_BYTES] = 1; // high byte non-zero
-        let err = extract_u64_from_fr(&pi, ELEM_TCBSTATUS).unwrap_err();
+    fn report_data_high_limb_byte_nonzero_rejected() {
+        // The pack_be injectivity invariant: bytes above a limb's K low
+        // bytes MUST be zero. Set a high byte of report_data field 12 (a
+        // 2-byte limb) and confirm extraction rejects it.
+        let mut pi = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
+        pi[(F_REPORTDATA + 2) * FR_BYTES] = 1; // top byte of a 2-byte limb
+        let err = extract_report_data(&pi).unwrap_err();
         assert!(matches!(
             err,
-            ContractError::GnarkPublicInputOutOfRange { elem_idx } if elem_idx == ELEM_TCBSTATUS
+            ContractError::PublicInputsMalformed { field } if field == F_REPORTDATA + 2
+        ));
+    }
+
+    #[test]
+    fn tcb_status_low_byte_extracted_correctly() {
+        let pi = build_synthetic_public_inputs(
+            &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0xAB, 0,
+        );
+        assert_eq!(extract_tcb_status(&pi).unwrap(), 0xAB);
+    }
+
+    #[test]
+    fn measurement_high_limb_byte_nonzero_rejected() {
+        // mrtd low limb (field 1) is a 17-byte limb; set a byte above the
+        // low 17 and confirm extraction rejects the non-canonical packing.
+        let mut pi = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
+        pi[(F_MRTD + 1) * FR_BYTES] = 1; // top byte of the 17-byte low limb
+        let err = extract_measurement_48(&pi, F_MRTD).unwrap_err();
+        assert!(matches!(
+            err,
+            ContractError::PublicInputsMalformed { field } if field == F_MRTD + 1
         ));
     }
 
@@ -1786,7 +1811,7 @@ mod tests {
         let pi = build_synthetic_public_inputs(
             &mrtd, &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0, 0,
         );
-        assert_eq!(extract_measurement_48(&pi, ELEM_MRTD_START).unwrap(), mrtd);
+        assert_eq!(extract_measurement_48(&pi, F_MRTD).unwrap(), mrtd);
     }
 
     #[test]
@@ -1861,7 +1886,7 @@ mod tests {
     fn tcb_status_revoked_rejected_even_if_in_registry() {
         // Defense in depth: the validator already refuses to admit 6 in
         // the registry, but this test confirms the runtime check ALSO
-        // rejects 6 (gnark circuit also hard-rejects internally).
+        // rejects 6 (dcap-noir circuit also hard-rejects internally).
         let mut reg = good_registry();
         reg.accepted_tcb_statuses = vec![6]; // shouldn't happen post-validate
         let pi = build_synthetic_public_inputs(

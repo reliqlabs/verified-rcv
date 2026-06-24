@@ -14,10 +14,10 @@
 //! N1 audit re-review remediation (2026-05-26 v0.3.9):
 //! - `DstackEnvelope` / `AttestationEnvelope` removed.
 //! - `PublishResult` and `CreateElection` now carry `proof: HexBinary` and
-//!   `public_inputs: HexBinary` (the gnark Groth16 proof bytes and the
-//!   9_792-byte `public_inputs` blob per intent §2.5 byte layout).
-//! - Verification routes through `/xion.zk.v1.Query/ProofVerifyGnark`
-//!   directly from the contract (see `contract::verify_gnark_proof`).
+//!   `public_inputs: HexBinary` (the UltraHonk proof bytes and the
+//!   544-byte packed `public_inputs` blob per the dcap-noir layout).
+//! - Verification routes through `/xion.zk.v1.Query/ProofVerifyUltraHonk`
+//!   directly from the contract (see `contract::verify_ultrahonk_proof_via_xion`).
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, HexBinary, Timestamp};
@@ -77,11 +77,11 @@ pub enum ExecuteMsg {
         start_at: Timestamp,
         end_at: Timestamp,
         enclave_pubkey: HexBinary,
-        /// Gnark Groth16 BN254 proof bytes (registration quote).
+        /// UltraHonk proof bytes (registration quote).
         proof: HexBinary,
-        /// 9_792-byte `public_inputs` blob per intent §2.5 gnark byte
-        /// layout. Carries MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖
-        /// Timestamp as 306 BE fr-elements.
+        /// 544-byte packed `public_inputs` blob per the dcap-noir layout.
+        /// Carries MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖ Timestamp ‖
+        /// cert_serial ‖ fmspc packed into 17 BE BN254 fields.
         public_inputs: HexBinary,
     },
 
@@ -105,17 +105,16 @@ pub enum ExecuteMsg {
     /// B1 + `AlreadyResolved` rejection).
     ///
     /// N1 v0.3.9 amendment: the prior `attestation: DstackAttestation`
-    /// wrapper is removed; the gnark proof + public_inputs are carried
+    /// wrapper is removed; the UltraHonk proof + public_inputs are carried
     /// directly. Verification goes through
-    /// `/xion.zk.v1.Query/ProofVerifyGnark` + measurement extraction +
+    /// `/xion.zk.v1.Query/ProofVerifyUltraHonk` + measurement extraction +
     /// `ReportData[0..32] = commit_hash` equality + `ReportData[32..64] =
     /// DST_VERIFIED_RCV_TALLY_V1_PADDED` equality.
     PublishResult {
         tally: TallyResult,
-        /// Gnark Groth16 BN254 proof bytes (publish quote).
+        /// UltraHonk proof bytes (publish quote).
         proof: HexBinary,
-        /// 9_792-byte `public_inputs` blob per intent §2.5 gnark byte
-        /// layout.
+        /// 544-byte packed `public_inputs` blob per the dcap-noir layout.
         public_inputs: HexBinary,
     },
 

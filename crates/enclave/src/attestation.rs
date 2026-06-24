@@ -1,16 +1,17 @@
-//! Attestation construction — v0.3.9 N1 form.
+//! Attestation construction — UltraHonk form.
 //!
 //! ## What this module produces
 //!
 //! Two artifacts the chain consumes via direct
-//! `/xion.zk.v1.Query/ProofVerifyGnark` from `verified-rcv`'s contract:
+//! `/xion.zk.v1.Query/ProofVerifyUltraHonk` from `verified-rcv`'s contract:
 //!
-//! - `proof: Vec<u8>` — gnark-native Groth16 BN254 proof bytes.
-//! - `public_inputs: Vec<u8>` — 9_792-byte blob per the §2.5 gnark
-//!   public_inputs byte layout (306 BE fr-elements × 32 bytes).
+//! - `proof: Vec<u8>` — UltraHonk (bb) proof bytes.
+//! - `public_inputs: Vec<u8>` — 544-byte packed blob per the dcap-noir
+//!   layout (17 BN254 fields × 32 bytes).
 //!
 //! `public_inputs` carries `MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖
-//! Timestamp`. `ReportData` is 64 bytes, split into two purpose-tagged
+//! Timestamp ‖ cert_serial ‖ fmspc`, packed limb-wise (the circuit's
+//! pack_be output). `ReportData` is 64 bytes, split into two purpose-tagged
 //! halves per the §2.5 ReportData layout:
 //!
 //! - Publish quote: `SHA-256(canonical_serialization(contract_addr ‖
@@ -28,13 +29,16 @@
 //!
 //! Under the default build, `produce_publish_artifacts` /
 //! `produce_registration_artifacts` return synthetic `(proof,
-//! public_inputs)` matching the §2.5 byte layout — the proof bytes are
-//! a fixed sentinel and the `public_inputs` carries the correct
-//! measurements + ReportData (driven from the caller-supplied identity
-//! tuple). Under `--features real-zkdcap`, the runtime instead connects
-//! to the zkdcap Go prover (see
-//! `/Users/mvid/Development/reliq/zkdcap/host/src/gnark.rs`) over a unix
-//! socket and embeds the returned proof + extracted public_inputs.
+//! public_inputs)` in the packed dcap-noir layout — the proof bytes are a
+//! fixed sentinel and the `public_inputs` is built locally from the
+//! caller-supplied identity tuple via [`build_public_inputs`]. Under
+//! `--features real-zkdcap`, the runtime instead POSTs the TDX quote +
+//! Intel PCS collateral to the noir/bb prove server (default socket
+//! `/run/noir/prove.sock`, env `ZKDCAP_PROVER_SOCKET`), which builds the
+//! Noir witness, runs `bb prove`, and returns the proof together with the
+//! circuit's PACKED public_inputs. On that path the enclave does NOT build
+//! public_inputs — bb emits them — but the produced blob is re-checked
+//! against the bound ReportData + timestamp before use.
 
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -56,9 +60,9 @@ pub const DST_BALLOTS: &[u8] = b"verified-rcv:ballots:v1";
 /// `contract::DST_NAMES`.
 pub const DST_NAMES: &[u8] = b"verified-rcv:names:v1";
 
-/// Total `public_inputs` byte length (intent §2.5 gnark layout for the
-/// zkdcap reference DCAP circuit).
-pub const GNARK_PUBLIC_INPUTS_LEN: usize = 306 * 32;
+/// Total `public_inputs` byte length (dcap-noir packed UltraHonk layout:
+/// 17 BN254 fields × 32 bytes).
+pub const ULTRAHONK_PUBLIC_INPUTS_LEN: usize = 17 * 32;
 
 #[derive(Debug, Error)]
 pub enum AttestationError {
@@ -281,30 +285,54 @@ pub fn build_registration_report_data(
 }
 
 // ---------------------------------------------------------------------------
-// public_inputs construction (intent §2.5 gnark byte layout, v0.3.9)
+// public_inputs construction (dcap-noir packed UltraHonk layout)
 // ---------------------------------------------------------------------------
+//
+// 17 BN254 fields x 32 BE bytes = 544 bytes. The Noir circuit packs K (<=31)
+// bytes into one field via pack_be, so a K-byte limb occupies the LOW K bytes
+// of its 32-byte field. Field order mirrors the contract's `contract.rs`:
+//   0-1 mr_td; 2-3 rtmr0; 4-5 rtmr1; 6-7 rtmr2; 8-9 rtmr3 (each 31 + 17);
+//   10-12 report_data (31 + 31 + 2); 13 tcb_status (low byte); 14 timestamp
+//   (low 8 bytes u64 BE); 15 cert_serial (20B); 16 fmspc (6B).
 
 const FR_BYTES: usize = 32;
-const ELEM_MRTD_START: usize = 0;
-const ELEM_RTMR0_START: usize = 48;
-const ELEM_RTMR1_START: usize = 96;
-const ELEM_RTMR2_START: usize = 144;
-const ELEM_RTMR3_START: usize = 192;
-const ELEM_REPORTDATA_START: usize = 240;
-const ELEM_TCBSTATUS: usize = 304;
-const ELEM_TIMESTAMP: usize = 305;
+const F_MRTD: usize = 0;
+const F_RTMR0: usize = 2;
+const F_RTMR1: usize = 4;
+const F_RTMR2: usize = 6;
+const F_RTMR3: usize = 8;
+const F_REPORTDATA: usize = 10;
+const F_TCBSTATUS: usize = 13;
+const F_TIMESTAMP: usize = 14;
 
-/// Build a 9_792-byte `public_inputs` blob in the layout pinned at
-/// intent §2.5 gnark public_inputs byte layout. Each `uints.U8` byte
-/// sits at offset `i*32 + 31`; the preceding 31 bytes are zero.
-/// `TcbStatus` and `Timestamp` are u64 BE in the last 8 bytes of their
-/// respective 32-byte chunks (high 24 bytes zero).
+/// Write a big-endian limb into field `f` (low `bytes.len()` bytes; high
+/// 32-len(bytes) stay zero). Mirror of the dcap-noir pack_be output.
+fn put_limb(out: &mut [u8], f: usize, bytes: &[u8]) {
+    let end = f * FR_BYTES + FR_BYTES;
+    out[end - bytes.len()..end].copy_from_slice(bytes);
+}
+
+/// Low `k` bytes of field `f`, asserting the high 32-k bytes are zero (the
+/// pack_be injectivity invariant). `None` on a short blob or non-canonical
+/// limb.
+fn read_limb(pi: &[u8], f: usize, k: usize) -> Option<&[u8]> {
+    let fb = pi.get(f * FR_BYTES..f * FR_BYTES + FR_BYTES)?;
+    if fb[..FR_BYTES - k].iter().any(|b| *b != 0) {
+        return None;
+    }
+    Some(&fb[FR_BYTES - k..])
+}
+
+/// Build a 544-byte packed `public_inputs` blob in the dcap-noir layout.
+/// Each measurement register packs into 2 limbs (31 + 17); report_data into
+/// 3 limbs (31 + 31 + 2); tcb_status rides the low byte of field 13;
+/// timestamp the low 8 bytes (u64 BE) of field 14. cert_serial + fmspc are
+/// left zero (verified-rcv does not gate on them).
 ///
 /// Under `default` features this synthesizes a chain-acceptable payload
-/// without invoking the gnark prover. Under `real-zkdcap`, this same
-/// helper builds the chain-side companion; the proof itself comes from
-/// the prover and the prover's witness builder consumes the same
-/// `(mrtd, rtmr*, report_data, tcb, ts)` tuple.
+/// without invoking the prover. Under `real-zkdcap`, `public_inputs` comes
+/// straight from `bb` instead (the circuit emits the same packed layout);
+/// this helper is the synthetic/default builder and the cross-test companion.
 #[allow(clippy::too_many_arguments)]
 pub fn build_public_inputs(
     mrtd: &[u8; 48],
@@ -316,29 +344,48 @@ pub fn build_public_inputs(
     tcb_status: u8,
     timestamp: u64,
 ) -> Vec<u8> {
-    let mut out = vec![0u8; GNARK_PUBLIC_INPUTS_LEN];
-    for (i, &b) in mrtd.iter().enumerate() {
-        out[(ELEM_MRTD_START + i) * FR_BYTES + 31] = b;
+    let mut out = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
+    for (reg, m) in [
+        (F_MRTD, mrtd),
+        (F_RTMR0, rtmr0),
+        (F_RTMR1, rtmr1),
+        (F_RTMR2, rtmr2),
+        (F_RTMR3, rtmr3),
+    ] {
+        put_limb(&mut out, reg, &m[..31]);
+        put_limb(&mut out, reg + 1, &m[31..48]);
     }
-    for (i, &b) in rtmr0.iter().enumerate() {
-        out[(ELEM_RTMR0_START + i) * FR_BYTES + 31] = b;
-    }
-    for (i, &b) in rtmr1.iter().enumerate() {
-        out[(ELEM_RTMR1_START + i) * FR_BYTES + 31] = b;
-    }
-    for (i, &b) in rtmr2.iter().enumerate() {
-        out[(ELEM_RTMR2_START + i) * FR_BYTES + 31] = b;
-    }
-    for (i, &b) in rtmr3.iter().enumerate() {
-        out[(ELEM_RTMR3_START + i) * FR_BYTES + 31] = b;
-    }
-    for (i, &b) in report_data.iter().enumerate() {
-        out[(ELEM_REPORTDATA_START + i) * FR_BYTES + 31] = b;
-    }
-    out[ELEM_TCBSTATUS * FR_BYTES + 31] = tcb_status;
-    let ts = timestamp.to_be_bytes();
-    out[ELEM_TIMESTAMP * FR_BYTES + 24..ELEM_TIMESTAMP * FR_BYTES + 32].copy_from_slice(&ts);
+    put_limb(&mut out, F_REPORTDATA, &report_data[0..31]);
+    put_limb(&mut out, F_REPORTDATA + 1, &report_data[31..62]);
+    put_limb(&mut out, F_REPORTDATA + 2, &report_data[62..64]);
+    out[F_TCBSTATUS * FR_BYTES + FR_BYTES - 1] = tcb_status;
+    put_limb(&mut out, F_TIMESTAMP, &timestamp.to_be_bytes());
     out
+}
+
+/// Extract the 64-byte ReportData from a packed `public_inputs` (fields
+/// 10..=12). `None` on a malformed blob. Used by the `real-zkdcap` path to
+/// defensively confirm the prover's output carries the bound ReportData,
+/// and by the server tests to read the ReportData back out.
+pub fn extract_report_data(pi: &[u8]) -> Option<[u8; 64]> {
+    if pi.len() != ULTRAHONK_PUBLIC_INPUTS_LEN {
+        return None;
+    }
+    let mut rd = [0u8; 64];
+    rd[0..31].copy_from_slice(read_limb(pi, F_REPORTDATA, 31)?);
+    rd[31..62].copy_from_slice(read_limb(pi, F_REPORTDATA + 1, 31)?);
+    rd[62..64].copy_from_slice(read_limb(pi, F_REPORTDATA + 2, 2)?);
+    Some(rd)
+}
+
+/// Quote timestamp (u64 BE in the low 8 bytes of field 14). `None` on a
+/// malformed blob.
+pub fn extract_timestamp(pi: &[u8]) -> Option<u64> {
+    if pi.len() != ULTRAHONK_PUBLIC_INPUTS_LEN {
+        return None;
+    }
+    let limb = read_limb(pi, F_TIMESTAMP, 8)?;
+    Some(u64::from_be_bytes(limb.try_into().ok()?))
 }
 
 // ---------------------------------------------------------------------------
@@ -363,8 +410,8 @@ pub struct EnclaveIdentity {
 /// Synthesize a publish-quote `(proof, public_inputs)` pair. Default
 /// build: the proof is a 192-byte sentinel and the dstack client is
 /// unused (the chain's `mock-attestation` build skips cryptographic
-/// verify). Real build (`--features real-zkdcap`): drives the zkdcap
-/// gnark prover via unix socket and binds a dstack-signed TDX quote.
+/// verify). Real build (`--features real-zkdcap`): drives the noir/bb
+/// prove server via unix socket and binds a dstack-signed TDX quote.
 #[allow(clippy::too_many_arguments)]
 pub async fn produce_publish_artifacts(
     dstack: &dyn crate::dstack::DstackClient,
@@ -430,7 +477,7 @@ async fn produce_artifacts_inner(
         identity.timestamp,
     );
     // Sentinel proof. The chain's `mock-attestation` build skips the
-    // ProofVerifyGnark gRPC call entirely. Production-without-mock will
+    // ProofVerifyUltraHonk gRPC call entirely. Production-without-mock will
     // reject this; that's the intended signal to compile in
     // `--features real-zkdcap`.
     let proof = vec![0xABu8; 192];
@@ -443,68 +490,58 @@ async fn produce_artifacts_inner(
     identity: &EnclaveIdentity,
     report_data: &[u8; 64],
 ) -> Result<(Vec<u8>, Vec<u8>), AttestationError> {
+    use base64::Engine as _;
+
     // 1. Real TDX quote bound to report_data via dstack guest agent.
     let quote = dstack.get_quote(report_data).await?;
 
-    // 2. POST to the gnark prove server. Mirrors
-    //    /Users/mvid/Development/reliq/zkdcap/host/src/gnark.rs (POST
-    //    /prove over a unix socket, body
-    //    `{quote_hex, pre_verified_json, timestamp}`). Response is the
-    //    proof JSON pinned by
-    //    /Users/mvid/Development/reliq/zkdcap/circuits/dcap-gnark/cmd/verify-remote/main.go::proofJSON
-    //    (pi_a / pi_b / pi_c / commitments / commitment_pok /
-    //    public_signals as decimal strings).
+    // 2. Intel PCS collateral -> the dcap-qvl bundle the noir witness
+    //    generator (genprover) consumes.
+    let collateral_json = real_zkdcap::fetch_collateral_json(&quote).await?;
+
+    // 3. POST to the noir/bb prove server (default /run/noir/prove.sock,
+    //    env ZKDCAP_PROVER_SOCKET). `identity.timestamp` rides in the
+    //    request and the proof's witness so the freshness windows agree.
     let socket_path = std::env::var("ZKDCAP_PROVER_SOCKET")
-        .unwrap_or_else(|_| "/tmp/gnark-prove-gpu.sock".to_string());
-    let now_secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|e| AttestationError::ZkProver(format!("clock: {e}")))?
-        .as_secs();
-    let pre_verified_json = real_zkdcap::build_pre_verified_json(&quote, now_secs).await?;
+        .unwrap_or_else(|_| "/run/noir/prove.sock".to_string());
+    let timestamp = identity.timestamp;
     let request_body = serde_json::json!({
         "quote_hex": hex::encode(&quote),
-        "pre_verified_json": pre_verified_json,
-        "timestamp": now_secs,
+        "collateral_json": collateral_json,
+        "timestamp": timestamp,
     });
-    let response_bytes =
-        real_zkdcap::post_unix_socket(&socket_path, &request_body).await?;
-    let proof_json: serde_json::Value = serde_json::from_slice(&response_bytes)
+    let response_bytes = real_zkdcap::post_unix_socket(&socket_path, &request_body).await?;
+
+    // 4. UltraHonk proof + the circuit's packed public_inputs, both base64.
+    //    On this path bb EMITS public_inputs; the enclave does not build them.
+    let resp: serde_json::Value = serde_json::from_slice(&response_bytes)
         .map_err(|e| AttestationError::ZkProver(format!("parse prove response: {e}")))?;
+    let b64 = base64::engine::general_purpose::STANDARD;
+    let field_b64 = |key: &str| -> Result<Vec<u8>, AttestationError> {
+        let s = resp
+            .get(key)
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AttestationError::ZkProver(format!("prove response missing `{key}`")))?;
+        b64.decode(s)
+            .map_err(|e| AttestationError::ZkProver(format!("decode {key}: {e}")))
+    };
+    let proof = field_b64("proof")?;
+    let public_inputs = field_b64("public_inputs")?;
 
-    // 3. Public inputs: built locally from the (identity, report_data)
-    //    tuple in the canonical 9792-byte layout (306 fr-elements x 32 BE
-    //    bytes). The contract's `verify_gnark_proof_via_xion` prepends the
-    //    12-byte gnark witness header before forwarding to chain — we keep
-    //    the bare canonical layout on the wire so the contract's
-    //    measurement-extraction (mrtd / rtmr* / report_data offsets) stays
-    //    framing-free.
-    let public_inputs = build_public_inputs(
-        &identity.mrtd,
-        &identity.rtmr0,
-        &identity.rtmr1,
-        &identity.rtmr2,
-        &identity.rtmr3,
-        report_data,
-        identity.tcb_status,
-        identity.timestamp,
-    );
-
-    // 4. Pull binary proof from the prover's JSON response. Xion's
-    //    `xion.zk.v1.Query/ProofVerifyGnark` uses gnark native binary
-    //    (groth16.Proof.ReadFrom), NOT the JSON shape that off-chain
-    //    `verify-remote` accepts. The prover emits both: JSON for tooling,
-    //    `proof_binary` (base64) for chain.
-    use base64::Engine as _;
-    let proof_bin_b64 = proof_json
-        .get("proof_binary")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| AttestationError::ZkProver(
-            "prove response missing `proof_binary` (rebuild gnark prover with binary-output patch)"
-                .into(),
-        ))?;
-    let proof = base64::engine::general_purpose::STANDARD
-        .decode(proof_bin_b64)
-        .map_err(|e| AttestationError::ZkProver(format!("decode proof_binary: {e}")))?;
+    // 5. Defensive: the prover's packed public_inputs MUST carry the
+    //    ReportData we bound and the requested timestamp, or the chain-side
+    //    recompute-and-compare would reject. Fail fast with a clear error
+    //    instead of shipping a proof the contract is guaranteed to refuse.
+    if extract_report_data(&public_inputs).as_ref() != Some(report_data) {
+        return Err(AttestationError::ZkProver(
+            "prover public_inputs report_data != bound report_data".into(),
+        ));
+    }
+    if extract_timestamp(&public_inputs) != Some(timestamp) {
+        return Err(AttestationError::ZkProver(
+            "prover public_inputs timestamp != requested timestamp".into(),
+        ));
+    }
 
     Ok((proof, public_inputs))
 }
@@ -516,66 +553,26 @@ async fn produce_artifacts_inner(
 #[cfg(feature = "real-zkdcap")]
 mod real_zkdcap {
     use super::AttestationError;
-    use anyhow::Context;
     use serde_json::Value;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::UnixStream;
 
-    /// Fetch PCS collateral + extract pre-verified inputs, then convert
-    /// to the JSON shape the gnark server expects (camelCase per
-    /// zkdcap/circuits/dcap-gnark/witness/types.go::PreVerifiedJSON).
-    ///
-    /// Implementation mirrors `zkdcap/host/src/gnark.rs::build_pre_verified_json`
-    /// and `build_qe_identity_json` to keep the chain-side verifier
-    /// happy when the deployed gnark prove server is the same binary
-    /// oauth3 deploys.
-    pub async fn build_pre_verified_json(
-        quote: &[u8],
-        now_secs: u64,
-    ) -> Result<Value, AttestationError> {
+    /// Fetch PCS collateral (TCB info, QE identity, PCK CRL) and serialize
+    /// the dcap-qvl bundle to JSON for the noir witness generator. genprover
+    /// reads the same collateral.json shape the fixtures use; the prove
+    /// server pairs it with the quote.
+    pub async fn fetch_collateral_json(quote: &[u8]) -> Result<Value, AttestationError> {
         let collateral = dcap_qvl::collateral::get_collateral_from_pcs(quote)
             .await
             .map_err(|e| AttestationError::ZkProver(format!("PCS collateral fetch: {e}")))?;
-        let pre = dcap_qvl::verify::rustcrypto::extract_pre_verified(quote, &collateral, now_secs)
-            .map_err(|e| AttestationError::ZkProver(format!("extract pre-verified: {e}")))?;
-
-        let tcb_info =
-            serde_json::to_value(&pre.tcb_info).context("serialize tcb_info")
-            .map_err(|e| AttestationError::ZkProver(format!("{e}")))?;
-        let qe = &pre.qe_identity;
-        let tcb_levels = serde_json::to_value(&qe.tcb_levels)
-            .map_err(|e| AttestationError::ZkProver(format!("serialize qe tcb_levels: {e}")))?;
-        let qe_identity = serde_json::json!({
-            "id": qe.id,
-            "version": qe.version,
-            "issueDate": qe.issue_date,
-            "nextUpdate": qe.next_update,
-            "tcbEvaluationDataNumber": qe.tcb_evaluation_data_number,
-            "miscselect": hex::encode(qe.miscselect),
-            "miscselectMask": hex::encode(qe.miscselect_mask),
-            "attributes": hex::encode(qe.attributes),
-            "attributesMask": hex::encode(qe.attributes_mask),
-            "mrsigner": hex::encode(qe.mrsigner),
-            "isvprodid": qe.isvprodid,
-            "tcbLevels": tcb_levels,
-        });
-
-        Ok(serde_json::json!({
-            "tcb_info": tcb_info,
-            "qe_identity": qe_identity,
-            "pck_leaf_der": hex::encode(&pre.pck_leaf_der),
-            "cpu_svn": hex::encode(pre.cpu_svn),
-            "pce_svn": pre.pce_svn,
-            "fmspc": hex::encode(pre.fmspc),
-            "ppid": hex::encode(&pre.ppid),
-        }))
+        serde_json::to_value(&collateral)
+            .map_err(|e| AttestationError::ZkProver(format!("serialize collateral: {e}")))
     }
 
     /// POST `body` as JSON to `POST /prove HTTP/1.1` over a unix socket;
-    /// return the response body bytes. Matches gnark.rs's raw HTTP wire
-    /// format (gnark prove server speaks HTTP/1.1 over a unix socket
-    /// with `Connection: close` semantics; we don't pull a full HTTP
-    /// client in for this one POST).
+    /// return the response body bytes. The noir/bb prove server speaks
+    /// HTTP/1.1 over a unix socket with `Connection: close` semantics; we
+    /// don't pull a full HTTP client in for this one POST.
     pub async fn post_unix_socket(
         socket_path: &str,
         body: &Value,
@@ -625,7 +622,7 @@ mod real_zkdcap {
             .unwrap_or(&response[..0]);
         if !status_line.windows(3).any(|w| w == b"200") {
             return Err(AttestationError::ZkProver(format!(
-                "gnark prove server returned non-200: {}",
+                "noir prove server returned non-200: {}",
                 String::from_utf8_lossy(status_line)
             )));
         }
@@ -818,28 +815,48 @@ mod tests {
         let pi = build_public_inputs(
             &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0, 0,
         );
-        assert_eq!(pi.len(), GNARK_PUBLIC_INPUTS_LEN);
-        assert_eq!(pi.len(), 9_792);
+        assert_eq!(pi.len(), ULTRAHONK_PUBLIC_INPUTS_LEN);
+        assert_eq!(pi.len(), 544);
     }
 
     #[test]
-    fn public_inputs_u8_invariant() {
-        // Every fr-element MUST have 31 leading zero bytes.
+    fn public_inputs_pack_be_invariant() {
+        // Each packed limb fills only its LOW K bytes; the high 32-K bytes
+        // of its 32-byte field stay zero (the pack_be injectivity invariant).
         let mut mrtd = [0u8; 48];
-        mrtd[0] = 0xAB;
-        mrtd[47] = 0xCD;
+        mrtd[0] = 0xAB; // first byte of the low-31 limb (field 0)
+        mrtd[47] = 0xCD; // last byte of the low-17 limb (field 1)
         let pi = build_public_inputs(
             &mrtd, &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0, 0,
         );
-        for elem in 0..306 {
-            let chunk = &pi[elem * 32..elem * 32 + 32];
-            for &b in &chunk[..31] {
-                assert_eq!(b, 0, "non-zero high byte at element {elem}");
-            }
+        // Field 0 carries mrtd[0..31] in its low 31 bytes -> mrtd[0] lands at
+        // byte offset (32 - 31) = 1.
+        assert_eq!(pi[1], 0xAB);
+        assert_eq!(pi[0], 0, "field 0 high byte zero");
+        // Field 1 carries mrtd[31..48] in its low 17 bytes -> mrtd[47]
+        // (limb byte 16) lands at byte offset 32 + (32 - 17) + 16 = 63.
+        let field1 = 32usize;
+        assert_eq!(pi[field1 + 31], 0xCD);
+        for b in &pi[field1..field1 + (32 - 17)] {
+            assert_eq!(*b, 0, "field 1 high bytes zero");
         }
-        // Byte values at the right offsets.
-        assert_eq!(pi[31], 0xAB);
-        assert_eq!(pi[47 * 32 + 31], 0xCD);
+    }
+
+    #[test]
+    fn public_inputs_extract_round_trip() {
+        let mut mrtd = [0u8; 48];
+        for (i, b) in mrtd.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_add(0x10);
+        }
+        let mut rd = [0u8; 64];
+        for (i, b) in rd.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_add(0xA0);
+        }
+        let pi = build_public_inputs(
+            &mrtd, &[0; 48], &[0; 48], &[0; 48], &[0; 48], &rd, 3, 1_700_000_000,
+        );
+        assert_eq!(extract_report_data(&pi), Some(rd));
+        assert_eq!(extract_timestamp(&pi), Some(1_700_000_000));
     }
 
     #[test]

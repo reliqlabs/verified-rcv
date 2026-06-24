@@ -31,7 +31,7 @@ pub struct TallyServiceImpl {
     /// The enclave identity tuple to attest over. In dev / simulator
     /// mode this is whatever the operator configures; in real-TDX mode
     /// this comes from a TDX-quote parser at boot. The mock-attestation
-    /// path on the chain doesn't verify the gnark proof, so the
+    /// path on the chain doesn't verify the UltraHonk proof, so the
     /// concrete values matter only for the chain's measurement equality
     /// check against its registry.
     identity: EnclaveIdentity,
@@ -107,10 +107,10 @@ impl TallyService for TallyServiceImpl {
             .collect();
         let ballots_hash = compute_ballots_hash(&candidates, &ballots_for_hash);
 
-        // 4. v0.3.9 N1 attestation artifacts. Default build: synthetic
-        //    `(proof, public_inputs)` matching §2.5 byte layout; real
-        //    build (`--features real-zkdcap`): drive the zkdcap gnark
-        //    prover via unix socket.
+        // 4. Attestation artifacts. Default build: synthetic
+        //    `(proof, public_inputs)` in the packed dcap-noir layout; real
+        //    build (`--features real-zkdcap`): POST quote + collateral to
+        //    the noir/bb prove server over a unix socket.
         let (proof, public_inputs) = produce_publish_artifacts(
             self.dstack.as_ref(),
             &self.identity,
@@ -319,23 +319,21 @@ mod tests {
         assert_eq!(tally.ballots_dropped, 0);
         assert_eq!(tally.non_voters, vec!["C".to_string()]);
 
-        // v0.3.9 N1: the response carries (proof, public_inputs) — assert
-        // shapes match the chain's expectations.
+        // The response carries (proof, public_inputs) — assert shapes
+        // match the chain's expectations.
         assert!(!resp.proof.is_empty(), "proof bytes present");
         assert_eq!(
             resp.public_inputs.len(),
-            crate::attestation::GNARK_PUBLIC_INPUTS_LEN,
-            "public_inputs length matches §2.5 layout"
+            crate::attestation::ULTRAHONK_PUBLIC_INPUTS_LEN,
+            "public_inputs length matches the packed dcap-noir layout"
         );
 
         // ReportData[0..32] in the public_inputs should equal the commit
-        // hash for this (contract_addr, election_id, tally). Extract the
-        // first 32 ReportData bytes (elements 240..272) and compare.
-        let pi = &resp.public_inputs;
-        let mut rd_low = [0u8; 32];
-        for i in 0..32 {
-            rd_low[i] = pi[(240 + i) * 32 + 31];
-        }
+        // hash for this (contract_addr, election_id, tally). Unpack the
+        // ReportData from the packed limbs and compare the low half.
+        let rd = crate::attestation::extract_report_data(&resp.public_inputs)
+            .expect("packed public_inputs decodes");
+        let rd_low: [u8; 32] = rd[..32].try_into().unwrap();
         // B6 (v0.3.11): server.rs hashed raw_ballots in candidate-declaration
         // order; replicate that here for the expected ReportData.
         let cands_str: Vec<String> =
@@ -409,21 +407,20 @@ mod tests {
             resp.enclave_pubkey[0]
         );
 
-        // (b) public_inputs length matches the gnark layout.
+        // (b) public_inputs length matches the packed dcap-noir layout.
         assert_eq!(
             resp.public_inputs.len(),
-            crate::attestation::GNARK_PUBLIC_INPUTS_LEN
+            crate::attestation::ULTRAHONK_PUBLIC_INPUTS_LEN
         );
 
-        // (c) v0.3.12 N22: ReportData[0..32] =
-        //     SHA-256(enclave_pubkey ‖ borsh_string(contract_addr) ‖ u64_LE(election_id)).
-        //     Use the runtime's canonical builder to derive the expected
-        //     hash bytewise, so this test fails loudly if either side drifts.
-        let pi = &resp.public_inputs;
-        let mut rd_low = [0u8; 32];
-        for i in 0..32 {
-            rd_low[i] = pi[(240 + i) * 32 + 31];
-        }
+        // (c) v0.3.12 N22 / v0.3.14 F1: ReportData[0..32] =
+        //     SHA-256(enclave_pubkey ‖ borsh_string(contract_addr) ‖
+        //     u64_LE(election_id) ‖ names_hash). Use the runtime's canonical
+        //     builder to derive the expected hash bytewise, so this test
+        //     fails loudly if either side drifts.
+        let rd = crate::attestation::extract_report_data(&resp.public_inputs)
+            .expect("packed public_inputs decodes");
+        let rd_low: [u8; 32] = rd[..32].try_into().unwrap();
         let expected_nh = crate::attestation::compute_names_hash(&reg_names);
         let expected_rd = crate::attestation::build_registration_report_data(
             &resp.enclave_pubkey,
@@ -435,10 +432,7 @@ mod tests {
         let _ = Sha256::new(); // keep sha2 import warm for future tests
 
         // (d) ReportData[32..58] = DST_VERIFIED_RCV_PUBKEY_V1.
-        let mut rd_high = [0u8; 32];
-        for i in 0..32 {
-            rd_high[i] = pi[(240 + 32 + i) * 32 + 31];
-        }
+        let rd_high: [u8; 32] = rd[32..64].try_into().unwrap();
         assert_eq!(
             &rd_high[..crate::attestation::DST_PUBKEY.len()],
             crate::attestation::DST_PUBKEY,
