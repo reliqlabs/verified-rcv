@@ -39,9 +39,10 @@ hex.workspace = true
 # canonical_serialization is hand-rolled to match intent §2.5 v0.3.1 T7
 # byte-for-byte; see `contract::canonical_serialization`.
 sha2 = "0.10"
-# N1 (v0.3.9): protobuf encoding for the QueryVerifyUltraHonkRequest sent to
-# Xion's xion.zk.v1.Query/ProofVerifyUltraHonk via QueryRequest::Grpc.
-prost = { version = "0.13", default-features = false, features = ["std", "derive"] }
+# Shared canonical UltraHonk attestation layer (packed public_inputs layout +
+# decoders + the Xion ProofVerifyUltraHonk backend). One place for the proof
+# checks across dossier / verified-rcv; a circuit/layout bump is a rev bump.
+quartz-zkdcap = { git = "ssh://git@github.com/reliqlabs/quartz.git", rev = "ba9e2b968bf03b90909eb15046b9557ecdfce0b4", features = ["xion-backend"] }
 
 # Shared core types with the enclave (TallyResult schema, Ballot, etc.).
 verified-rcv-enclave-core = { path = "../enclave-core", features = ["serialize"] }

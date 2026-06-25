@@ -38,6 +38,10 @@ path = "src/bin/smoke.rs"
 [dependencies]
 verified-rcv-enclave-core = { path = "../enclave-core", features = ["serialize"] }
 
+# Shared packed-public_inputs layout (21-field / 672-byte dcap-noir UltraHonk).
+# Pure layer only (no xion-backend → no cosmwasm pulled into the enclave).
+quartz-zkdcap = { git = "ssh://git@github.com/reliqlabs/quartz.git", rev = "ba9e2b968bf03b90909eb15046b9557ecdfce0b4", default-features = false, features = ["std"] }
+
 serde.workspace = true
 serde_json.workspace = true
 hex.workspace = true

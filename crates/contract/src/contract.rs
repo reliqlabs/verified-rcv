@@ -47,9 +47,6 @@ use cosmwasm_std::{
     Response, StdResult, Timestamp,
 };
 
-#[cfg(not(any(feature = "mock-attestation", test)))]
-use prost::Message;
-
 use verified_rcv_enclave_core::TallyResult;
 
 use crate::error::ContractError;
@@ -104,90 +101,58 @@ pub const CANDIDATE_NAME_MAX_BYTES: usize = 64;
 
 // ----- UltraHonk public_inputs layout (dcap-noir circuit, PACKED) --------
 //
-// 20 BN254 field elements, each a 32-byte BIG-ENDIAN element. The Noir
-// circuit packs K (<=31) bytes into one element via pack_be (value =
-// sum b[i]*256^(K-1-i)), so a K-byte limb occupies the LOW K bytes of its
-// 32-byte element and the high 32-K bytes are zero. Field order mirrors the
-// dcap-noir circuit's returned [Field; 20] (the SAME circuit dossier
-// verifies — report_data is a public input, not baked into the circuit):
-//   0-1   mr_td        ([0..31],[31..48])
-//   2-3   rtmr0        ([0..31],[31..48])
-//   4-5   rtmr1
-//   6-7   rtmr2
-//   8-9   rtmr3
-//   10-12 report_data  ([0..31],[31..62],[62..64])
-//   13    tcb_status   (low byte)
-//   14    timestamp    (low 8 bytes, u64 BE) -- the in-circuit verification time
-//   15    cert_serial  (20 bytes; not gated by verified-rcv)
-//   16    fmspc        (6 bytes; not gated by verified-rcv)
-//   17    tcb_eval_num min(tcbEvaluationDataNumber) over TCB-Info + QE-Identity
-//   18    valid_from   max of all signed validity lower bounds (packed date)
-//   19    valid_until  min of all signed validity upper bounds (packed date)
-// Fields 17-19 are the circuit's recency/freshness outputs: the circuit has no
-// clock/counter, so the consumer MUST range-check chain time against
-// [valid_from, valid_until] and reject tcb_eval_num below an on-chain floor.
-// The host-chosen timestamp (field 14) is NOT trusted for freshness.
-const FR_BYTES: usize = 32;
-const ULTRAHONK_PUBLIC_INPUTS_FIELDS: usize = 20;
-/// Total `public_inputs` byte length = 20 × 32 = 640.
-pub const ULTRAHONK_PUBLIC_INPUTS_LEN: usize = ULTRAHONK_PUBLIC_INPUTS_FIELDS * FR_BYTES;
+// The packed 21-field / 672-byte layout, its limb encoders/decoders, and the
+// Xion `ProofVerifyUltraHonk` backend all live in the shared `quartz-zkdcap`
+// crate (the SAME layer dossier consumes), so the proof checks live in one
+// place and a circuit/layout bump is a single rev bump. This module keeps thin
+// adapters that map `quartz_zkdcap`'s `Option` decoders into the verified-rcv
+// `ContractError` set and layer on the domain-specific commit/pubkey bindings.
+//
+// Field map (21 BN254 elements, 32-byte BE each; K-byte limb in the low K
+// bytes, high 32-K zero): 0-1 mr_td; 2-3 rtmr0; 4-5 rtmr1; 6-7 rtmr2; 8-9
+// rtmr3; 10-12 report_data; 13 tcb_status; 14 timestamp; 15 cert_serial; 16
+// fmspc; 17 tcb_eval_num (TCB-Info); 18 qe_eval_num (QE-Identity, issue #4);
+// 19 valid_from; 20 valid_until. The circuit has no clock/counter, so the
+// consumer range-checks chain time against [valid_from, valid_until] and floors
+// min(tcb_eval_num, qe_eval_num) against an on-chain config value.
 
-/// Field index where each measurement register begins (2 limbs per
-/// register: 31 + 17 bytes). Fields 0..=9 carry MRTD || RTMR0..3.
+/// Total `public_inputs` byte length (21 × 32 = 672). From `quartz-zkdcap`.
+pub use quartz_zkdcap::ULTRAHONK_PUBLIC_INPUTS_LEN;
+
+// Field indices, kept only to tag `PublicInputsMalformed { field }` diagnostics
+// and to select a measurement register; the actual packing lives in
+// `quartz-zkdcap`. Measurement register `reg` (0=MRTD..4=RTMR3) starts at field
+// `reg * 2`.
+#[cfg(test)]
+const FR_BYTES: usize = 32;
 const F_MRTD: usize = 0;
 const F_RTMR0: usize = 2;
 const F_RTMR1: usize = 4;
 const F_RTMR2: usize = 6;
 const F_RTMR3: usize = 8;
-/// report_data spans fields 10..=12 (3 limbs: 31 + 31 + 2).
 const F_REPORTDATA: usize = 10;
 const F_TCBSTATUS: usize = 13;
-const F_TIMESTAMP: usize = 14;
 const F_TCB_EVAL: usize = 17;
-const F_VALID_FROM: usize = 18;
-const F_VALID_UNTIL: usize = 19;
+const F_QE_EVAL: usize = 18;
+const F_VALID_FROM: usize = 19;
+const F_VALID_UNTIL: usize = 20;
 
-/// Write a big-endian limb into field `f` (low `bytes.len()` bytes; the
-/// high 32-len(bytes) stay zero). Mirror of the dcap-noir pack_be output.
-fn put_limb(out: &mut [u8], f: usize, bytes: &[u8]) {
-    let end = f * FR_BYTES + FR_BYTES;
-    out[end - bytes.len()..end].copy_from_slice(bytes);
-}
-
-/// Low `k` bytes of field `f`, asserting the high 32-k bytes are zero (the
-/// pack_be injectivity invariant; a violation is malformed/adversarial
-/// input). `None` on a short blob or a non-canonical (high-byte-set) limb.
-fn read_limb(pi: &[u8], f: usize, k: usize) -> Option<&[u8]> {
-    let fb = pi.get(f * FR_BYTES..f * FR_BYTES + FR_BYTES)?;
-    if fb[..FR_BYTES - k].iter().any(|b| *b != 0) {
-        return None;
-    }
-    Some(&fb[FR_BYTES - k..])
-}
-
-// ============================================================
-// xion.zk.v1.Query/ProofVerifyUltraHonk prost types
-// (matches /Users/mvid/Development/burnt/xion/proto/xion/zk/v1/query.proto)
-// ============================================================
-
-#[cfg(not(any(feature = "mock-attestation", test)))]
-#[derive(Clone, PartialEq, prost::Message)]
-struct QueryVerifyUltraHonkRequest {
-    #[prost(bytes = "vec", tag = "1")]
-    proof: Vec<u8>,
-    #[prost(bytes = "vec", tag = "2")]
-    public_inputs: Vec<u8>,
-    #[prost(string, tag = "3")]
-    vkey_name: String,
-    #[prost(uint64, tag = "4")]
-    vkey_id: u64,
-}
-
-#[cfg(not(any(feature = "mock-attestation", test)))]
-#[derive(Clone, PartialEq, prost::Message)]
-struct ProofVerifyUltraHonkResponse {
-    #[prost(bool, tag = "1")]
-    verified: bool,
+/// Concatenate the five 48-byte measurement registers (MRTD ‖ RTMR0..3) into the
+/// 240-byte buffer `quartz_zkdcap::build_public_inputs` expects (test helper).
+fn measurements_blob(
+    mrtd: &[u8; 48],
+    rtmr0: &[u8; 48],
+    rtmr1: &[u8; 48],
+    rtmr2: &[u8; 48],
+    rtmr3: &[u8; 48],
+) -> [u8; quartz_zkdcap::MEASUREMENT_BYTES] {
+    let mut m = [0u8; quartz_zkdcap::MEASUREMENT_BYTES];
+    m[0..48].copy_from_slice(mrtd);
+    m[48..96].copy_from_slice(rtmr0);
+    m[96..144].copy_from_slice(rtmr1);
+    m[144..192].copy_from_slice(rtmr2);
+    m[192..240].copy_from_slice(rtmr3);
+    m
 }
 
 // ============================================================
@@ -789,96 +754,59 @@ where
 // dcap-noir packed UltraHonk public_inputs extraction
 // ============================================================
 
-/// Extract a 48-byte measurement register (MrTd / Rtmr*) from the two
-/// packed limbs (31 + 17 bytes) starting at field `f`.
+/// Extract a 48-byte measurement register (MrTd / Rtmr*) given the field index
+/// `f` where it starts (register index `f / 2`). Thin adapter over the shared
+/// `quartz_zkdcap` decoder, mapping `None` into `PublicInputsMalformed`.
 pub fn extract_measurement_48(
     public_inputs: &[u8],
     f: usize,
 ) -> Result<[u8; 48], ContractError> {
-    let hi = read_limb(public_inputs, f, 31)
-        .ok_or(ContractError::PublicInputsMalformed { field: f })?;
-    let lo = read_limb(public_inputs, f + 1, 17)
-        .ok_or(ContractError::PublicInputsMalformed { field: f + 1 })?;
-    let mut out = [0u8; 48];
-    out[..31].copy_from_slice(hi);
-    out[31..].copy_from_slice(lo);
-    Ok(out)
+    quartz_zkdcap::extract_measurement_reg(public_inputs, f / 2)
+        .ok_or(ContractError::PublicInputsMalformed { field: f })
 }
 
-/// Extract the 64-byte ReportData from fields 10..=12 (packed limbs
-/// 31 + 31 + 2; enforces the high-bytes-zero invariant per limb).
+/// Extract the 64-byte ReportData (fields 10..=12) via the shared decoder.
 pub fn extract_report_data(public_inputs: &[u8]) -> Result<[u8; 64], ContractError> {
-    let mut out = [0u8; 64];
-    out[0..31].copy_from_slice(
-        read_limb(public_inputs, F_REPORTDATA, 31)
-            .ok_or(ContractError::PublicInputsMalformed { field: F_REPORTDATA })?,
-    );
-    out[31..62].copy_from_slice(
-        read_limb(public_inputs, F_REPORTDATA + 1, 31)
-            .ok_or(ContractError::PublicInputsMalformed { field: F_REPORTDATA + 1 })?,
-    );
-    out[62..64].copy_from_slice(
-        read_limb(public_inputs, F_REPORTDATA + 2, 2)
-            .ok_or(ContractError::PublicInputsMalformed { field: F_REPORTDATA + 2 })?,
-    );
-    Ok(out)
+    quartz_zkdcap::extract_report_data(public_inputs)
+        .ok_or(ContractError::PublicInputsMalformed { field: F_REPORTDATA })
 }
 
-/// Extract TcbStatus from the low byte of field 13.
+/// Extract TcbStatus (low byte of field 13) via the shared decoder.
 fn extract_tcb_status(public_inputs: &[u8]) -> Result<u8, ContractError> {
-    let limb = read_limb(public_inputs, F_TCBSTATUS, 1)
-        .ok_or(ContractError::PublicInputsMalformed { field: F_TCBSTATUS })?;
-    Ok(limb[0])
+    quartz_zkdcap::extract_tcb_status(public_inputs)
+        .ok_or(ContractError::PublicInputsMalformed { field: F_TCBSTATUS })
 }
 
-/// Read a scalar u64 field (value packed in the low 8 bytes of field `f`).
-fn extract_scalar_u64(public_inputs: &[u8], f: usize) -> Result<u64, ContractError> {
-    let limb =
-        read_limb(public_inputs, f, 8).ok_or(ContractError::PublicInputsMalformed { field: f })?;
-    let buf: [u8; 8] = limb
-        .try_into()
-        .map_err(|_| ContractError::PublicInputsMalformed { field: f })?;
-    Ok(u64::from_be_bytes(buf))
-}
-
-/// TCB evaluation-data number (recency counter): min over the signed TCB-Info
-/// + QE-Identity. The chain rejects values below a monotonic config floor.
+/// TCB-Info evaluation-data number (recency counter, field 17).
 pub fn extract_tcb_eval_num(public_inputs: &[u8]) -> Result<u64, ContractError> {
-    extract_scalar_u64(public_inputs, F_TCB_EVAL)
+    quartz_zkdcap::extract_tcb_eval_num(public_inputs)
+        .ok_or(ContractError::PublicInputsMalformed { field: F_TCB_EVAL })
 }
 
-/// Lower bound of the circuit-proven validity window (packed YYYYMMDDhhmmss):
-/// max of every signed validity lower bound.
+/// QE-Identity evaluation-data number (recency counter, field 18; issue #4 split
+/// the single counter into TCB-Info + QE-Identity).
+pub fn extract_qe_eval_num(public_inputs: &[u8]) -> Result<u64, ContractError> {
+    quartz_zkdcap::extract_qe_eval_num(public_inputs)
+        .ok_or(ContractError::PublicInputsMalformed { field: F_QE_EVAL })
+}
+
+/// Lower bound of the circuit-proven validity window (field 19, packed date).
 pub fn extract_valid_from(public_inputs: &[u8]) -> Result<u64, ContractError> {
-    extract_scalar_u64(public_inputs, F_VALID_FROM)
+    quartz_zkdcap::extract_valid_from(public_inputs)
+        .ok_or(ContractError::PublicInputsMalformed { field: F_VALID_FROM })
 }
 
-/// Upper bound of the circuit-proven validity window (packed YYYYMMDDhhmmss):
-/// min of every signed validity upper bound.
+/// Upper bound of the circuit-proven validity window (field 20, packed date).
 pub fn extract_valid_until(public_inputs: &[u8]) -> Result<u64, ContractError> {
-    extract_scalar_u64(public_inputs, F_VALID_UNTIL)
+    quartz_zkdcap::extract_valid_until(public_inputs)
+        .ok_or(ContractError::PublicInputsMalformed { field: F_VALID_UNTIL })
 }
 
 /// Convert a unix timestamp (seconds, UTC) to the packed `YYYYMMDDhhmmss`
 /// integer the circuit emits for valid_from/valid_until, so the contract can
-/// range-check chain time (`env.block.time`) against the proven window.
-/// Proleptic Gregorian (Howard Hinnant's days-from-civil inverse).
-pub fn unix_to_packed_datetime(unix_secs: u64) -> u64 {
-    let days = (unix_secs / 86_400) as i64;
-    let secs = unix_secs % 86_400;
-    let z = days + 719_468;
-    let era = (if z >= 0 { z } else { z - 146_096 }) / 146_097;
-    let doe = z - era * 146_097; // [0, 146096]
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
-    let mp = (5 * doy + 2) / 153; // [0, 11]
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u64; // [1, 31]
-    let m = (if mp < 10 { mp + 3 } else { mp - 9 }) as u64; // [1, 12]
-    let year = (y + if m <= 2 { 1 } else { 0 }) as u64;
-    let (hh, mm, ss) = (secs / 3600, (secs % 3600) / 60, secs % 60);
-    year * 10_000_000_000 + m * 100_000_000 + d * 1_000_000 + hh * 10_000 + mm * 100 + ss
-}
+/// range-check chain time (`env.block.time`) against the proven window. Shared
+/// with the enclave runtime via `quartz-zkdcap`.
+pub use quartz_zkdcap::unix_to_packed_datetime;
 
 /// The two recency/staleness checks the circuit cannot make itself: chain
 /// time inside the proven `[valid_from, valid_until]` collateral window, and
@@ -902,10 +830,14 @@ fn verify_window_recency(
             valid_until,
         });
     }
+    // Issue #4 split the single counter into TCB-Info (field 17) + QE-Identity
+    // (field 18); floor on the smaller (preserves the pre-#4 min semantics).
     let tcb_eval_num = extract_tcb_eval_num(public_inputs)?;
-    if tcb_eval_num < min_tcb_eval_num {
+    let qe_eval_num = extract_qe_eval_num(public_inputs)?;
+    let eval_num = tcb_eval_num.min(qe_eval_num);
+    if eval_num < min_tcb_eval_num {
         return Err(ContractError::AttestationTcbEvalNumTooLow {
-            got: tcb_eval_num,
+            got: eval_num,
             floor: min_tcb_eval_num,
         });
     }
@@ -1007,36 +939,14 @@ fn verify_ultrahonk_proof_via_xion(
     public_inputs: &[u8],
     vkey_name: &str,
 ) -> Result<(), ContractError> {
-    // UltraHonk public_inputs go on the wire RAW: the bare 640-byte vector
-    // (20 fields x 32 BE bytes) that `bb prove` emits. No gnark
-    // nbPublic/nbSecret/vec_len witness header. The vkey is resolved by name
-    // from the x/zk store (the deployed dcap-ultrahonk-v1 circuit).
-    let req = QueryVerifyUltraHonkRequest {
-        proof: proof.to_vec(),
-        public_inputs: public_inputs.to_vec(),
-        vkey_name: vkey_name.to_string(),
-        vkey_id: 0,
-    };
-    let mut req_bytes = Vec::new();
-    req.encode(&mut req_bytes)
-        .map_err(|e| ContractError::AttestationFailure(format!("encode QueryVerifyUltraHonkRequest: {e}")))?;
-
-    // Must use query_grpc (raw bytes) — querier.query() JSON-decodes the
-    // response, which would fail with "expected value at line 1 column 1" on
-    // a successful gRPC response (proto bytes are not JSON).
-    let resp_bin: Binary = deps
-        .querier
-        .query_grpc(
-            "/xion.zk.v1.Query/ProofVerifyUltraHonk".to_string(),
-            Binary::from(req_bytes),
-        )
-        .map_err(|e| {
-            ContractError::AttestationFailure(format!("ProofVerifyUltraHonk gRPC: {e}"))
-        })?;
-
-    let resp = ProofVerifyUltraHonkResponse::decode(resp_bin.as_slice())
-        .map_err(|e| ContractError::AttestationFailure(format!("decode ProofVerifyUltraHonkResponse: {e}")))?;
-    if !resp.verified {
+    use quartz_zkdcap::ProofBackend;
+    // Shared Xion x/zk backend: resolves the vkey by name and queries
+    // /xion.zk.v1.Query/ProofVerifyUltraHonk with the raw 672-byte public_inputs
+    // (20→21 fields; what `bb prove` emits). The backend fails closed (any
+    // encode/gRPC/decode error or verified=false ⇒ rejected).
+    let backend =
+        quartz_zkdcap::XionUltraHonkBackend::by_name(deps.querier, vkey_name.to_string());
+    if !backend.verify(proof, public_inputs) {
         return Err(ContractError::ProofVerificationFailed);
     }
     Ok(())
@@ -1555,29 +1465,19 @@ pub fn build_synthetic_public_inputs_full(
     valid_from: u64,
     valid_until: u64,
 ) -> Vec<u8> {
-    let mut out = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
-    // 5 measurement regs (48 bytes each) -> 2 limbs (31 + 17), fields 0..=9.
-    for (reg, m) in [
-        (F_MRTD, mrtd),
-        (F_RTMR0, rtmr0),
-        (F_RTMR1, rtmr1),
-        (F_RTMR2, rtmr2),
-        (F_RTMR3, rtmr3),
-    ] {
-        put_limb(&mut out, reg, &m[..31]);
-        put_limb(&mut out, reg + 1, &m[31..48]);
-    }
-    // report_data (64 bytes) -> 3 limbs (31 + 31 + 2), fields 10..=12.
-    put_limb(&mut out, F_REPORTDATA, &report_data[0..31]);
-    put_limb(&mut out, F_REPORTDATA + 1, &report_data[31..62]);
-    put_limb(&mut out, F_REPORTDATA + 2, &report_data[62..64]);
-    // scalar fields: tcb_status (low byte) + the u64 fields (low 8 bytes BE).
-    out[F_TCBSTATUS * FR_BYTES + FR_BYTES - 1] = tcb_status;
-    put_limb(&mut out, F_TIMESTAMP, &timestamp.to_be_bytes());
-    put_limb(&mut out, F_TCB_EVAL, &tcb_eval_num.to_be_bytes());
-    put_limb(&mut out, F_VALID_FROM, &valid_from.to_be_bytes());
-    put_limb(&mut out, F_VALID_UNTIL, &valid_until.to_be_bytes());
-    out
+    let m = measurements_blob(mrtd, rtmr0, rtmr1, rtmr2, rtmr3);
+    // Synthetic/default path: qe_eval_num == tcb_eval_num (the real prover emits
+    // both the TCB-Info and QE-Identity counters; issue #4 split them).
+    quartz_zkdcap::build_public_inputs(
+        &m,
+        report_data,
+        tcb_status,
+        timestamp,
+        tcb_eval_num,
+        tcb_eval_num,
+        valid_from,
+        valid_until,
+    )
 }
 
 /// Permissive convenience wrapper over [`build_synthetic_public_inputs_full`]
@@ -1925,9 +1825,11 @@ mod tests {
         let mut pi = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
         pi[(F_REPORTDATA + 2) * FR_BYTES] = 1; // top byte of a 2-byte limb
         let err = extract_report_data(&pi).unwrap_err();
+        // The shared decoder rejects the non-canonical packing; the adapter tags
+        // the diagnostic with the report_data start field (not the exact limb).
         assert!(matches!(
             err,
-            ContractError::PublicInputsMalformed { field } if field == F_REPORTDATA + 2
+            ContractError::PublicInputsMalformed { field } if field == F_REPORTDATA
         ));
     }
 
@@ -1946,9 +1848,11 @@ mod tests {
         let mut pi = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
         pi[(F_MRTD + 1) * FR_BYTES] = 1; // top byte of the 17-byte low limb
         let err = extract_measurement_48(&pi, F_MRTD).unwrap_err();
+        // The shared decoder rejects the non-canonical packing; the adapter tags
+        // the diagnostic with the register start field (not the exact limb).
         assert!(matches!(
             err,
-            ContractError::PublicInputsMalformed { field } if field == F_MRTD + 1
+            ContractError::PublicInputsMalformed { field } if field == F_MRTD
         ));
     }
 

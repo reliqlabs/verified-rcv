@@ -6,8 +6,8 @@
 //! `/xion.zk.v1.Query/ProofVerifyUltraHonk` from `verified-rcv`'s contract:
 //!
 //! - `proof: Vec<u8>` — UltraHonk (bb) proof bytes.
-//! - `public_inputs: Vec<u8>` — 640-byte packed blob per the dcap-noir
-//!   layout (20 BN254 fields × 32 bytes).
+//! - `public_inputs: Vec<u8>` — 672-byte packed blob per the dcap-noir
+//!   layout (21 BN254 fields × 32 bytes), shared via `quartz-zkdcap`.
 //!
 //! `public_inputs` carries `MrTd ‖ Rtmr0..3 ‖ ReportData ‖ TcbStatus ‖
 //! Timestamp ‖ cert_serial ‖ fmspc ‖ tcb_eval_num ‖ valid_from ‖ valid_until`,
@@ -63,8 +63,8 @@ pub const DST_BALLOTS: &[u8] = b"verified-rcv:ballots:v1";
 pub const DST_NAMES: &[u8] = b"verified-rcv:names:v1";
 
 /// Total `public_inputs` byte length (dcap-noir packed UltraHonk layout:
-/// 20 BN254 fields × 32 bytes).
-pub const ULTRAHONK_PUBLIC_INPUTS_LEN: usize = 20 * 32;
+/// 21 BN254 fields × 32 bytes). Re-exported from the shared `quartz-zkdcap`.
+pub use quartz_zkdcap::ULTRAHONK_PUBLIC_INPUTS_LEN;
 
 #[derive(Debug, Error)]
 pub enum AttestationError {
@@ -290,51 +290,39 @@ pub fn build_registration_report_data(
 // public_inputs construction (dcap-noir packed UltraHonk layout)
 // ---------------------------------------------------------------------------
 //
-// 20 BN254 fields x 32 BE bytes = 640 bytes. The Noir circuit packs K (<=31)
-// bytes into one field via pack_be, so a K-byte limb occupies the LOW K bytes
-// of its 32-byte field. Field order mirrors the contract's `contract.rs`:
-//   0-1 mr_td; 2-3 rtmr0; 4-5 rtmr1; 6-7 rtmr2; 8-9 rtmr3 (each 31 + 17);
-//   10-12 report_data (31 + 31 + 2); 13 tcb_status (low byte); 14 timestamp
-//   (low 8 bytes u64 BE); 15 cert_serial (20B); 16 fmspc (6B);
-//   17 tcb_eval_num; 18 valid_from; 19 valid_until (each low 8 bytes u64 BE).
+// The packed layout (21 BN254 fields x 32 BE bytes = 672 bytes) and all of its
+// limb encoders/decoders live in the shared `quartz-zkdcap` crate so this
+// runtime and the contract stay byte-identical and a circuit/layout bump is a
+// one-place edit. We keep thin 5-register adapters below so call sites read
+// naturally; the extractors are re-exported verbatim.
 
-const FR_BYTES: usize = 32;
-const F_MRTD: usize = 0;
-const F_RTMR0: usize = 2;
-const F_RTMR1: usize = 4;
-const F_RTMR2: usize = 6;
-const F_RTMR3: usize = 8;
-const F_REPORTDATA: usize = 10;
-const F_TCBSTATUS: usize = 13;
-const F_TIMESTAMP: usize = 14;
-const F_TCB_EVAL: usize = 17;
-const F_VALID_FROM: usize = 18;
-const F_VALID_UNTIL: usize = 19;
+pub use quartz_zkdcap::{
+    extract_report_data, extract_tcb_eval_num, extract_timestamp, extract_valid_from,
+    extract_valid_until,
+};
 
-/// Write a big-endian limb into field `f` (low `bytes.len()` bytes; high
-/// 32-len(bytes) stay zero). Mirror of the dcap-noir pack_be output.
-fn put_limb(out: &mut [u8], f: usize, bytes: &[u8]) {
-    let end = f * FR_BYTES + FR_BYTES;
-    out[end - bytes.len()..end].copy_from_slice(bytes);
+/// Concatenate the five 48-byte measurement registers (MRTD ‖ RTMR0..3) into the
+/// 240-byte buffer `quartz_zkdcap::build_public_inputs` expects.
+fn measurements_blob(
+    mrtd: &[u8; 48],
+    rtmr0: &[u8; 48],
+    rtmr1: &[u8; 48],
+    rtmr2: &[u8; 48],
+    rtmr3: &[u8; 48],
+) -> [u8; quartz_zkdcap::MEASUREMENT_BYTES] {
+    let mut m = [0u8; quartz_zkdcap::MEASUREMENT_BYTES];
+    m[0..48].copy_from_slice(mrtd);
+    m[48..96].copy_from_slice(rtmr0);
+    m[96..144].copy_from_slice(rtmr1);
+    m[144..192].copy_from_slice(rtmr2);
+    m[192..240].copy_from_slice(rtmr3);
+    m
 }
 
-/// Low `k` bytes of field `f`, asserting the high 32-k bytes are zero (the
-/// pack_be injectivity invariant). `None` on a short blob or non-canonical
-/// limb.
-fn read_limb(pi: &[u8], f: usize, k: usize) -> Option<&[u8]> {
-    let fb = pi.get(f * FR_BYTES..f * FR_BYTES + FR_BYTES)?;
-    if fb[..FR_BYTES - k].iter().any(|b| *b != 0) {
-        return None;
-    }
-    Some(&fb[FR_BYTES - k..])
-}
-
-/// Build a 640-byte packed `public_inputs` blob in the dcap-noir layout.
-/// Each measurement register packs into 2 limbs (31 + 17); report_data into
-/// 3 limbs (31 + 31 + 2); tcb_status rides the low byte of field 13;
-/// timestamp, tcb_eval_num, valid_from, valid_until ride the low 8 bytes
-/// (u64 BE) of fields 14/17/18/19. cert_serial + fmspc are left zero
-/// (verified-rcv does not gate on them).
+/// Build a 672-byte packed `public_inputs` blob in the shared dcap-noir layout
+/// (delegates to `quartz_zkdcap::build_public_inputs`). The synthetic/default
+/// path sets `qe_eval_num = tcb_eval_num` (the real prover emits both the
+/// TCB-Info and QE-Identity counters; issue #4 split them).
 ///
 /// Under `default` features this synthesizes a chain-acceptable payload
 /// without invoking the prover. Under `real-zkdcap`, `public_inputs` comes
@@ -354,26 +342,17 @@ pub fn build_public_inputs_full(
     valid_from: u64,
     valid_until: u64,
 ) -> Vec<u8> {
-    let mut out = vec![0u8; ULTRAHONK_PUBLIC_INPUTS_LEN];
-    for (reg, m) in [
-        (F_MRTD, mrtd),
-        (F_RTMR0, rtmr0),
-        (F_RTMR1, rtmr1),
-        (F_RTMR2, rtmr2),
-        (F_RTMR3, rtmr3),
-    ] {
-        put_limb(&mut out, reg, &m[..31]);
-        put_limb(&mut out, reg + 1, &m[31..48]);
-    }
-    put_limb(&mut out, F_REPORTDATA, &report_data[0..31]);
-    put_limb(&mut out, F_REPORTDATA + 1, &report_data[31..62]);
-    put_limb(&mut out, F_REPORTDATA + 2, &report_data[62..64]);
-    out[F_TCBSTATUS * FR_BYTES + FR_BYTES - 1] = tcb_status;
-    put_limb(&mut out, F_TIMESTAMP, &timestamp.to_be_bytes());
-    put_limb(&mut out, F_TCB_EVAL, &tcb_eval_num.to_be_bytes());
-    put_limb(&mut out, F_VALID_FROM, &valid_from.to_be_bytes());
-    put_limb(&mut out, F_VALID_UNTIL, &valid_until.to_be_bytes());
-    out
+    let m = measurements_blob(mrtd, rtmr0, rtmr1, rtmr2, rtmr3);
+    quartz_zkdcap::build_public_inputs(
+        &m,
+        report_data,
+        tcb_status,
+        timestamp,
+        tcb_eval_num,
+        tcb_eval_num, // qe_eval_num == tcb_eval_num on the synthetic path
+        valid_from,
+        valid_until,
+    )
 }
 
 /// Permissive convenience wrapper over [`build_public_inputs_full`] for the
@@ -396,51 +375,8 @@ pub fn build_public_inputs(
     )
 }
 
-/// Extract the 64-byte ReportData from a packed `public_inputs` (fields
-/// 10..=12). `None` on a malformed blob. Used by the `real-zkdcap` path to
-/// defensively confirm the prover's output carries the bound ReportData,
-/// and by the server tests to read the ReportData back out.
-pub fn extract_report_data(pi: &[u8]) -> Option<[u8; 64]> {
-    if pi.len() != ULTRAHONK_PUBLIC_INPUTS_LEN {
-        return None;
-    }
-    let mut rd = [0u8; 64];
-    rd[0..31].copy_from_slice(read_limb(pi, F_REPORTDATA, 31)?);
-    rd[31..62].copy_from_slice(read_limb(pi, F_REPORTDATA + 1, 31)?);
-    rd[62..64].copy_from_slice(read_limb(pi, F_REPORTDATA + 2, 2)?);
-    Some(rd)
-}
-
-/// Read a scalar u64 field (value packed in the low 8 bytes of field `f`).
-fn scalar_u64(pi: &[u8], f: usize) -> Option<u64> {
-    if pi.len() != ULTRAHONK_PUBLIC_INPUTS_LEN {
-        return None;
-    }
-    let limb = read_limb(pi, f, 8)?;
-    Some(u64::from_be_bytes(limb.try_into().ok()?))
-}
-
-/// In-circuit verification time (u64 BE in the low 8 bytes of field 14).
-/// `None` on a malformed blob.
-pub fn extract_timestamp(pi: &[u8]) -> Option<u64> {
-    scalar_u64(pi, F_TIMESTAMP)
-}
-
-/// TCB evaluation-data number (recency counter): min over the signed TCB-Info
-/// + QE-Identity. The chain rejects values below a monotonic config floor.
-pub fn extract_tcb_eval_num(pi: &[u8]) -> Option<u64> {
-    scalar_u64(pi, F_TCB_EVAL)
-}
-
-/// Lower bound of the circuit-proven validity window (packed YYYYMMDDhhmmss).
-pub fn extract_valid_from(pi: &[u8]) -> Option<u64> {
-    scalar_u64(pi, F_VALID_FROM)
-}
-
-/// Upper bound of the circuit-proven validity window (packed YYYYMMDDhhmmss).
-pub fn extract_valid_until(pi: &[u8]) -> Option<u64> {
-    scalar_u64(pi, F_VALID_UNTIL)
-}
+// The ReportData / timestamp / tcb_eval_num / valid_from / valid_until
+// extractors are re-exported from `quartz_zkdcap` at the top of this section.
 
 // ---------------------------------------------------------------------------
 // Artifact production: (proof, public_inputs) for the chain.
@@ -870,7 +806,7 @@ mod tests {
             &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 48], &[0; 64], 0, 0,
         );
         assert_eq!(pi.len(), ULTRAHONK_PUBLIC_INPUTS_LEN);
-        assert_eq!(pi.len(), 640);
+        assert_eq!(pi.len(), 672);
     }
 
     #[test]
